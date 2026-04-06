@@ -22,9 +22,9 @@ export default function SendMessageForm({ chatId }: { chatId: string }) {
 
     setIsSending(true)
 
-    const { error } = await supabase.from('messages').insert({
-      chat_id: chatId,
-      content: trimmedContent,
+    const { error } = await supabase.rpc('send_message', {
+      target_chat_id: chatId,
+      message_content: trimmedContent,
     })
 
     if (error) {
