@@ -4,6 +4,19 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/Header'
 
+interface Profile {
+  id: string
+  full_name: string | null
+  role: string
+}
+
+interface Post {
+  id: string
+  content: string
+  created_at: string
+  employee_id: string
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
 
@@ -15,26 +28,25 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  const { data: me, error: meError } = await supabase
+  const { data: me } = await supabase
     .from('profiles')
     .select('id, full_name, role')
     .eq('id', user.id)
     .single()
 
-  return (
-    <main className="min-h-screen bg-gray-100">
-      <Header />
-      <div className="max-w-3xl mx-auto p-6">
-        <div className="bg-white rounded-2xl shadow-md p-6 space-y-3">
-          <h1 className="text-2xl font-bold">Dashboard Debug</h1>
-          <p><strong>User ID:</strong> {user.id}</p>
-          <p><strong>User Email:</strong> {user.email}</p>
-          <p><strong>Profile ID:</strong> {me?.id ?? 'няма profile'}</p>
-          <p><strong>Full Name:</strong> {me?.full_name ?? 'няма име'}</p>
-          <p><strong>Role:</strong> {me?.role ?? 'няма role'}</p>
-          <p><strong>Profile Error:</strong> {meError ? 'има грешка' : 'няма'}</p>
-        </div>
-      </div>
-    </main>
-  )
-}
+  if (!me) {
+    redirect('/login')
+  }
+
+  if (me.role !== 'admin') {
+    redirect('/wall')
+  }
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, role')
+    .eq('role', 'employee')
+
+  const { data: posts } = await supabase
+    .from('wall_posts')
+    .select('id, content,
