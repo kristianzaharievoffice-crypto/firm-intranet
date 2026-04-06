@@ -35,7 +35,6 @@ export default function SendMessageForm({ chatId }: { chatId: string }) {
 
     const { error } = await supabase.from('messages').insert({
       chat_id: chatId,
-      sender_id: user.id,
       content: trimmedContent,
     })
 
