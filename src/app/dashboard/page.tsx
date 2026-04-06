@@ -9,10 +9,9 @@ export default async function DashboardPage() {
 
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser()
 
-  if (userError || !user) {
+  if (!user) {
     redirect('/login')
   }
 
@@ -33,8 +32,7 @@ export default async function DashboardPage() {
           <p><strong>Profile ID:</strong> {me?.id ?? 'няма profile'}</p>
           <p><strong>Full Name:</strong> {me?.full_name ?? 'няма име'}</p>
           <p><strong>Role:</strong> {me?.role ?? 'няма role'}</p>
-          <p><strong>User Error:</strong> {userError?.message ?? 'няма'}</p>
-          <p><strong>Profile Error:</strong> {meError?.message ?? 'няма'}</p>
+          <p><strong>Profile Error:</strong> {meError ? 'има грешка' : 'няма'}</p>
         </div>
       </div>
     </main>
