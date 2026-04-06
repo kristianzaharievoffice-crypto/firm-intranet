@@ -19,6 +19,7 @@ export default async function Header() {
 
   async function signOut() {
     'use server'
+
     const supabase = await createClient()
     await supabase.auth.signOut()
     redirect('/login')
@@ -28,20 +29,29 @@ export default async function Header() {
     <header className="bg-white border-b">
       <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
         <div>
-          <p className="font-semibold">Фирмена мрежа</p>
+          <p className="font-semibold text-lg">Фирмена мрежа</p>
           <p className="text-sm text-gray-500">
-            {profile?.full_name || user.email} | {profile?.role}
+            {profile?.full_name || user.email} | {profile?.role || 'employee'}
           </p>
         </div>
 
-        <div className="flex gap-3">
-          <Link href="/wall">Стена</Link>
-          {profile?.role === 'admin' && <Link href="/dashboard">Dashboard</Link>}
+        <nav className="flex items-center gap-4">
+          <Link href="/wall" className="hover:underline">
+            Стена
+          </Link>
+
+          {profile?.role === 'admin' && (
+            <Link href="/dashboard" className="hover:underline">
+              Dashboard
+            </Link>
+          )}
 
           <form action={signOut}>
-            <button>Изход</button>
+            <button type="submit" className="hover:underline">
+              Изход
+            </button>
           </form>
-        </div>
+        </nav>
       </div>
     </header>
   )
