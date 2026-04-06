@@ -40,6 +40,10 @@ export default async function Header() {
             Стена
           </Link>
 
+          <Link href="/chat" className="hover:underline">
+            Чат
+          </Link>
+
           {profile?.role === 'admin' && (
             <Link href="/dashboard" className="hover:underline">
               Dashboard
