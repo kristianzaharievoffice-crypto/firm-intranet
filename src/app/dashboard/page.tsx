@@ -42,12 +42,12 @@ export default async function DashboardPage() {
     redirect('/wall')
   }
 
-  const { data: profiles } = await supabase
+  const { data: profiles, error: profilesError } = await supabase
     .from('profiles')
     .select('id, full_name, role')
     .eq('role', 'employee')
 
-  const { data: posts } = await supabase
+  const { data: posts, error: postsError } = await supabase
     .from('wall_posts')
     .select('id, content, created_at, employee_id')
     .order('created_at', { ascending: false })
@@ -60,6 +60,14 @@ export default async function DashboardPage() {
       <Header />
       <div className="max-w-5xl mx-auto p-6 space-y-8">
         <h1 className="text-3xl font-bold">Админ панел</h1>
+
+        <div className="bg-white rounded-2xl shadow-md p-6 space-y-2">
+          <p><strong>Admin:</strong> {me.full_name} / {me.role}</p>
+          <p><strong>Employees count:</strong> {employees.length}</p>
+          <p><strong>Posts count:</strong> {allPosts.length}</p>
+          <p><strong>Profiles error:</strong> {profilesError ? 'има грешка' : 'няма'}</p>
+          <p><strong>Posts error:</strong> {postsError ? 'има грешка' : 'няма'}</p>
+        </div>
 
         {employees.map((employee) => {
           const employeePosts = allPosts.filter((p) => p.employee_id === employee.id)
