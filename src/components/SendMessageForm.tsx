@@ -22,17 +22,6 @@ export default function SendMessageForm({ chatId }: { chatId: string }) {
 
     setIsSending(true)
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      setMessage('Няма активен потребител.')
-      setIsSending(false)
-      return
-    }
-
     const { error } = await supabase.from('messages').insert({
       chat_id: chatId,
       content: trimmedContent,
