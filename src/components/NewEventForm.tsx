@@ -1,0 +1,95 @@
+'use client'
+
+import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+
+export default function NewEventForm() {
+  const supabase = createClient()
+
+  const [title, setTitle] = useState('')
+  const [location, setLocation] = useState('')
+  const [date, setDate] = useState('')
+  const [time, setTime] = useState('')
+  const [description, setDescription] = useState('')
+  const [message, setMessage] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setMessage('')
+
+    if (!title.trim() || !date) {
+      setMessage('Попълни поне събитие и дата.')
+      return
+    }
+
+    setIsSaving(true)
+
+    const { error } = await supabase.from('events').insert({
+      title: title.trim(),
+      location: location.trim(),
+      date,
+      time: time.trim(),
+      description: description.trim(),
+    })
+
+    if (error) {
+      setMessage(error.message)
+      setIsSaving(false)
+      return
+    }
+
+    window.location.href = '/events'
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl space-y-4 shadow">
+      <h1 className="text-2xl font-bold">Ново събитие</h1>
+
+      <input
+        className="w-full border rounded-xl px-4 py-3"
+        placeholder="Събитие"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+      />
+
+      <input
+        className="w-full border rounded-xl px-4 py-3"
+        placeholder="Място"
+        value={location}
+        onChange={(e) => setLocation(e.target.value)}
+      />
+
+      <input
+        className="w-full border rounded-xl px-4 py-3"
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+      />
+
+      <input
+        className="w-full border rounded-xl px-4 py-3"
+        placeholder="Час"
+        value={time}
+        onChange={(e) => setTime(e.target.value)}
+      />
+
+      <textarea
+        className="w-full border rounded-xl px-4 py-3 min-h-32"
+        placeholder="Описание"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+      />
+
+      <button
+        type="submit"
+        disabled={isSaving}
+        className="bg-black text-white px-4 py-2 rounded-xl disabled:opacity-60"
+      >
+        {isSaving ? 'Записване...' : 'Създай'}
+      </button>
+
+      {message && <p className="text-sm text-red-600">{message}</p>}
+    </form>
+  )
+}
