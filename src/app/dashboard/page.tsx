@@ -26,14 +26,34 @@ async function markReviewed(formData: FormData) {
   const postId = formData.get('postId') as string
   const supabase = await createClient()
 
+  const { data: post } = await supabase
+    .from('wall_posts')
+    .select('id, employee_id, reviewed')
+    .eq('id', postId)
+    .single()
+
+  if (!post) return
+
   await supabase
     .from('wall_posts')
     .update({ reviewed: true })
     .eq('id', postId)
 
+  if (!post.reviewed) {
+    await supabase.from('notifications').insert({
+      user_id: post.employee_id,
+      type: 'review',
+      title: 'Постът ти беше прегледан',
+      body: 'Администраторът маркира твоя пост като проверен.',
+      link: '/wall',
+    })
+  }
+
   revalidatePath('/dashboard')
   revalidatePath('/wall')
+  revalidatePath('/notifications')
 }
+
 
 async function changePostStatus(formData: FormData) {
   'use server'
@@ -42,14 +62,34 @@ async function changePostStatus(formData: FormData) {
   const status = formData.get('status') as string
   const supabase = await createClient()
 
+  const { data: post } = await supabase
+    .from('wall_posts')
+    .select('id, employee_id, status')
+    .eq('id', postId)
+    .single()
+
+  if (!post) return
+
   await supabase
     .from('wall_posts')
     .update({ status })
     .eq('id', postId)
 
+  if (post.status !== status) {
+    await supabase.from('notifications').insert({
+      user_id: post.employee_id,
+      type: 'status',
+      title: 'Статусът на твой пост беше сменен',
+      body: `Новият статус е: ${status}`,
+      link: '/wall',
+    })
+  }
+
   revalidatePath('/dashboard')
   revalidatePath('/wall')
+  revalidatePath('/notifications')
 }
+
 
 async function deletePostFromDashboard(formData: FormData) {
   'use server'

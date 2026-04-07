@@ -25,12 +25,12 @@ export default function NewEventForm() {
 
     setIsSaving(true)
 
-    const { error } = await supabase.from('events').insert({
-      title: title.trim(),
-      location: location.trim(),
-      date,
-      time: time.trim(),
-      description: description.trim(),
+    const { error } = await supabase.rpc('create_event_with_notifications', {
+      event_title: title.trim(),
+      event_location: location.trim(),
+      event_date: date,
+      event_time: time.trim(),
+      event_description: description.trim(),
     })
 
     if (error) {
@@ -43,7 +43,10 @@ export default function NewEventForm() {
   }
 
   return (
-    <form className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 space-y-4" onSubmit={handleSubmit}>
+    <form
+      className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 space-y-4"
+      onSubmit={handleSubmit}
+    >
       <div>
         <h1 className="text-2xl font-bold">Ново събитие</h1>
         <p className="text-sm text-gray-500 mt-1">

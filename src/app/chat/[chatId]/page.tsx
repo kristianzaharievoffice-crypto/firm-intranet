@@ -54,6 +54,10 @@ export default async function ChatDetailsPage({
     redirect('/wall')
   }
 
+  await supabase.rpc('mark_chat_read', {
+    target_chat_id: chatId,
+  })
+
   const { data: messages } = await supabase
     .from('messages')
     .select('id, content, created_at, sender_id, chat_id')
