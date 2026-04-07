@@ -29,7 +29,7 @@ export default async function Header() {
     <header className="bg-white border-b">
       <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
         <div>
-          <p className="font-semibold text-lg">Фирмена мрежа</p>
+          <p className="font-semibold text-lg">RCX NETOWRK</p>
           <p className="text-sm text-gray-500">
             {profile?.full_name || user.email} | {profile?.role || 'employee'}
           </p>

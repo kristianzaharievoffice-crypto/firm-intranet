@@ -4,52 +4,96 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function NewPostForm() {
-const supabase = createClient()
-const [content, setContent] = useState('')
-const [message, setMessage] = useState('')
+  const supabase = createClient()
+  const [content, setContent] = useState('')
+  const [status, setStatus] = useState('в процес')
+  const [message, setMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-const handleSubmit = async (e: React.FormEvent) => {
-e.preventDefault()
-setMessage('')
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setMessage('')
 
-const {
-data: { user },
-error: userError,
-} = await supabase.auth.getUser()
+    const trimmedContent = content.trim()
 
-if (userError || !user) {
-setMessage('Няма активен потребител.')
-return
-}
+    if (!trimmedContent) {
+      setMessage('Моля, опиши какво е свършено.')
+      return
+    }
 
-const { error } = await supabase.from('wall_posts').insert({
-employee_id: user.id,
-content,
-})
+    setIsSubmitting(true)
 
-if (error) {
-setMessage(error.message)
-return
-}
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
 
-setContent('')
-setMessage('Публикацията е качена успешно.')
-window.location.reload()
-}
+    if (userError || !user) {
+      setMessage('Няма активен потребител.')
+      setIsSubmitting(false)
+      return
+    }
 
-return (
-<form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-md p-6 space-y-4">
-<h2 className="text-xl font-bold">Добави отчет</h2>
-<textarea
-value={content}
-onChange={(e) => setContent(e.target.value)}
-placeholder="Опиши какво свърши днес..."
-className="w-full min-h-32 border rounded-xl px-4 py-3"
-/>
-<button className="bg-black text-white px-4 py-2 rounded-xl" type="submit">
-Публикувай
-</button>
-{message && <p className="text-sm text-gray-600">{message}</p>}
-</form>
-)
+    const { error } = await supabase.from('wall_posts').insert({
+      employee_id: user.id,
+      content: trimmedContent,
+      status,
+    })
+
+    if (error) {
+      setMessage(error.message)
+      setIsSubmitting(false)
+      return
+    }
+
+    setContent('')
+    setStatus('в процес')
+    setMessage('Проектът е добавен успешно.')
+    setIsSubmitting(false)
+    window.location.reload()
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-lg p-6 space-y-5 border border-gray-100">
+      <div>
+        <h2 className="text-2xl font-bold">Нов проект / отчет</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Добави какво си свършил и избери текущ статус.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700">Описание</label>
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Например: Завърших дизайна на началната страница и подготвих чат модула..."
+          className="w-full min-h-36 border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700">Статус</label>
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="w-full border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-black bg-white"
+        >
+          <option value="в процес">В процес</option>
+          <option value="за проверка">За проверка</option>
+          <option value="готово">Готово</option>
+        </select>
+      </div>
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="bg-black text-white px-5 py-3 rounded-2xl disabled:opacity-60"
+      >
+        {isSubmitting ? 'Записване...' : 'Добави'}
+      </button>
+
+      {message && <p className="text-sm text-gray-600">{message}</p>}
+    </form>
+  )
 }

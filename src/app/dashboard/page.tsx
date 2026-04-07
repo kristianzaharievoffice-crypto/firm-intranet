@@ -15,6 +15,18 @@ interface Post {
   content: string
   created_at: string
   employee_id: string
+  status: string
+}
+
+function getStatusClasses(status: string) {
+  switch (status) {
+    case 'готово':
+      return 'bg-green-100 text-green-700'
+    case 'за проверка':
+      return 'bg-yellow-100 text-yellow-700'
+    default:
+      return 'bg-blue-100 text-blue-700'
+  }
 }
 
 export default async function DashboardPage() {
@@ -47,34 +59,31 @@ export default async function DashboardPage() {
     .select('id, full_name, role')
     .eq('role', 'employee')
 
-  const { data: posts, error: postsError } = await supabase
+  const { data: posts } = await supabase
     .from('wall_posts')
-    .select('id, content, created_at, employee_id')
+    .select('id, content, created_at, employee_id, status')
     .order('created_at', { ascending: false })
 
   const employees = (profiles ?? []) as Profile[]
   const allPosts = (posts ?? []) as Post[]
 
   return (
-    <main className="min-h-screen bg-gray-100">
+    <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
       <Header />
       <div className="max-w-5xl mx-auto p-6 space-y-8">
-        <h1 className="text-3xl font-bold">Админ панел</h1>
-
-        <div className="bg-white rounded-2xl shadow-md p-6 space-y-2">
-          <p><strong>Admin:</strong> {me.full_name} / {me.role}</p>
-          <p><strong>Employees count:</strong> {employees.length}</p>
-          <p><strong>Posts count:</strong> {allPosts.length}</p>
-          <p><strong>Profiles error:</strong> {profilesError ? 'има грешка' : 'няма'}</p>
-          <p><strong>Posts error:</strong> {postsError ? 'има грешка' : 'няма'}</p>
+        <div>
+          <h1 className="text-4xl font-extrabold tracking-tight">Админ панел</h1>
+          <p className="text-gray-500 mt-2">
+            Преглед на служителите и техните текущи проекти.
+          </p>
         </div>
 
         {employees.map((employee) => {
           const employeePosts = allPosts.filter((p) => p.employee_id === employee.id)
 
           return (
-            <div key={employee.id} className="bg-white rounded-2xl shadow-md p-6">
-              <h2 className="text-xl font-bold mb-1">
+            <div key={employee.id} className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100">
+              <h2 className="text-2xl font-bold mb-1">
                 {employee.full_name ?? 'Без име'}
               </h2>
               <p className="text-sm text-gray-500 mb-4">Роля: {employee.role}</p>
@@ -82,11 +91,17 @@ export default async function DashboardPage() {
               <div className="space-y-3">
                 {employeePosts.length ? (
                   employeePosts.map((post) => (
-                    <div key={post.id} className="border rounded-xl p-4">
-                      <p className="mb-2 whitespace-pre-wrap">{post.content}</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(post.created_at).toLocaleString('bg-BG')}
-                      </p>
+                    <div key={post.id} className="border rounded-2xl p-4 bg-gray-50">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <span className={`text-sm font-medium px-3 py-1 rounded-full ${getStatusClasses(post.status)}`}>
+                          {post.status}
+                        </span>
+                        <p className="text-sm text-gray-500">
+                          {new Date(post.created_at).toLocaleString('bg-BG')}
+                        </p>
+                      </div>
+
+                      <p className="whitespace-pre-wrap">{post.content}</p>
                     </div>
                   ))
                 ) : (
