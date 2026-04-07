@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import Header from '@/components/Header'
 
@@ -19,7 +20,6 @@ interface Post {
   reviewed: boolean
 }
 
-// 🎯 Маркиране като проверено
 async function markReviewed(formData: FormData) {
   'use server'
 
@@ -30,9 +30,11 @@ async function markReviewed(formData: FormData) {
     .from('wall_posts')
     .update({ reviewed: true })
     .eq('id', postId)
+
+  revalidatePath('/dashboard')
+  revalidatePath('/wall')
 }
 
-// 🎨 Стил за статус
 function getStatusClasses(status: string) {
   switch (status) {
     case 'готово':
@@ -87,7 +89,6 @@ export default async function DashboardPage() {
       <Header />
 
       <div className="max-w-5xl mx-auto p-6 space-y-8">
-        {/* Заглавие */}
         <div>
           <h1 className="text-4xl font-extrabold tracking-tight">
             Админ панел
@@ -97,7 +98,6 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        {/* Служители */}
         {employees.map((employee) => {
           const employeePosts = allPosts.filter(
             (p) => p.employee_id === employee.id
@@ -108,7 +108,6 @@ export default async function DashboardPage() {
               key={employee.id}
               className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100"
             >
-              {/* Име */}
               <h2 className="text-2xl font-bold mb-1">
                 {employee.full_name ?? 'Без име'}
               </h2>
@@ -117,7 +116,6 @@ export default async function DashboardPage() {
                 Роля: {employee.role}
               </p>
 
-              {/* Постове */}
               <div className="space-y-4">
                 {employeePosts.length ? (
                   employeePosts.map((post) => (
@@ -125,7 +123,6 @@ export default async function DashboardPage() {
                       key={post.id}
                       className="border rounded-2xl p-4 bg-gray-50"
                     >
-                      {/* Статус + дата */}
                       <div className="flex items-center justify-between mb-3">
                         <span
                           className={`text-sm font-medium px-3 py-1 rounded-full ${getStatusClasses(
@@ -140,42 +137,36 @@ export default async function DashboardPage() {
                         </p>
                       </div>
 
-                      {/* Текст */}
                       <p className="whitespace-pre-wrap mb-3">
                         {post.content}
                       </p>
 
-                      {/* Проверка */}
                       {post.reviewed ? (
                         <span className="text-green-600 text-sm font-medium">
                           ✔ Проверено
                         </span>
                       ) : (
-                        <span className="text-blue-600 text-sm font-medium">
-                          ⏳ Чака проверка
-                        </span>
-                      )}
+                        <div className="space-y-3">
+                          <span className="text-blue-600 text-sm font-medium block">
+                            ⏳ Чака проверка
+                          </span>
 
-                      {/* Бутон */}
-                      {!post.reviewed && (
-                        <form action={markReviewed}>
-                          <input
-                            type="hidden"
-                            name="postId"
-                            value={post.id}
-                          />
-
-                          <button className="mt-3 text-sm bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700">
-                            Маркирай като проверено
-                          </button>
-                        </form>
+                          <form action={markReviewed}>
+                            <input
+                              type="hidden"
+                              name="postId"
+                              value={post.id}
+                            />
+                            <button className="text-sm bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700">
+                              Маркирай като проверено
+                            </button>
+                          </form>
+                        </div>
                       )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-gray-500">
-                    Няма публикации.
-                  </p>
+                  <p className="text-gray-500">Няма публикации.</p>
                 )}
               </div>
             </div>

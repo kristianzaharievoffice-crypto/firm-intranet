@@ -43,39 +43,44 @@ export default function NewEventForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl space-y-4 shadow">
-      <h1 className="text-2xl font-bold">Ново събитие</h1>
+    <form className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 space-y-4" onSubmit={handleSubmit}>
+      <div>
+        <h1 className="text-2xl font-bold">Ново събитие</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Създай ново вътрешно събитие за екипа
+        </p>
+      </div>
 
       <input
-        className="w-full border rounded-xl px-4 py-3"
+        className="w-full border rounded-2xl px-4 py-3"
         placeholder="Събитие"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
 
       <input
-        className="w-full border rounded-xl px-4 py-3"
+        className="w-full border rounded-2xl px-4 py-3"
         placeholder="Място"
         value={location}
         onChange={(e) => setLocation(e.target.value)}
       />
 
       <input
-        className="w-full border rounded-xl px-4 py-3"
+        className="w-full border rounded-2xl px-4 py-3"
         type="date"
         value={date}
         onChange={(e) => setDate(e.target.value)}
       />
 
       <input
-        className="w-full border rounded-xl px-4 py-3"
+        className="w-full border rounded-2xl px-4 py-3"
         placeholder="Час"
         value={time}
         onChange={(e) => setTime(e.target.value)}
       />
 
       <textarea
-        className="w-full border rounded-xl px-4 py-3 min-h-32"
+        className="w-full border rounded-2xl px-4 py-3 min-h-32"
         placeholder="Описание"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
@@ -84,7 +89,7 @@ export default function NewEventForm() {
       <button
         type="submit"
         disabled={isSaving}
-        className="bg-black text-white px-4 py-2 rounded-xl disabled:opacity-60"
+        className="bg-black text-white px-4 py-3 rounded-2xl disabled:opacity-60"
       >
         {isSaving ? 'Записване...' : 'Създай'}
       </button>
