@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 interface Post {
   id: string
   content: string
@@ -41,7 +43,6 @@ export default function PostsList({
           key={post.id}
           className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100"
         >
-          {/* Статус + дата */}
           <div className="flex items-center justify-between mb-4">
             <span
               className={`text-sm font-medium px-3 py-1 rounded-full ${getStatusClasses(
@@ -56,12 +57,8 @@ export default function PostsList({
             </p>
           </div>
 
-          {/* Текст */}
-          <p className="whitespace-pre-wrap text-gray-800 mb-3">
-            {post.content}
-          </p>
+          <p className="whitespace-pre-wrap text-gray-800 mb-3">{post.content}</p>
 
-          {/* Проверка */}
           {post.reviewed ? (
             <span className="text-green-600 text-sm font-medium">
               ✔ Проверено от админ
@@ -72,13 +69,21 @@ export default function PostsList({
             </span>
           )}
 
-          {/* Delete */}
-          <form action={deleteAction} className="mt-4">
-            <input type="hidden" name="postId" value={post.id} />
-            <button className="text-red-600 text-sm hover:underline">
-              Изтрий
-            </button>
-          </form>
+          <div className="mt-4 flex items-center gap-4">
+            <Link
+              href={`/wall/edit/${post.id}`}
+              className="text-sm text-black hover:underline"
+            >
+              Редактирай
+            </Link>
+
+            <form action={deleteAction}>
+              <input type="hidden" name="postId" value={post.id} />
+              <button className="text-red-600 text-sm hover:underline">
+                Изтрий
+              </button>
+            </form>
+          </div>
         </div>
       ))}
     </div>
