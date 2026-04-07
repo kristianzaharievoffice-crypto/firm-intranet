@@ -43,6 +43,7 @@ export default async function Header() {
           <Link href="/chat" className="hover:underline">
             Чат
           </Link>
+          <Link href="/events">Събития</Link>
 
           {profile?.role === 'admin' && (
             <Link href="/dashboard" className="hover:underline">

@@ -16,8 +16,23 @@ interface Post {
   created_at: string
   employee_id: string
   status: string
+  reviewed: boolean
 }
 
+// 🎯 Маркиране като проверено
+async function markReviewed(formData: FormData) {
+  'use server'
+
+  const postId = formData.get('postId') as string
+  const supabase = await createClient()
+
+  await supabase
+    .from('wall_posts')
+    .update({ reviewed: true })
+    .eq('id', postId)
+}
+
+// 🎨 Стил за статус
 function getStatusClasses(status: string) {
   switch (status) {
     case 'готово':
@@ -54,14 +69,14 @@ export default async function DashboardPage() {
     redirect('/wall')
   }
 
-  const { data: profiles, error: profilesError } = await supabase
+  const { data: profiles } = await supabase
     .from('profiles')
     .select('id, full_name, role')
     .eq('role', 'employee')
 
   const { data: posts } = await supabase
     .from('wall_posts')
-    .select('id, content, created_at, employee_id, status')
+    .select('id, content, created_at, employee_id, status, reviewed')
     .order('created_at', { ascending: false })
 
   const employees = (profiles ?? []) as Profile[]
@@ -70,42 +85,97 @@ export default async function DashboardPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
       <Header />
+
       <div className="max-w-5xl mx-auto p-6 space-y-8">
+        {/* Заглавие */}
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight">Админ панел</h1>
+          <h1 className="text-4xl font-extrabold tracking-tight">
+            Админ панел
+          </h1>
           <p className="text-gray-500 mt-2">
-            Преглед на служителите и техните текущи проекти.
+            Преглед на служителите и техните проекти
           </p>
         </div>
 
+        {/* Служители */}
         {employees.map((employee) => {
-          const employeePosts = allPosts.filter((p) => p.employee_id === employee.id)
+          const employeePosts = allPosts.filter(
+            (p) => p.employee_id === employee.id
+          )
 
           return (
-            <div key={employee.id} className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100">
+            <div
+              key={employee.id}
+              className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100"
+            >
+              {/* Име */}
               <h2 className="text-2xl font-bold mb-1">
                 {employee.full_name ?? 'Без име'}
               </h2>
-              <p className="text-sm text-gray-500 mb-4">Роля: {employee.role}</p>
 
-              <div className="space-y-3">
+              <p className="text-sm text-gray-500 mb-4">
+                Роля: {employee.role}
+              </p>
+
+              {/* Постове */}
+              <div className="space-y-4">
                 {employeePosts.length ? (
                   employeePosts.map((post) => (
-                    <div key={post.id} className="border rounded-2xl p-4 bg-gray-50">
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <span className={`text-sm font-medium px-3 py-1 rounded-full ${getStatusClasses(post.status)}`}>
+                    <div
+                      key={post.id}
+                      className="border rounded-2xl p-4 bg-gray-50"
+                    >
+                      {/* Статус + дата */}
+                      <div className="flex items-center justify-between mb-3">
+                        <span
+                          className={`text-sm font-medium px-3 py-1 rounded-full ${getStatusClasses(
+                            post.status
+                          )}`}
+                        >
                           {post.status}
                         </span>
+
                         <p className="text-sm text-gray-500">
                           {new Date(post.created_at).toLocaleString('bg-BG')}
                         </p>
                       </div>
 
-                      <p className="whitespace-pre-wrap">{post.content}</p>
+                      {/* Текст */}
+                      <p className="whitespace-pre-wrap mb-3">
+                        {post.content}
+                      </p>
+
+                      {/* Проверка */}
+                      {post.reviewed ? (
+                        <span className="text-green-600 text-sm font-medium">
+                          ✔ Проверено
+                        </span>
+                      ) : (
+                        <span className="text-blue-600 text-sm font-medium">
+                          ⏳ Чака проверка
+                        </span>
+                      )}
+
+                      {/* Бутон */}
+                      {!post.reviewed && (
+                        <form action={markReviewed}>
+                          <input
+                            type="hidden"
+                            name="postId"
+                            value={post.id}
+                          />
+
+                          <button className="mt-3 text-sm bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700">
+                            Маркирай като проверено
+                          </button>
+                        </form>
+                      )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-gray-500">Няма публикации.</p>
+                  <p className="text-gray-500">
+                    Няма публикации.
+                  </p>
                 )}
               </div>
             </div>

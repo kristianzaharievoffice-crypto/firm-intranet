@@ -3,6 +3,7 @@ interface Post {
   content: string
   created_at: string
   status: string
+  reviewed: boolean
 }
 
 function getStatusClasses(status: string) {
@@ -16,11 +17,19 @@ function getStatusClasses(status: string) {
   }
 }
 
-export default function PostsList({ posts }: { posts: Post[] }) {
+export default function PostsList({
+  posts,
+  deleteAction,
+}: {
+  posts: Post[]
+  deleteAction: (formData: FormData) => Promise<void>
+}) {
   if (!posts.length) {
     return (
       <div className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100">
-        <p className="text-gray-500">Все още няма добавени проекти или отчети.</p>
+        <p className="text-gray-500">
+          Все още няма добавени проекти или отчети.
+        </p>
       </div>
     )
   }
@@ -28,17 +37,48 @@ export default function PostsList({ posts }: { posts: Post[] }) {
   return (
     <div className="space-y-4">
       {posts.map((post) => (
-        <div key={post.id} className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <span className={`text-sm font-medium px-3 py-1 rounded-full ${getStatusClasses(post.status)}`}>
+        <div
+          key={post.id}
+          className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100"
+        >
+          {/* Статус + дата */}
+          <div className="flex items-center justify-between mb-4">
+            <span
+              className={`text-sm font-medium px-3 py-1 rounded-full ${getStatusClasses(
+                post.status
+              )}`}
+            >
               {post.status}
             </span>
+
             <p className="text-sm text-gray-500">
               {new Date(post.created_at).toLocaleString('bg-BG')}
             </p>
           </div>
 
-          <p className="whitespace-pre-wrap text-gray-800 leading-7">{post.content}</p>
+          {/* Текст */}
+          <p className="whitespace-pre-wrap text-gray-800 mb-3">
+            {post.content}
+          </p>
+
+          {/* Проверка */}
+          {post.reviewed ? (
+            <span className="text-green-600 text-sm font-medium">
+              ✔ Проверено от админ
+            </span>
+          ) : (
+            <span className="text-blue-600 text-sm font-medium">
+              ⏳ Чака проверка
+            </span>
+          )}
+
+          {/* Delete */}
+          <form action={deleteAction} className="mt-4">
+            <input type="hidden" name="postId" value={post.id} />
+            <button className="text-red-600 text-sm hover:underline">
+              Изтрий
+            </button>
+          </form>
         </div>
       ))}
     </div>
