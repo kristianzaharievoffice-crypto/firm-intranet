@@ -39,7 +39,7 @@ export default async function WallPage() {
 
   const { data: posts } = await supabase
     .from('wall_posts')
-    .select('id, content, created_at, status, reviewed')
+    .select('id, content, created_at, status, reviewed, attachment_url')
     .eq('employee_id', user.id)
     .order('created_at', { ascending: false })
 

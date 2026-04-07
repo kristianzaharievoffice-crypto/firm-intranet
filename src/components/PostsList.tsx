@@ -6,6 +6,7 @@ interface Post {
   created_at: string
   status: string
   reviewed: boolean
+  attachment_url?: string | null
 }
 
 function getStatusClasses(status: string) {
@@ -58,6 +59,17 @@ export default function PostsList({
           </div>
 
           <p className="whitespace-pre-wrap text-gray-800 mb-3">{post.content}</p>
+
+          {post.attachment_url && (
+            <a
+              href={post.attachment_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block text-sm text-blue-600 hover:underline mb-3"
+            >
+              Отвори прикачения файл
+            </a>
+          )}
 
           {post.reviewed ? (
             <span className="text-green-600 text-sm font-medium">

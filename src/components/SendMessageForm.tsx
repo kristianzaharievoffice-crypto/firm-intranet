@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 export default function SendMessageForm({ chatId }: { chatId: string }) {
   const supabase = createClient()
   const [content, setContent] = useState('')
+  const [file, setFile] = useState<File | null>(null)
   const [message, setMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
 
@@ -15,16 +16,51 @@ export default function SendMessageForm({ chatId }: { chatId: string }) {
 
     const trimmedContent = content.trim()
 
-    if (!trimmedContent) {
-      setMessage('Напиши съобщение.')
+    if (!trimmedContent && !file) {
+      setMessage('Напиши съобщение или избери файл.')
       return
     }
 
     setIsSending(true)
 
+    let attachmentUrl: string | null = null
+
+    if (file) {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError || !user) {
+        setMessage('Няма активен потребител.')
+        setIsSending(false)
+        return
+      }
+
+      const fileExt = file.name.split('.').pop()
+      const filePath = `${user.id}/${Date.now()}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-files')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        setMessage(uploadError.message)
+        setIsSending(false)
+        return
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('chat-files')
+        .getPublicUrl(filePath)
+
+      attachmentUrl = publicUrlData.publicUrl
+    }
+
     const { error } = await supabase.rpc('send_message', {
       target_chat_id: chatId,
-      message_content: trimmedContent,
+      message_content: trimmedContent || (attachmentUrl ? 'Прикачен файл' : ''),
+      message_attachment_url: attachmentUrl,
     })
 
     if (error) {
@@ -34,6 +70,7 @@ export default function SendMessageForm({ chatId }: { chatId: string }) {
     }
 
     setContent('')
+    setFile(null)
     setIsSending(false)
   }
 
@@ -46,6 +83,12 @@ export default function SendMessageForm({ chatId }: { chatId: string }) {
         onChange={(e) => setContent(e.target.value)}
         placeholder="Напиши съобщение..."
         className="w-full min-h-28 border rounded-xl px-4 py-3"
+      />
+
+      <input
+        type="file"
+        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        className="w-full border rounded-xl px-4 py-3 bg-white"
       />
 
       <button

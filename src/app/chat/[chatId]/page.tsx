@@ -12,6 +12,7 @@ interface Message {
   created_at: string
   sender_id: string
   chat_id: string
+  attachment_url?: string | null
 }
 
 export default async function ChatDetailsPage({
@@ -60,9 +61,23 @@ export default async function ChatDetailsPage({
 
   const { data: messages } = await supabase
     .from('messages')
-    .select('id, content, created_at, sender_id, chat_id')
+    .select('id, content, created_at, sender_id, chat_id, attachment_url')
     .eq('chat_id', chatId)
     .order('created_at', { ascending: true })
+
+  const senderIds = [...new Set((messages ?? []).map((m) => m.sender_id))]
+  const safeSenderIds = senderIds.length
+    ? senderIds
+    : ['00000000-0000-0000-0000-000000000000']
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('id', safeSenderIds)
+
+  const senderNames = Object.fromEntries(
+    (profiles ?? []).map((profile) => [profile.id, profile.full_name ?? 'Потребител'])
+  )
 
   return (
     <main className="min-h-screen bg-gray-100">
@@ -74,6 +89,7 @@ export default async function ChatDetailsPage({
           initialMessages={(messages ?? []) as Message[]}
           currentUserId={user.id}
           chatId={chatId}
+          senderNames={senderNames}
         />
 
         <SendMessageForm chatId={chatId} />

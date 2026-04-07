@@ -7,6 +7,7 @@ export default function NewPostForm() {
   const supabase = createClient()
   const [content, setContent] = useState('')
   const [status, setStatus] = useState('в процес')
+  const [file, setFile] = useState<File | null>(null)
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -34,10 +35,34 @@ export default function NewPostForm() {
       return
     }
 
+    let attachmentUrl: string | null = null
+
+    if (file) {
+      const fileExt = file.name.split('.').pop()
+      const filePath = `${user.id}/${Date.now()}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('post-files')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        setMessage(uploadError.message)
+        setIsSubmitting(false)
+        return
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('post-files')
+        .getPublicUrl(filePath)
+
+      attachmentUrl = publicUrlData.publicUrl
+    }
+
     const { error } = await supabase.from('wall_posts').insert({
       employee_id: user.id,
       content: trimmedContent,
       status,
+      attachment_url: attachmentUrl,
     })
 
     if (error) {
@@ -48,6 +73,7 @@ export default function NewPostForm() {
 
     setContent('')
     setStatus('в процес')
+    setFile(null)
     setMessage('Проектът е добавен успешно.')
     setIsSubmitting(false)
     window.location.reload()
@@ -83,6 +109,15 @@ export default function NewPostForm() {
           <option value="за проверка">За проверка</option>
           <option value="готово">Готово</option>
         </select>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700">Файл</label>
+        <input
+          type="file"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="w-full border rounded-2xl px-4 py-3 bg-white"
+        />
       </div>
 
       <button
