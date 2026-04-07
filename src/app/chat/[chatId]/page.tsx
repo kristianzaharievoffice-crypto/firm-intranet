@@ -1,75 +1,79 @@
-'use client'
+export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import Header from '@/components/Header'
+import RealtimeChat from '@/components/RealtimeChat'
 import SendMessageForm from '@/components/SendMessageForm'
 
-export default function SendMessageForm({ chatId }: { chatId: string }) {
-  const supabase = createClient()
-  const [content, setContent] = useState('')
-  const [message, setMessage] = useState('')
-  const [isSending, setIsSending] = useState(false)
+interface Message {
+  id: string
+  content: string
+  created_at: string
+  sender_id: string
+  chat_id: string
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setMessage('')
+export default async function ChatDetailsPage({
+  params,
+}: {
+  params: Promise<{ chatId: string }>
+}) {
+  const { chatId } = await params
+  const supabase = await createClient()
 
-    const trimmedContent = content.trim()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-    if (!trimmedContent) {
-      setMessage('Напиши съобщение.')
-      return
-    }
-
-    setIsSending(true)
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      setMessage('Няма активен потребител.')
-      setIsSending(false)
-      return
-    }
-
-    const { error } = await supabase.from('messages').insert({
-      chat_id: chatId,
-      sender_id: user.id,
-      content: trimmedContent,
-    })
-
-    if (error) {
-      setMessage(error.message)
-      setIsSending(false)
-      return
-    }
-
-    setContent('')
-    setIsSending(false)
+  if (!user) {
+    redirect('/login')
   }
 
+  const { data: me } = await supabase
+    .from('profiles')
+    .select('id, full_name, role')
+    .eq('id', user.id)
+    .single()
+
+  if (!me) {
+    redirect('/login')
+  }
+
+  const { data: chat } = await supabase
+    .from('chats')
+    .select('id, admin_id, employee_id')
+    .eq('id', chatId)
+    .single()
+
+  if (!chat) {
+    redirect('/chat')
+  }
+
+  if (me.role !== 'admin' && chat.employee_id !== user.id) {
+    redirect('/wall')
+  }
+
+  const { data: messages } = await supabase
+    .from('messages')
+    .select('id, content, created_at, sender_id, chat_id')
+    .eq('chat_id', chatId)
+    .order('created_at', { ascending: true })
+
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-md p-6 space-y-4">
-      <h2 className="text-xl font-bold">Ново съобщение</h2>
+    <main className="min-h-screen bg-gray-100">
+      <Header />
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        <h1 className="text-3xl font-bold">Чат</h1>
 
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="Напиши съобщение..."
-        className="w-full min-h-28 border rounded-xl px-4 py-3"
-      />
+        <RealtimeChat
+          initialMessages={(messages ?? []) as Message[]}
+          currentUserId={user.id}
+          chatId={chatId}
+        />
 
-      <button
-        type="submit"
-        disabled={isSending}
-        className="bg-black text-white px-4 py-2 rounded-xl disabled:opacity-60"
-      >
-        {isSending ? 'Изпращане...' : 'Изпрати'}
-      </button>
-
-      {message && <p className="text-sm text-gray-600">{message}</p>}
-    </form>
+        <SendMessageForm chatId={chatId} />
+      </div>
+    </main>
   )
 }
