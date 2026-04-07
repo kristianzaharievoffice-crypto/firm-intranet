@@ -79,7 +79,10 @@ export default function PostsList({
 
             <form action={deleteAction}>
               <input type="hidden" name="postId" value={post.id} />
-              <button className="text-red-600 text-sm hover:underline">
+              <button
+                type="submit"
+                className="text-red-600 text-sm hover:underline"
+              >
                 Изтрий
               </button>
             </form>
