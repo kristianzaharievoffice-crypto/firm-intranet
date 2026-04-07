@@ -38,25 +38,29 @@ export default function NewPostForm() {
     let attachmentUrl: string | null = null
 
     if (file) {
-      const fileExt = file.name.split('.').pop()
-      const filePath = `${user.id}/${Date.now()}.${fileExt}`
+const originalName = file.name || 'file'
+const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
+const filePath = `${user.id}/${Date.now()}_${safeName}`
 
-      const { error: uploadError } = await supabase.storage
-        .from('post-files')
-        .upload(filePath, file)
+const { error: uploadError } = await supabase.storage
+  .from('post-files')
+  .upload(filePath, file, {
+    upsert: false,
+  })
 
-      if (uploadError) {
-        setMessage(uploadError.message)
-        setIsSubmitting(false)
-        return
-      }
+if (uploadError) {
+  setMessage(uploadError.message)
+  setIsSubmitting(false)
+  return
+}
 
-      const { data: publicUrlData } = supabase.storage
-        .from('post-files')
-        .getPublicUrl(filePath)
+const { data: publicUrlData } = supabase.storage
+  .from('post-files')
+  .getPublicUrl(filePath)
 
-      attachmentUrl = publicUrlData.publicUrl
+attachmentUrl = publicUrlData.publicUrl
     }
+
 
     const { error } = await supabase.from('wall_posts').insert({
       employee_id: user.id,

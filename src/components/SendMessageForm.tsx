@@ -37,24 +37,29 @@ export default function SendMessageForm({ chatId }: { chatId: string }) {
         return
       }
 
-      const fileExt = file.name.split('.').pop()
-      const filePath = `${user.id}/${Date.now()}.${fileExt}`
+const originalName = file.name || 'file'
+const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
+const filePath = `${user.id}/${Date.now()}_${safeName}`
 
-      const { error: uploadError } = await supabase.storage
-        .from('chat-files')
-        .upload(filePath, file)
 
-      if (uploadError) {
-        setMessage(uploadError.message)
-        setIsSending(false)
-        return
-      }
+const { error: uploadError } = await supabase.storage
+  .from('chat-files')
+  .upload(filePath, file, {
+    upsert: false,
+  })
 
-      const { data: publicUrlData } = supabase.storage
-        .from('chat-files')
-        .getPublicUrl(filePath)
+if (uploadError) {
+  setMessage(uploadError.message)
+  setIsSending(false)
+  return
+}
 
-      attachmentUrl = publicUrlData.publicUrl
+const { data: publicUrlData } = supabase.storage
+  .from('chat-files')
+  .getPublicUrl(filePath)
+
+attachmentUrl = publicUrlData.publicUrl
+
     }
 
     const { error } = await supabase.rpc('send_message', {
