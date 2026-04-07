@@ -27,21 +27,44 @@ export default function EventResponseForm({
 
     setIsSaving(true)
 
-    const { error } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from('event_responses')
-      .upsert(
-        {
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (existingError) {
+      setMessage(existingError.message)
+      setIsSaving(false)
+      return
+    }
+
+    if (existing) {
+      const { error } = await supabase
+        .from('event_responses')
+        .update({ response })
+        .eq('id', existing.id)
+
+      if (error) {
+        setMessage(error.message)
+        setIsSaving(false)
+        return
+      }
+    } else {
+      const { error } = await supabase
+        .from('event_responses')
+        .insert({
           event_id: eventId,
           user_id: userId,
           response,
-        },
-        { onConflict: 'event_id,user_id' }
-      )
+        })
 
-    if (error) {
-      setMessage(error.message)
-      setIsSaving(false)
-      return
+      if (error) {
+        setMessage(error.message)
+        setIsSaving(false)
+        return
+      }
     }
 
     setMessage('Отговорът е записан.')
