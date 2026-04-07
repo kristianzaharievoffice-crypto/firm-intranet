@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import SendMessageForm from '@/components/SendMessageForm'
 
 export default function SendMessageForm({ chatId }: { chatId: string }) {
   const supabase = createClient()
