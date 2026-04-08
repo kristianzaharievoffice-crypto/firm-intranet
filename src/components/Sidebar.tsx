@@ -54,6 +54,13 @@ export default async function Sidebar() {
           </Link>
 
           <Link
+            href="/employees"
+            className="block px-4 py-3 rounded-2xl hover:bg-yellow-50 hover:text-yellow-700 transition"
+          >
+            Служители
+          </Link>
+
+          <Link
             href="/notifications"
             className="block px-4 py-3 rounded-2xl hover:bg-yellow-50 hover:text-yellow-700 transition"
           >

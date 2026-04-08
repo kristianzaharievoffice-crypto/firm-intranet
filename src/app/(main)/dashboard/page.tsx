@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import PostComments from '@/components/PostComments'
 
 interface Profile {
   id: string
@@ -348,6 +349,7 @@ export default async function DashboardPage({
                       )}
 
                       <div className="flex flex-wrap gap-3 items-center">
+                      <PostComments postId={post.id} />
                         <form
                           action={changePostStatus}
                           className="flex gap-2 items-center flex-wrap"

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import PostComments from '@/components/PostComments'
 
 interface Post {
   id: string
@@ -65,7 +66,7 @@ export default function PostsList({
               href={post.attachment_url}
               target="_blank"
               rel="noreferrer"
-              className="inline-block text-sm text-blue-600 hover:underline mb-3"
+              className="inline-block text-sm text-yellow-700 hover:underline mb-3"
             >
               Отвори прикачения файл
             </a>
@@ -76,7 +77,7 @@ export default function PostsList({
               ✔ Проверено от админ
             </span>
           ) : (
-            <span className="text-yellow-600 text-sm font-medium">
+            <span className="text-blue-600 text-sm font-medium">
               ⏳ Чака проверка
             </span>
           )}
@@ -99,6 +100,8 @@ export default function PostsList({
               </button>
             </form>
           </div>
+
+          <PostComments postId={post.id} />
         </div>
       ))}
     </div>
