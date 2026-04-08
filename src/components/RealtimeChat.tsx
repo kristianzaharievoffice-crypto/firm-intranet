@@ -69,52 +69,58 @@ export default function RealtimeChat({
 
   if (!messages.length) {
     return (
-      <div className="bg-white rounded-2xl shadow-md p-6">
-        <p className="text-gray-500">Все още няма съобщения.</p>
+      <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+        <p className="text-[#7b746b]">Все още няма съобщения.</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-md p-6 space-y-3 max-h-[60vh] overflow-y-auto">
-      {messages.map((message) => {
-        const isMine = message.sender_id === currentUserId
-        const senderName = senderNames[message.sender_id] ?? 'Потребител'
+    <div className="modern-scroll max-h-[60vh] overflow-y-auto rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+      <div className="space-y-4">
+        {messages.map((message) => {
+          const isMine = message.sender_id === currentUserId
+          const senderName = senderNames[message.sender_id] ?? 'Потребител'
 
-        return (
-          <div
-            key={message.id}
-            className={`p-4 rounded-2xl max-w-xl ${
-              isMine ? 'bg-black text-white ml-auto' : 'bg-gray-100 text-black'
-            }`}
-          >
-            <p className={`text-xs font-semibold mb-2 ${isMine ? 'text-gray-200' : 'text-gray-500'}`}>
-              {isMine ? 'Ти' : senderName}
-            </p>
+          return (
+            <div
+              key={message.id}
+              className={`max-w-2xl rounded-[28px] p-4 ${
+                isMine
+                  ? 'ml-auto bg-gradient-to-br from-[#d1ac35] to-[#a88414] text-white'
+                  : 'bg-[#f8f4eb] text-[#1f1a14]'
+              }`}
+            >
+              <p className={`mb-2 text-xs font-semibold ${isMine ? 'text-white/80' : 'text-[#7b746b]'}`}>
+                {isMine ? 'Ти' : senderName}
+              </p>
 
-            {message.content && (
-              <p className="whitespace-pre-wrap">{message.content}</p>
-            )}
+              {message.content && (
+                <p className="whitespace-pre-wrap leading-7">{message.content}</p>
+              )}
 
-            {message.attachment_url && (
-              <a
-                href={message.attachment_url}
-                target="_blank"
-                rel="noreferrer"
-                className={`block mt-3 text-sm underline ${isMine ? 'text-white' : 'text-blue-600'}`}
-              >
-                Отвори прикачения файл
-              </a>
-            )}
+              {message.attachment_url && (
+                <a
+                  href={message.attachment_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`mt-3 block text-sm underline ${
+                    isMine ? 'text-white' : 'text-[#a88414]'
+                  }`}
+                >
+                  Отвори прикачения файл
+                </a>
+              )}
 
-            <p className={`text-xs mt-2 ${isMine ? 'text-gray-200' : 'text-gray-500'}`}>
-              {new Date(message.created_at).toLocaleString('bg-BG')}
-            </p>
-          </div>
-        )
-      })}
+              <p className={`mt-3 text-xs ${isMine ? 'text-white/80' : 'text-[#7b746b]'}`}>
+                {new Date(message.created_at).toLocaleString('bg-BG')}
+              </p>
+            </div>
+          )
+        })}
 
-      <div ref={bottomRef} />
+        <div ref={bottomRef} />
+      </div>
     </div>
   )
 }

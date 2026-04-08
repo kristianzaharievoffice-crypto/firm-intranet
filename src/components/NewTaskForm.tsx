@@ -52,70 +52,75 @@ export default function NewTaskForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4"
-    >
-      <div>
-        <h1 className="text-2xl font-bold">Нова задача</h1>
-        <p className="text-sm text-gray-500 mt-1">
+    <form className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm" onSubmit={handleSubmit}>
+      <div className="mb-6">
+        <h1 className="text-3xl font-black tracking-tight text-[#1f1a14]">
+          Нова задача
+        </h1>
+        <p className="mt-2 text-sm text-[#7b746b]">
           Създай задача и я възложи на служител
         </p>
       </div>
 
-      <input
-        className="w-full border rounded-2xl px-4 py-3"
-        placeholder="Заглавие"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
+      <div className="grid gap-4">
+        <input
+          className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
+          placeholder="Заглавие"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
 
-      <textarea
-        className="w-full min-h-32 border rounded-2xl px-4 py-3"
-        placeholder="Описание"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-      />
+        <textarea
+          className="min-h-32 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
+          placeholder="Описание"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
 
-      <select
-        className="w-full border rounded-2xl px-4 py-3 bg-white"
-        value={assignedTo}
-        onChange={(e) => setAssignedTo(e.target.value)}
-      >
-        <option value="">Избери служител</option>
-        {employees.map((employee) => (
-          <option key={employee.id} value={employee.id}>
-            {employee.full_name ?? 'Без име'}
-          </option>
-        ))}
-      </select>
+        <select
+          className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
+          value={assignedTo}
+          onChange={(e) => setAssignedTo(e.target.value)}
+        >
+          <option value="">Избери служител</option>
+          {employees.map((employee) => (
+            <option key={employee.id} value={employee.id}>
+              {employee.full_name ?? 'Без име'}
+            </option>
+          ))}
+        </select>
 
-      <input
-        type="date"
-        className="w-full border rounded-2xl px-4 py-3"
-        value={dueDate}
-        onChange={(e) => setDueDate(e.target.value)}
-      />
+        <div className="grid gap-4 md:grid-cols-2">
+          <input
+            type="date"
+            className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
 
-      <select
-        className="w-full border rounded-2xl px-4 py-3 bg-white"
-        value={priority}
-        onChange={(e) => setPriority(e.target.value)}
-      >
-        <option value="low">Нисък приоритет</option>
-        <option value="medium">Среден приоритет</option>
-        <option value="high">Висок приоритет</option>
-      </select>
+          <select
+            className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+          >
+            <option value="low">Нисък приоритет</option>
+            <option value="medium">Среден приоритет</option>
+            <option value="high">Висок приоритет</option>
+          </select>
+        </div>
+      </div>
 
-      <button
-        type="submit"
-        disabled={isSaving}
-        className="bg-[#d4af37] hover:bg-[#b8962e] text-white px-5 py-3 rounded-2xl disabled:opacity-60"
-      >
-        {isSaving ? 'Записване...' : 'Създай задача'}
-      </button>
+      <div className="mt-5 flex items-center gap-4">
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
+        >
+          {isSaving ? 'Записване...' : 'Създай задача'}
+        </button>
 
-      {message && <p className="text-sm text-red-600">{message}</p>}
+        {message && <p className="text-sm text-[#7b746b]">{message}</p>}
+      </div>
     </form>
   )
 }

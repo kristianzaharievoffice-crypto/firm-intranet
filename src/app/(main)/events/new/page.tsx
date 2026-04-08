@@ -9,9 +9,7 @@ export default async function NewEventPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  if (!user) redirect('/login')
 
   const { data: me } = await supabase
     .from('profiles')
@@ -23,11 +21,5 @@ export default async function NewEventPage() {
     redirect('/events')
   }
 
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
-      <div className="max-w-xl mx-auto p-6">
-        <NewEventForm />
-      </div>
-    </main>
-  )
+  return <NewEventForm />
 }

@@ -2,6 +2,16 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import PageHeader from '@/components/PageHeader'
+
+interface NotificationItem {
+  id: string
+  title: string
+  body: string | null
+  link: string | null
+  is_read: boolean
+  created_at: string
+}
 
 export default async function NotificationsPage() {
   const supabase = await createClient()
@@ -12,7 +22,6 @@ export default async function NotificationsPage() {
 
   if (!user) redirect('/login')
 
-  // ✅ маркираме като прочетени
   await supabase
     .from('notifications')
     .update({ is_read: true })
@@ -20,41 +29,64 @@ export default async function NotificationsPage() {
 
   const { data: notifications } = await supabase
     .from('notifications')
-    .select('*')
+    .select('id, title, body, link, is_read, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
+  const items = (notifications ?? []) as NotificationItem[]
+
   return (
-    <main className="space-y-6">
-      <h1 className="text-4xl font-extrabold">Известия</h1>
+    <main className="space-y-8">
+      <PageHeader
+        title="Известия"
+        subtitle="Нови събития, задачи, проверки и важни промени в системата."
+      />
 
-      {notifications?.length ? (
+      {items.length ? (
         <div className="space-y-4">
-          {notifications.map((n) => (
+          {items.map((item) => (
             <div
-              key={n.id}
-              className="bg-white rounded-3xl shadow-sm border p-5"
+              key={item.id}
+              className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
             >
-              <h2 className="font-bold">{n.title}</h2>
-              <p className="text-gray-600">{n.body}</p>
+              <div className="mb-3 flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black tracking-tight text-[#1f1a14]">
+                    {item.title}
+                  </h2>
+                  <p className="mt-2 text-sm text-[#7b746b]">
+                    {new Date(item.created_at).toLocaleString('bg-BG')}
+                  </p>
+                </div>
 
-              {n.link && (
+                {!item.is_read && (
+                  <span className="rounded-full bg-[#fbf3dc] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#a88414]">
+                    Ново
+                  </span>
+                )}
+              </div>
+
+              {item.body && (
+                <p className="whitespace-pre-wrap leading-7 text-[#433b32]">
+                  {item.body}
+                </p>
+              )}
+
+              {item.link && (
                 <a
-                  href={n.link}
-                  className="text-yellow-600 text-sm mt-2 inline-block"
+                  href={item.link}
+                  className="mt-4 inline-block text-sm font-medium text-[#a88414] hover:underline"
                 >
                   Отвори →
                 </a>
               )}
-
-              <p className="text-xs text-gray-400 mt-2">
-                {new Date(n.created_at).toLocaleString('bg-BG')}
-              </p>
             </div>
           ))}
         </div>
       ) : (
-        <p className="text-gray-500">Няма известия</p>
+        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+          <p className="text-[#7b746b]">Няма известия.</p>
+        </div>
       )}
     </main>
   )

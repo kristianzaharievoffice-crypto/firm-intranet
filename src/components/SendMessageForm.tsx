@@ -41,7 +41,7 @@ export default function SendMessageForm({ chatId }: { chatId: string }) {
       const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
       const filePath = `${user.id}/${Date.now()}_${safeName}`
 
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('chat-files')
         .upload(filePath, file, {
           upsert: false,
@@ -49,14 +49,14 @@ export default function SendMessageForm({ chatId }: { chatId: string }) {
         })
 
       if (uploadError) {
-        setMessage(uploadError.message)
+        setMessage(`Upload error: ${uploadError.message}`)
         setIsSending(false)
         return
       }
 
       const { data: publicUrlData } = supabase.storage
         .from('chat-files')
-        .getPublicUrl(filePath)
+        .getPublicUrl(uploadData.path)
 
       attachmentUrl = publicUrlData.publicUrl
     }
@@ -79,31 +79,40 @@ export default function SendMessageForm({ chatId }: { chatId: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-md p-6 space-y-4">
-      <h2 className="text-xl font-bold">Ново съобщение</h2>
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
+    >
+      <h2 className="mb-4 text-2xl font-black tracking-tight text-[#1f1a14]">
+        Ново съобщение
+      </h2>
 
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="Напиши съобщение..."
-        className="w-full min-h-28 border rounded-xl px-4 py-3"
-      />
+      <div className="grid gap-4">
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Напиши съобщение..."
+          className="min-h-28 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
+        />
 
-      <input
-        type="file"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="w-full border rounded-xl px-4 py-3 bg-white"
-      />
+        <input
+          type="file"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3"
+        />
+      </div>
 
-      <button
-        type="submit"
-        disabled={isSending}
-        className="bg-black text-white px-4 py-2 rounded-xl disabled:opacity-60"
-      >
-        {isSending ? 'Изпращане...' : 'Изпрати'}
-      </button>
+      <div className="mt-5 flex items-center gap-4">
+        <button
+          type="submit"
+          disabled={isSending}
+          className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
+        >
+          {isSending ? 'Изпращане...' : 'Изпрати'}
+        </button>
 
-      {message && <p className="text-sm text-gray-600">{message}</p>}
+        {message && <p className="text-sm text-[#7b746b]">{message}</p>}
+      </div>
     </form>
   )
 }

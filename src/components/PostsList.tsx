@@ -15,7 +15,7 @@ function getStatusClasses(status: string) {
     case 'готово':
       return 'bg-green-100 text-green-700'
     case 'за проверка':
-      return 'bg-yellow-100 text-yellow-700'
+      return 'bg-amber-100 text-amber-700'
     default:
       return 'bg-blue-100 text-blue-700'
   }
@@ -30,62 +30,62 @@ export default function PostsList({
 }) {
   if (!posts.length) {
     return (
-      <div className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100">
-        <p className="text-gray-500">
-          Все още няма добавени проекти или отчети.
-        </p>
+      <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+        <p className="text-[#7b746b]">Все още няма добавени проекти или отчети.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {posts.map((post) => (
         <div
           key={post.id}
-          className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100"
+          className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex items-center justify-between gap-4">
             <span
-              className={`text-sm font-medium px-3 py-1 rounded-full ${getStatusClasses(
+              className={`rounded-full px-3 py-1 text-sm font-semibold ${getStatusClasses(
                 post.status
               )}`}
             >
               {post.status}
             </span>
 
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[#7b746b]">
               {new Date(post.created_at).toLocaleString('bg-BG')}
             </p>
           </div>
 
-          <p className="whitespace-pre-wrap text-gray-800 mb-3">{post.content}</p>
+          <p className="mb-4 whitespace-pre-wrap leading-7 text-[#2d2823]">
+            {post.content}
+          </p>
 
           {post.attachment_url && (
             <a
               href={post.attachment_url}
               target="_blank"
               rel="noreferrer"
-              className="inline-block text-sm text-yellow-700 hover:underline mb-3"
+              className="mb-4 inline-block text-sm font-medium text-[#a88414] hover:underline"
             >
               Отвори прикачения файл
             </a>
           )}
 
           {post.reviewed ? (
-            <span className="text-green-600 text-sm font-medium">
+            <span className="text-sm font-semibold text-green-700">
               ✔ Проверено от админ
             </span>
           ) : (
-            <span className="text-blue-600 text-sm font-medium">
+            <span className="text-sm font-semibold text-blue-700">
               ⏳ Чака проверка
             </span>
           )}
 
-          <div className="mt-4 flex items-center gap-4">
+          <div className="mt-5 flex items-center gap-4">
             <Link
               href={`/wall/edit/${post.id}`}
-              className="text-sm text-black hover:underline"
+              className="text-sm font-medium text-[#1f1a14] hover:text-[#a88414]"
             >
               Редактирай
             </Link>
@@ -94,7 +94,7 @@ export default function PostsList({
               <input type="hidden" name="postId" value={post.id} />
               <button
                 type="submit"
-                className="text-red-600 text-sm hover:underline"
+                className="text-sm font-medium text-red-600 hover:underline"
               >
                 Изтрий
               </button>

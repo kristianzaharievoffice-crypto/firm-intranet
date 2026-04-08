@@ -1,139 +1,56 @@
-@import url('https://googleapis.com');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* 1. DESIGN TOKENS (Variables) */
 :root {
-  /* Core Colors - Midnight Neon Palette */
-  --bg-main: #0a0a0c;
-  --bg-card: rgba(255, 255, 255, 0.03);
-  --accent-primary: #06b6d4; /* Neon Cyan */
-  --accent-secondary: #8b5cf6; /* Electric Violet */
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  
-  /* Glassmorphism & Effects */
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-  --glow-primary: rgba(6, 182, 212, 0.5);
-  
-  /* Layout */
-  --radius: 12px;
-  --container-max: 1200px;
+  --bg: #f6f3ed;
+  --panel: #ffffff;
+  --panel-soft: #fbfaf7;
+  --text: #1f1a14;
+  --muted: #7b746b;
+  --line: #ece5d8;
+  --gold: #c9a227;
+  --gold-dark: #a88414;
+  --success: #15803d;
+  --warning: #b45309;
+  --danger: #b91c1c;
+  --shadow: 0 10px 30px rgba(31, 26, 20, 0.06);
 }
 
-/* 2. GLOBAL RESET & BASE STYLES */
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
-html {
-  scroll-behavior: smooth;
+html,
+body {
+  min-height: 100%;
 }
 
 body {
-  background-color: var(--bg-main);
-  color: var(--text-main);
-  font-family: 'Inter', sans-serif;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(201, 162, 39, 0.08), transparent 30%),
+    linear-gradient(180deg, #faf8f3 0%, var(--bg) 100%);
+  color: var(--text);
 }
 
-/* 3. MODERN TYPOGRAPHY & GRADIENT TEXT */
-h1, h2, h3, h4 {
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin-bottom: 1rem;
-  
-  /* Gradient Clipping for Compatibility */
-  background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
-  -webkit-background-clip: text; 
-  background-clip: text; /* Standard property for compatibility */
-  -webkit-text-fill-color: transparent; 
-  
-  /* Fallback for older browsers */
-  color: var(--accent-primary);
-}
-
-p {
-  color: var(--text-muted);
-  margin-bottom: 1.5rem;
-}
-
-/* 4. REUSABLE COMPONENTS */
-
-/* Glassmorphism Card Utility */
-.glass-card {
-  background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  box-shadow: var(--glass-shadow);
-  padding: 2rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.glass-card:hover {
-  transform: translateY(-5px);
-  border-color: rgba(6, 182, 212, 0.3);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.9);
-}
-
-/* Neon Interaction Button */
-.btn-neon {
-  display: inline-block;
-  padding: 0.8rem 2rem;
-  font-size: 1rem;
-  font-weight: 600;
+a {
+  color: inherit;
   text-decoration: none;
-  color: var(--accent-primary);
-  background: transparent;
-  border: 1px solid var(--accent-primary);
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 0 10px var(--glow-primary);
 }
 
-.btn-neon:hover {
-  background: var(--accent-primary);
-  color: #000;
-  box-shadow: 0 0 30px var(--glow-primary);
-  transform: scale(1.02);
-}
-
-/* 5. CUSTOM UI DETAILS */
-
-/* Scrollbar Styling */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-main);
-}
-
-::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-secondary);
-}
-
-/* Selection Highlight */
 ::selection {
-  background: var(--accent-primary);
-  color: #000;
+  background: rgba(201, 162, 39, 0.25);
 }
 
-/* Responsive Container */
-.container {
-  max-width: var(--container-max);
-  margin: 0 auto;
-  padding: 0 2rem;
+.modern-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.modern-scroll::-webkit-scrollbar-thumb {
+  background: #d8ccb4;
+  border-radius: 999px;
+}
+
+.modern-scroll::-webkit-scrollbar-track {
+  background: transparent;
 }

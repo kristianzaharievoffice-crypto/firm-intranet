@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import PageHeader from '@/components/PageHeader'
 import NewPostForm from '@/components/NewPostForm'
 import PostsList from '@/components/PostsList'
 
@@ -12,14 +13,7 @@ async function deletePost(formData: FormData) {
   const postId = formData.get('postId') as string
   const supabase = await createClient()
 
-  const { error } = await supabase
-    .from('wall_posts')
-    .delete()
-    .eq('id', postId)
-
-  if (error) {
-    console.error('DELETE POST ERROR:', error.message)
-  }
+  await supabase.from('wall_posts').delete().eq('id', postId)
 
   revalidatePath('/wall')
   revalidatePath('/dashboard')
@@ -43,13 +37,11 @@ export default async function WallPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <main className="space-y-6">
-      <div>
-        <h1 className="text-4xl font-extrabold tracking-tight">Моята стена</h1>
-        <p className="text-gray-500 mt-2">
-          Тук добавяш проекти, файлове и следиш статуса им.
-        </p>
-      </div>
+    <main className="space-y-8">
+      <PageHeader
+        title="Моята стена"
+        subtitle="Тук добавяш проекти, файлове, статуси и следиш обратната връзка от админа."
+      />
 
       <NewPostForm />
       <PostsList posts={posts ?? []} deleteAction={deletePost} />

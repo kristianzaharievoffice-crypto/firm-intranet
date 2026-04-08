@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import PageHeader from '@/components/PageHeader'
+import StatCard from '@/components/StatCard'
 import TaskList from '@/components/TaskList'
 
 interface TaskItem {
@@ -29,10 +31,7 @@ async function updateTaskStatus(formData: FormData) {
   const status = formData.get('status') as string
   const supabase = await createClient()
 
-  await supabase
-    .from('tasks')
-    .update({ status })
-    .eq('id', taskId)
+  await supabase.from('tasks').update({ status }).eq('id', taskId)
 
   revalidatePath('/tasks')
 }
@@ -43,10 +42,7 @@ async function deleteTask(formData: FormData) {
   const taskId = formData.get('taskId') as string
   const supabase = await createClient()
 
-  await supabase
-    .from('tasks')
-    .delete()
-    .eq('id', taskId)
+  await supabase.from('tasks').delete().eq('id', taskId)
 
   revalidatePath('/tasks')
 }
@@ -58,9 +54,7 @@ export default async function TasksPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  if (!user) redirect('/login')
 
   const { data: me } = await supabase
     .from('profiles')
@@ -68,9 +62,7 @@ export default async function TasksPage() {
     .eq('id', user.id)
     .single()
 
-  if (!me) {
-    redirect('/login')
-  }
+  if (!me) redirect('/login')
 
   let tasks: TaskItem[] = []
 
@@ -116,44 +108,26 @@ export default async function TasksPage() {
 
   return (
     <main className="space-y-8">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-extrabold tracking-tight">Задачи</h1>
-          <p className="text-gray-500 mt-2">
-            Управление на възложените задачи
-          </p>
-        </div>
+      <PageHeader
+        title="Задачи"
+        subtitle="Управление на възложените задачи и следене на статуса им."
+        action={
+          me.role === 'admin' ? (
+            <Link
+              href="/tasks/new"
+              className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414]"
+            >
+              Нова задача
+            </Link>
+          ) : null
+        }
+      />
 
-        {me.role === 'admin' && (
-          <Link
-            href="/tasks/new"
-            className="bg-[#d4af37] hover:bg-[#b8962e] text-white px-5 py-3 rounded-2xl font-medium"
-          >
-            Нова задача
-          </Link>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-          <p className="text-gray-500 text-sm">Общо задачи</p>
-          <h2 className="text-3xl font-bold mt-2">{total}</h2>
-        </div>
-
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-          <p className="text-gray-500 text-sm">Нови</p>
-          <h2 className="text-3xl font-bold mt-2">{totalNew}</h2>
-        </div>
-
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-          <p className="text-gray-500 text-sm">В процес</p>
-          <h2 className="text-3xl font-bold mt-2">{totalInProgress}</h2>
-        </div>
-
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-          <p className="text-gray-500 text-sm">Готови</p>
-          <h2 className="text-3xl font-bold mt-2">{totalDone}</h2>
-        </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Общо задачи" value={total} />
+        <StatCard label="Нови" value={totalNew} />
+        <StatCard label="В процес" value={totalInProgress} tone="soft" />
+        <StatCard label="Готови" value={totalDone} tone="gold" />
       </div>
 
       <TaskList

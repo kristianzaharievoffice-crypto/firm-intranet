@@ -14,9 +14,7 @@ export default async function NewTaskPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  if (!user) redirect('/login')
 
   const { data: me } = await supabase
     .from('profiles')

@@ -16,7 +16,7 @@ function getPriorityClasses(priority: string) {
     case 'low':
       return 'bg-green-100 text-green-700'
     default:
-      return 'bg-yellow-100 text-yellow-700'
+      return 'bg-amber-100 text-amber-700'
   }
 }
 
@@ -66,55 +66,60 @@ export default function TaskList({
 }) {
   if (!tasks.length) {
     return (
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-        <p className="text-gray-500">Няма задачи.</p>
+      <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+        <p className="text-[#7b746b]">Няма задачи.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {tasks.map((task) => (
         <div
           key={task.id}
-          className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6"
+          className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
         >
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            <span className={`text-sm px-3 py-1 rounded-full ${getPriorityClasses(task.priority)}`}>
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <span className={`rounded-full px-3 py-1 text-sm font-semibold ${getPriorityClasses(task.priority)}`}>
               {getPriorityLabel(task.priority)}
             </span>
 
-            <span className={`text-sm px-3 py-1 rounded-full ${getStatusClasses(task.status)}`}>
+            <span className={`rounded-full px-3 py-1 text-sm font-semibold ${getStatusClasses(task.status)}`}>
               {getStatusLabel(task.status)}
             </span>
           </div>
 
-          <h2 className="text-xl font-bold text-[#1f2937]">{task.title}</h2>
+          <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
+            {task.title}
+          </h2>
 
           {isAdmin && task.employee_name && (
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="mt-2 text-sm text-[#7b746b]">
               Възложена на: {task.employee_name}
             </p>
           )}
 
           {task.description && (
-            <p className="mt-3 text-gray-700 whitespace-pre-wrap">
+            <p className="mt-4 whitespace-pre-wrap leading-7 text-[#443d35]">
               {task.description}
             </p>
           )}
 
-          <div className="mt-4 text-sm text-gray-500">
-            Срок: {task.due_date ? new Date(task.due_date).toLocaleDateString('bg-BG') : 'Няма'}
+          <div className="mt-4 text-sm text-[#7b746b]">
+            Срок:{' '}
+            {task.due_date
+              ? new Date(task.due_date).toLocaleDateString('bg-BG')
+              : 'Няма'}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-3 items-center">
-            <form action={updateStatusAction} className="flex items-center gap-2 flex-wrap">
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <form action={updateStatusAction} className="flex flex-wrap items-center gap-2">
               <input type="hidden" name="taskId" value={task.id} />
 
               <select
                 name="status"
                 defaultValue={task.status}
-                className="border rounded-2xl px-3 py-2 bg-white text-sm"
+                className="rounded-[16px] border border-[#ece5d8] bg-[#fcfbf8] px-3 py-2 text-sm outline-none"
               >
                 <option value="new">Нова</option>
                 <option value="in_progress">В процес</option>
@@ -123,7 +128,7 @@ export default function TaskList({
 
               <button
                 type="submit"
-                className="bg-[#d4af37] hover:bg-[#b8962e] text-white px-4 py-2 rounded-2xl text-sm"
+                className="rounded-[16px] bg-[#c9a227] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a88414]"
               >
                 Смени статус
               </button>
@@ -134,7 +139,7 @@ export default function TaskList({
                 <input type="hidden" name="taskId" value={task.id} />
                 <button
                   type="submit"
-                  className="text-red-600 text-sm hover:underline"
+                  className="text-sm font-medium text-red-600 hover:underline"
                 >
                   Изтрий задача
                 </button>

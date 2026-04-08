@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import PageHeader from '@/components/PageHeader'
 
 interface EmployeeProfile {
   id: string
@@ -34,9 +35,7 @@ export default async function EmployeeProfilePage({
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  if (!user) redirect('/login')
 
   const { data: me } = await supabase
     .from('profiles')
@@ -44,9 +43,7 @@ export default async function EmployeeProfilePage({
     .eq('id', user.id)
     .single()
 
-  if (!me) {
-    redirect('/login')
-  }
+  if (!me) redirect('/login')
 
   const { data: employee } = await supabase
     .from('profiles')
@@ -54,9 +51,7 @@ export default async function EmployeeProfilePage({
     .eq('id', id)
     .single()
 
-  if (!employee) {
-    redirect('/employees')
-  }
+  if (!employee) redirect('/employees')
 
   let posts: PostItem[] = []
 
@@ -73,16 +68,21 @@ export default async function EmployeeProfilePage({
   const item = employee as EmployeeProfile
 
   return (
-    <main className="space-y-6">
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
-        <div className="flex items-start gap-6">
-          <div className="w-24 h-24 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 font-bold text-3xl overflow-hidden">
+    <main className="space-y-8">
+      <PageHeader
+        title={item.full_name ?? 'Без име'}
+        subtitle="Публичен профил на служител в системата."
+      />
+
+      <div className="rounded-[32px] border border-[#ece5d8] bg-white p-8 shadow-sm">
+        <div className="flex flex-col gap-6 md:flex-row">
+          <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-4xl font-black text-[#a88414]">
             {item.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={item.avatar_url}
                 alt={item.full_name ?? 'Avatar'}
-                className="w-full h-full object-cover"
+                className="h-full w-full object-cover"
               />
             ) : (
               (item.full_name?.[0] ?? 'U').toUpperCase()
@@ -90,64 +90,68 @@ export default async function EmployeeProfilePage({
           </div>
 
           <div className="flex-1">
-            <h1 className="text-4xl font-extrabold tracking-tight">
+            <h2 className="text-3xl font-black tracking-tight text-[#1f1a14]">
               {item.full_name ?? 'Без име'}
-            </h1>
-            <p className="text-gray-500 mt-2">
+            </h2>
+            <p className="mt-2 text-[#7b746b]">
               {item.job_title || 'Без длъжност'} • {item.department || 'Без отдел'}
             </p>
 
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="bg-[#fafafa] rounded-2xl p-4 border border-gray-100">
-                <p className="text-gray-400 mb-1">Роля</p>
-                <p className="font-medium">{item.role}</p>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="rounded-[24px] border border-[#ece5d8] bg-[#fcfbf8] p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-[#a09a90]">Роля</p>
+                <p className="mt-2 font-semibold text-[#1f1a14]">{item.role}</p>
               </div>
 
-              <div className="bg-[#fafafa] rounded-2xl p-4 border border-gray-100">
-                <p className="text-gray-400 mb-1">Телефон</p>
-                <p className="font-medium">{item.phone || 'Няма'}</p>
+              <div className="rounded-[24px] border border-[#ece5d8] bg-[#fcfbf8] p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-[#a09a90]">Телефон</p>
+                <p className="mt-2 font-semibold text-[#1f1a14]">{item.phone || 'Няма'}</p>
               </div>
             </div>
 
-            <div className="mt-4 bg-[#fafafa] rounded-2xl p-4 border border-gray-100">
-              <p className="text-gray-400 mb-1">Описание</p>
-              <p className="font-medium">{item.bio || 'Няма описание'}</p>
+            <div className="mt-4 rounded-[24px] border border-[#ece5d8] bg-[#fcfbf8] p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-[#a09a90]">Описание</p>
+              <p className="mt-2 leading-7 text-[#433b32]">{item.bio || 'Няма описание'}</p>
             </div>
           </div>
         </div>
       </div>
 
       {(me.role === 'admin' || me.id === item.id) && (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-2xl font-bold mb-4">Постове</h2>
+        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-2xl font-black tracking-tight text-[#1f1a14]">
+            Постове
+          </h2>
 
           {posts.length ? (
             <div className="space-y-4">
               {posts.map((post) => (
                 <div
                   key={post.id}
-                  className="border border-gray-100 rounded-3xl p-5 bg-[#fafafa]"
+                  className="rounded-[28px] border border-[#ece5d8] bg-[#fcfbf8] p-5"
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm px-3 py-1 rounded-full bg-yellow-100 text-yellow-700">
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="rounded-full bg-[#fbf3dc] px-3 py-1 text-sm font-semibold text-[#a88414]">
                       {post.status}
                     </span>
 
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-[#7b746b]">
                       {new Date(post.created_at).toLocaleString('bg-BG')}
                     </p>
                   </div>
 
-                  <p className="whitespace-pre-wrap text-gray-800">{post.content}</p>
+                  <p className="whitespace-pre-wrap leading-7 text-[#2d2823]">
+                    {post.content}
+                  </p>
 
-                  <p className="mt-3 text-sm font-medium">
+                  <p className="mt-3 text-sm font-semibold">
                     {post.reviewed ? '✔ Проверено' : '⏳ Чака проверка'}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-gray-500">Няма постове.</p>
+            <p className="text-[#7b746b]">Няма постове.</p>
           )}
         </div>
       )}

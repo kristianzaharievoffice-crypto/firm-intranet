@@ -38,33 +38,33 @@ export default async function PostComments({ postId }: { postId: string }) {
   const nameMap = new Map(people.map((p) => [p.id, p.full_name ?? 'Потребител']))
 
   return (
-    <div className="mt-5 border-t pt-4">
-      <h3 className="text-lg font-bold mb-3">Коментари</h3>
+    <div className="mt-6 rounded-[24px] border border-[#ece5d8] bg-[#fcfbf8] p-4">
+      <h3 className="mb-3 text-base font-bold text-[#1f1a14]">Коментари</h3>
 
       {items.length ? (
         <div className="space-y-3">
           {items.map((comment) => (
             <div
               key={comment.id}
-              className="bg-white border border-gray-100 rounded-2xl p-4"
+              className="rounded-[20px] border border-[#eee6d7] bg-white p-4"
             >
-              <div className="flex items-center justify-between gap-4 mb-2">
-                <p className="font-medium text-sm text-[#1f2937]">
+              <div className="mb-2 flex items-center justify-between gap-4">
+                <p className="text-sm font-semibold text-[#1f1a14]">
                   {nameMap.get(comment.user_id) ?? 'Потребител'}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[#7b746b]">
                   {new Date(comment.created_at).toLocaleString('bg-BG')}
                 </p>
               </div>
 
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+              <p className="whitespace-pre-wrap text-sm leading-6 text-[#4b443c]">
                 {comment.content}
               </p>
             </div>
           ))}
         </div>
       ) : (
-        <p className="text-sm text-gray-500">Още няма коментари.</p>
+        <p className="text-sm text-[#7b746b]">Още няма коментари.</p>
       )}
 
       <NewCommentForm postId={postId} />

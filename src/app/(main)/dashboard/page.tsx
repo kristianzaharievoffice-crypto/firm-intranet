@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import PageHeader from '@/components/PageHeader'
+import StatCard from '@/components/StatCard'
 import PostComments from '@/components/PostComments'
 
 interface Profile {
@@ -35,10 +37,7 @@ async function markReviewed(formData: FormData) {
 
   if (!post) return
 
-  await supabase
-    .from('wall_posts')
-    .update({ reviewed: true })
-    .eq('id', postId)
+  await supabase.from('wall_posts').update({ reviewed: true }).eq('id', postId)
 
   if (!post.reviewed) {
     await supabase.from('notifications').insert({
@@ -70,10 +69,7 @@ async function changePostStatus(formData: FormData) {
 
   if (!post) return
 
-  await supabase
-    .from('wall_posts')
-    .update({ status })
-    .eq('id', postId)
+  await supabase.from('wall_posts').update({ status }).eq('id', postId)
 
   if (post.status !== status) {
     await supabase.from('notifications').insert({
@@ -96,10 +92,7 @@ async function deletePostFromDashboard(formData: FormData) {
   const postId = formData.get('postId') as string
   const supabase = await createClient()
 
-  await supabase
-    .from('wall_posts')
-    .delete()
-    .eq('id', postId)
+  await supabase.from('wall_posts').delete().eq('id', postId)
 
   revalidatePath('/dashboard')
   revalidatePath('/wall')
@@ -110,7 +103,7 @@ function getStatusClasses(status: string) {
     case 'готово':
       return 'bg-green-100 text-green-700'
     case 'за проверка':
-      return 'bg-yellow-100 text-yellow-700'
+      return 'bg-amber-100 text-amber-700'
     default:
       return 'bg-blue-100 text-blue-700'
   }
@@ -131,9 +124,7 @@ export default async function DashboardPage({
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  if (!user) redirect('/login')
 
   const { data: me } = await supabase
     .from('profiles')
@@ -141,9 +132,7 @@ export default async function DashboardPage({
     .eq('id', user.id)
     .single()
 
-  if (!me || me.role !== 'admin') {
-    redirect('/wall')
-  }
+  if (!me || me.role !== 'admin') redirect('/wall')
 
   const { data: profiles } = await supabase
     .from('profiles')
@@ -166,9 +155,7 @@ export default async function DashboardPage({
   const totalReviewed = allPosts.filter((p) => p.reviewed).length
 
   const visibleEmployees = employees.filter((employee) => {
-    if (selectedEmployee !== 'all' && employee.id !== selectedEmployee) {
-      return false
-    }
+    if (selectedEmployee !== 'all' && employee.id !== selectedEmployee) return false
 
     const employeePosts = allPosts.filter((post) => {
       const sameEmployee = post.employee_id === employee.id
@@ -182,91 +169,54 @@ export default async function DashboardPage({
 
   return (
     <main className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-extrabold tracking-tight text-[#1f2937]">
-          Dashboard
-        </h1>
-        <p className="text-gray-500 mt-2">
-          Общ преглед на постове, статуси и активност на екипа
-        </p>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Преглед, филтриране и управление на постовете на целия екип."
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <StatCard label="Общо постове" value={totalPosts} />
+        <StatCard label="В процес" value={totalInProgress} tone="soft" />
+        <StatCard label="За проверка" value={totalForReview} />
+        <StatCard label="Готови" value={totalDone} />
+        <StatCard label="Проверени" value={totalReviewed} tone="gold" />
       </div>
 
-      {/* Статистики */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <p className="text-gray-500 text-sm">Общо постове</p>
-          <h2 className="text-3xl font-bold mt-2">{totalPosts}</h2>
-        </div>
-
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <p className="text-gray-500 text-sm">В процес</p>
-          <h2 className="text-3xl font-bold mt-2">{totalInProgress}</h2>
-        </div>
-
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <p className="text-gray-500 text-sm">За проверка</p>
-          <h2 className="text-3xl font-bold mt-2">{totalForReview}</h2>
-        </div>
-
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <p className="text-gray-500 text-sm">Готови</p>
-          <h2 className="text-3xl font-bold mt-2">{totalDone}</h2>
-        </div>
-
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <p className="text-gray-500 text-sm">Проверени</p>
-          <h2 className="text-3xl font-bold mt-2">{totalReviewed}</h2>
-        </div>
-      </div>
-
-      {/* Филтри */}
-      <form
-        method="get"
-        className="bg-white rounded-3xl shadow-sm p-6 border border-gray-100 flex flex-wrap gap-4 items-end"
-      >
-        <div className="flex-1 min-w-[220px]">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Служител
-          </label>
+      <form className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm" method="get">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr_auto]">
           <select
             name="employee"
             defaultValue={selectedEmployee}
-            className="w-full border rounded-2xl px-4 py-3 bg-white"
+            className="rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none"
           >
-            <option value="all">Всички</option>
+            <option value="all">Всички служители</option>
             {employees.map((employee) => (
               <option key={employee.id} value={employee.id}>
                 {employee.full_name ?? 'Без име'}
               </option>
             ))}
           </select>
-        </div>
 
-        <div className="flex-1 min-w-[220px]">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Статус
-          </label>
           <select
             name="status"
             defaultValue={selectedStatus}
-            className="w-full border rounded-2xl px-4 py-3 bg-white"
+            className="rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none"
           >
-            <option value="all">Всички</option>
+            <option value="all">Всички статуси</option>
             <option value="в процес">В процес</option>
             <option value="за проверка">За проверка</option>
             <option value="готово">Готово</option>
           </select>
-        </div>
 
-        <button
-          type="submit"
-          className="bg-[#d4af37] hover:bg-[#b8962e] text-white px-5 py-3 rounded-2xl font-medium"
-        >
-          Филтрирай
-        </button>
+          <button
+            type="submit"
+            className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414]"
+          >
+            Филтрирай
+          </button>
+        </div>
       </form>
 
-      {/* Карти по служители */}
       {visibleEmployees.length ? (
         visibleEmployees.map((employee) => {
           const employeePosts = allPosts.filter((post) => {
@@ -279,39 +229,37 @@ export default async function DashboardPage({
           return (
             <div
               key={employee.id}
-              className="bg-white rounded-3xl shadow-sm p-6 border border-gray-100"
+              className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
             >
               <div className="mb-5">
-                <h2 className="text-2xl font-bold text-[#1f2937]">
+                <h2 className="text-3xl font-black tracking-tight text-[#1f1a14]">
                   {employee.full_name ?? 'Без име'}
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Роля: {employee.role}
-                </p>
+                <p className="mt-2 text-sm text-[#7b746b]">Роля: {employee.role}</p>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {employeePosts.length ? (
                   employeePosts.map((post) => (
                     <div
                       key={post.id}
-                      className="border border-gray-100 rounded-3xl p-5 bg-[#fafafa]"
+                      className="rounded-[28px] border border-[#ece5d8] bg-[#fcfbf8] p-5"
                     >
-                      <div className="flex items-center justify-between mb-3 gap-4">
+                      <div className="mb-4 flex items-center justify-between gap-4">
                         <span
-                          className={`text-sm font-medium px-3 py-1 rounded-full ${getStatusClasses(
+                          className={`rounded-full px-3 py-1 text-sm font-semibold ${getStatusClasses(
                             post.status
                           )}`}
                         >
                           {post.status}
                         </span>
 
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-[#7b746b]">
                           {new Date(post.created_at).toLocaleString('bg-BG')}
                         </p>
                       </div>
 
-                      <p className="whitespace-pre-wrap mb-4 text-gray-800">
+                      <p className="mb-4 whitespace-pre-wrap leading-7 text-[#2d2823]">
                         {post.content}
                       </p>
 
@@ -320,19 +268,19 @@ export default async function DashboardPage({
                           href={post.attachment_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-block text-sm text-yellow-700 hover:underline mb-4"
+                          className="mb-4 inline-block text-sm font-medium text-[#a88414] hover:underline"
                         >
                           Отвори прикачения файл
                         </a>
                       )}
 
                       {post.reviewed ? (
-                        <span className="text-green-600 text-sm font-medium block mb-4">
+                        <span className="mb-4 block text-sm font-semibold text-green-700">
                           ✔ Проверено
                         </span>
                       ) : (
                         <div className="mb-4">
-                          <span className="text-blue-600 text-sm font-medium block mb-2">
+                          <span className="mb-2 block text-sm font-semibold text-blue-700">
                             ⏳ Чака проверка
                           </span>
 
@@ -340,7 +288,7 @@ export default async function DashboardPage({
                             <input type="hidden" name="postId" value={post.id} />
                             <button
                               type="submit"
-                              className="text-sm bg-green-600 text-white px-3 py-2 rounded-2xl hover:bg-green-700"
+                              className="rounded-[16px] bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
                             >
                               Маркирай като проверено
                             </button>
@@ -348,18 +296,14 @@ export default async function DashboardPage({
                         </div>
                       )}
 
-                      <div className="flex flex-wrap gap-3 items-center">
-                      <PostComments postId={post.id} />
-                        <form
-                          action={changePostStatus}
-                          className="flex gap-2 items-center flex-wrap"
-                        >
+                      <div className="flex flex-wrap items-center gap-3">
+                        <form action={changePostStatus} className="flex flex-wrap items-center gap-2">
                           <input type="hidden" name="postId" value={post.id} />
 
                           <select
                             name="status"
                             defaultValue={post.status}
-                            className="border rounded-2xl px-3 py-2 bg-white text-sm"
+                            className="rounded-[16px] border border-[#ece5d8] bg-white px-3 py-2 text-sm"
                           >
                             <option value="в процес">В процес</option>
                             <option value="за проверка">За проверка</option>
@@ -368,7 +312,7 @@ export default async function DashboardPage({
 
                           <button
                             type="submit"
-                            className="text-sm bg-[#d4af37] hover:bg-[#b8962e] text-white px-3 py-2 rounded-2xl"
+                            className="rounded-[16px] bg-[#c9a227] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a88414]"
                           >
                             Смени статус
                           </button>
@@ -378,24 +322,26 @@ export default async function DashboardPage({
                           <input type="hidden" name="postId" value={post.id} />
                           <button
                             type="submit"
-                            className="text-sm text-red-600 hover:underline"
+                            className="text-sm font-medium text-red-600 hover:underline"
                           >
                             Изтрий пост
                           </button>
                         </form>
                       </div>
+
+                      <PostComments postId={post.id} />
                     </div>
                   ))
                 ) : (
-                  <p className="text-gray-500">Няма постове по тези филтри.</p>
+                  <p className="text-[#7b746b]">Няма постове по тези филтри.</p>
                 )}
               </div>
             </div>
           )
         })
       ) : (
-        <div className="bg-white rounded-3xl shadow-sm p-6 border border-gray-100">
-          <p className="text-gray-500">Няма намерени резултати.</p>
+        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+          <p className="text-[#7b746b]">Няма намерени резултати.</p>
         </div>
       )}
     </main>

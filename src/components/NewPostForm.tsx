@@ -42,7 +42,7 @@ export default function NewPostForm() {
       const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
       const filePath = `${user.id}/${Date.now()}_${safeName}`
 
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('post-files')
         .upload(filePath, file, {
           upsert: false,
@@ -50,14 +50,14 @@ export default function NewPostForm() {
         })
 
       if (uploadError) {
-        setMessage(uploadError.message)
+        setMessage(`Upload error: ${uploadError.message}`)
         setIsSubmitting(false)
         return
       }
 
       const { data: publicUrlData } = supabase.storage
         .from('post-files')
-        .getPublicUrl(filePath)
+        .getPublicUrl(uploadData.path)
 
       attachmentUrl = publicUrlData.publicUrl
     }
@@ -84,55 +84,57 @@ export default function NewPostForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-lg p-6 space-y-5 border border-gray-100">
-      <div>
-        <h2 className="text-2xl font-bold">Нов проект / отчет</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Добави какво си свършил и избери текущ статус.
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
+    >
+      <div className="mb-6">
+        <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
+          Нов проект / отчет
+        </h2>
+        <p className="mt-2 text-sm text-[#7b746b]">
+          Добави какво си свършил, статус и файл при нужда.
         </p>
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">Описание</label>
+      <div className="grid gap-4">
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Например: Завърших дизайна на началната страница и подготвих чат модула..."
-          className="w-full min-h-36 border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
+          placeholder="Например: Завърших дизайна на началната страница и качих новите файлове..."
+          className="min-h-36 w-full rounded-[24px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-4 text-[#1f1a14] outline-none transition focus:border-[#c9a227] focus:ring-2 focus:ring-[#f5e7b6]"
         />
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 text-[#1f1a14] outline-none focus:border-[#c9a227]"
+          >
+            <option value="в процес">В процес</option>
+            <option value="за проверка">За проверка</option>
+            <option value="готово">Готово</option>
+          </select>
+
+          <input
+            type="file"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 text-[#1f1a14]"
+          />
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">Статус</label>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="w-full border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-black bg-white"
+      <div className="mt-5 flex items-center gap-4">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="rounded-[20px] bg-[#c9a227] px-6 py-3 font-semibold text-white transition hover:bg-[#a88414] disabled:opacity-60"
         >
-          <option value="в процес">В процес</option>
-          <option value="за проверка">За проверка</option>
-          <option value="готово">Готово</option>
-        </select>
+          {isSubmitting ? 'Записване...' : 'Добави'}
+        </button>
+
+        {message && <p className="text-sm text-[#7b746b]">{message}</p>}
       </div>
-
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">Файл</label>
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="w-full border rounded-2xl px-4 py-3 bg-white"
-        />
-      </div>
-
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="bg-black text-white px-5 py-3 rounded-2xl disabled:opacity-60"
-      >
-        {isSubmitting ? 'Записване...' : 'Добави'}
-      </button>
-
-      {message && <p className="text-sm text-gray-600">{message}</p>}
     </form>
   )
 }

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import PageHeader from '@/components/PageHeader'
 
 interface Employee {
   id: string
@@ -20,9 +21,7 @@ export default async function EmployeesPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  if (!user) redirect('/login')
 
   const { data: employees } = await supabase
     .from('profiles')
@@ -32,30 +31,28 @@ export default async function EmployeesPage() {
   const items = (employees ?? []) as Employee[]
 
   return (
-    <main className="space-y-6">
-      <div>
-        <h1 className="text-4xl font-extrabold tracking-tight">Служители</h1>
-        <p className="text-gray-500 mt-2">
-          Списък с хората в системата
-        </p>
-      </div>
+    <main className="space-y-8">
+      <PageHeader
+        title="Служители"
+        subtitle="Хората в системата, техните роли и основна информация."
+      />
 
       {items.length ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {items.map((employee) => (
             <Link
               key={employee.id}
               href={`/employees/${employee.id}`}
-              className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition"
+              className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 font-bold text-lg overflow-hidden">
+                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-xl font-black text-[#a88414]">
                   {employee.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={employee.avatar_url}
                       alt={employee.full_name ?? 'Avatar'}
-                      className="w-full h-full object-cover"
+                      className="h-full w-full object-cover"
                     />
                   ) : (
                     (employee.full_name?.[0] ?? 'U').toUpperCase()
@@ -63,13 +60,13 @@ export default async function EmployeesPage() {
                 </div>
 
                 <div>
-                  <h2 className="text-lg font-bold text-[#1f2937]">
+                  <h2 className="text-xl font-black tracking-tight text-[#1f1a14]">
                     {employee.full_name ?? 'Без име'}
                   </h2>
-                  <p className="text-sm text-gray-500">
+                  <p className="mt-1 text-sm text-[#7b746b]">
                     {employee.job_title || 'Без длъжност'}
                   </p>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-[#a09a90]">
                     {employee.department || 'Без отдел'}
                   </p>
                 </div>
@@ -78,8 +75,8 @@ export default async function EmployeesPage() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
-          <p className="text-gray-500">Няма добавени служители.</p>
+        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+          <p className="text-[#7b746b]">Няма добавени служители.</p>
         </div>
       )}
     </main>

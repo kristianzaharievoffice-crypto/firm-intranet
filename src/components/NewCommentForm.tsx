@@ -56,18 +56,20 @@ export default function NewCommentForm({ postId }: { postId: string }) {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Напиши коментар..."
-        className="w-full min-h-24 border rounded-2xl px-4 py-3 bg-white"
+        className="min-h-24 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none transition focus:border-[#c9a227]"
       />
 
-      <button
-        type="submit"
-        disabled={isSaving}
-        className="bg-[#d4af37] hover:bg-[#b8962e] text-white px-4 py-2 rounded-2xl disabled:opacity-60"
-      >
-        {isSaving ? 'Записване...' : 'Добави коментар'}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="rounded-[16px] bg-[#c9a227] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
+        >
+          {isSaving ? 'Записване...' : 'Добави коментар'}
+        </button>
 
-      {message && <p className="text-sm text-red-600">{message}</p>}
+        {message && <p className="text-sm text-[#7b746b]">{message}</p>}
+      </div>
     </form>
   )
 }
