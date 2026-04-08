@@ -2,96 +2,56 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import RealtimeChat from '@/components/RealtimeChat'
 import SendMessageForm from '@/components/SendMessageForm'
 
-interface Message {
-  id: string
-  content: string
-  created_at: string
-  sender_id: string
-  chat_id: string
-  attachment_url?: string | null
-}
-
-export default async function ChatDetailsPage({
+export default async function ChatDetailPage({
   params,
 }: {
   params: Promise<{ chatId: string }>
 }) {
   const { chatId } = await params
+
   const supabase = await createClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  if (!user) redirect('/login')
 
-  const { data: me } = await supabase
-    .from('profiles')
-    .select('id, full_name, role')
-    .eq('id', user.id)
-    .single()
-
-  if (!me) {
-    redirect('/login')
-  }
-
-  const { data: chat } = await supabase
-    .from('chats')
-    .select('id, admin_id, employee_id')
-    .eq('id', chatId)
-    .single()
-
-  if (!chat) {
-    redirect('/chat')
-  }
-
-  if (me.role !== 'admin' && chat.employee_id !== user.id) {
-    redirect('/wall')
-  }
-
-  await supabase.rpc('mark_chat_read', {
-    target_chat_id: chatId,
-  })
+  // ✅ маркираме съобщенията като прочетени
+  await supabase
+    .from('messages')
+    .update({ is_read: true })
+    .eq('chat_id', chatId)
+    .neq('sender_id', user.id)
 
   const { data: messages } = await supabase
     .from('messages')
-    .select('id, content, created_at, sender_id, chat_id, attachment_url')
+    .select('*')
     .eq('chat_id', chatId)
     .order('created_at', { ascending: true })
 
-  const senderIds = [...new Set((messages ?? []).map((m) => m.sender_id))]
-  const safeSenderIds = senderIds.length
-    ? senderIds
-    : ['00000000-0000-0000-0000-000000000000']
-
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name')
-    .in('id', safeSenderIds)
-
-  const senderNames = Object.fromEntries(
-    (profiles ?? []).map((profile) => [profile.id, profile.full_name ?? 'Потребител'])
-  )
-
   return (
-    <main className="min-h-screen bg-gray-100">
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
-        <h1 className="text-3xl font-bold">Чат</h1>
+    <main className="space-y-6">
+      <h1 className="text-3xl font-bold">Чат</h1>
 
-        <RealtimeChat
-          initialMessages={(messages ?? []) as Message[]}
-          currentUserId={user.id}
-          chatId={chatId}
-          senderNames={senderNames}
-        />
-
-        <SendMessageForm chatId={chatId} />
+      <div className="space-y-3">
+        {messages?.map((msg) => (
+          <div
+            key={msg.id}
+            className={`p-3 rounded-2xl max-w-md ${
+              msg.sender_id === user.id
+                ? 'bg-yellow-500 text-white ml-auto'
+                : 'bg-gray-100'
+            }`}
+          >
+            {msg.content}
+          </div>
+        ))}
       </div>
+
+      <SendMessageForm chatId={chatId} />
     </main>
   )
 }
