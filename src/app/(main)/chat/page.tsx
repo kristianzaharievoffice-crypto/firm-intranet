@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import Header from '@/components/Header'
 import Link from 'next/link'
 
 interface ChatRow {
@@ -90,7 +89,6 @@ export default async function ChatPage() {
 
     return (
       <main className="min-h-screen bg-gray-100">
-        <Header />
         <div className="max-w-5xl mx-auto p-6 space-y-6">
           <h1 className="text-3xl font-bold">Чатове</h1>
 
@@ -146,7 +144,6 @@ export default async function ChatPage() {
   if (!employeeChat) {
     return (
       <main className="min-h-screen bg-gray-100">
-        <Header />
         <div className="max-w-5xl mx-auto p-6">
           <div className="bg-white rounded-2xl shadow-md p-6">
             <p>Няма създаден чат за този служител.</p>

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function Sidebar() {
@@ -8,47 +9,71 @@ export default async function Sidebar() {
     data: { user },
   } = await supabase.auth.getUser()
 
+  if (!user) {
+    redirect('/login')
+  }
+
   const { data: profile } = await supabase
     .from('profiles')
     .select('full_name, role')
-    .eq('id', user?.id)
+    .eq('id', user.id)
     .single()
 
   return (
-    <aside className="w-64 bg-white border-r p-6 flex flex-col justify-between">
+    <aside className="w-72 bg-white border-r border-gray-200 min-h-screen flex flex-col justify-between p-6">
       <div>
-        <h1 className="text-xl font-bold mb-8">
-          RCX <span className="text-yellow-500">NETWORK</span>
-        </h1>
+        <div className="mb-10">
+          <h1 className="text-2xl font-extrabold tracking-tight">
+            RCX <span className="text-yellow-500">NETWORK</span>
+          </h1>
+          <p className="text-sm text-gray-500 mt-2">
+            Вътрешна фирмена система
+          </p>
+        </div>
 
         <nav className="space-y-2">
-          <Link href="/wall" className="block p-3 rounded-xl hover:bg-gray-100">
+          <Link
+            href="/wall"
+            className="block px-4 py-3 rounded-2xl hover:bg-yellow-50 hover:text-yellow-700 transition"
+          >
             Стена
           </Link>
 
-          <Link href="/chat" className="block p-3 rounded-xl hover:bg-gray-100">
+          <Link
+            href="/chat"
+            className="block px-4 py-3 rounded-2xl hover:bg-yellow-50 hover:text-yellow-700 transition"
+          >
             Чат
           </Link>
 
-          <Link href="/events" className="block p-3 rounded-xl hover:bg-gray-100">
+          <Link
+            href="/events"
+            className="block px-4 py-3 rounded-2xl hover:bg-yellow-50 hover:text-yellow-700 transition"
+          >
             Събития
           </Link>
 
-          <Link href="/notifications" className="block p-3 rounded-xl hover:bg-gray-100">
+          <Link
+            href="/notifications"
+            className="block px-4 py-3 rounded-2xl hover:bg-yellow-50 hover:text-yellow-700 transition"
+          >
             Известия
           </Link>
 
           {profile?.role === 'admin' && (
-            <Link href="/dashboard" className="block p-3 rounded-xl hover:bg-gray-100">
+            <Link
+              href="/dashboard"
+              className="block px-4 py-3 rounded-2xl hover:bg-yellow-50 hover:text-yellow-700 transition"
+            >
               Dashboard
             </Link>
           )}
         </nav>
       </div>
 
-      <div className="text-sm text-gray-500">
-        <p>{profile?.full_name}</p>
-        <p>{profile?.role}</p>
+      <div className="border-t pt-4">
+        <p className="font-medium">{profile?.full_name ?? user.email}</p>
+        <p className="text-sm text-gray-500">{profile?.role}</p>
       </div>
     </aside>
   )

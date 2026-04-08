@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import Header from '@/components/Header'
 import NewPostForm from '@/components/NewPostForm'
 import PostsList from '@/components/PostsList'
 
@@ -45,21 +44,15 @@ export default async function WallPage() {
 
   return (
     <main className="space-y-6">
-      <Header />
-
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
-        <div>
-          <h1 className="text-4xl font-extrabold tracking-tight">
-            Моята стена
-          </h1>
-          <p className="text-gray-500 mt-2">
-            Тук добавяш проекти и следиш статуса им.
-          </p>
-        </div>
-
-        <NewPostForm />
-        <PostsList posts={posts ?? []} deleteAction={deletePost} />
+      <div>
+        <h1 className="text-4xl font-extrabold tracking-tight">Моята стена</h1>
+        <p className="text-gray-500 mt-2">
+          Тук добавяш проекти, файлове и следиш статуса им.
+        </p>
       </div>
+
+      <NewPostForm />
+      <PostsList posts={posts ?? []} deleteAction={deletePost} />
     </main>
   )
 }

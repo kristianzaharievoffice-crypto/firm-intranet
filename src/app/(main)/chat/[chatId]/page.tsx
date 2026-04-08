@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import Header from '@/components/Header'
 import RealtimeChat from '@/components/RealtimeChat'
 import SendMessageForm from '@/components/SendMessageForm'
 
@@ -81,7 +80,6 @@ export default async function ChatDetailsPage({
 
   return (
     <main className="min-h-screen bg-gray-100">
-      <Header />
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         <h1 className="text-3xl font-bold">Чат</h1>
 

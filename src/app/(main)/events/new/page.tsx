@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import Header from '@/components/Header'
 import NewEventForm from '@/components/NewEventForm'
 
 export default async function NewEventPage() {
@@ -26,7 +25,6 @@ export default async function NewEventPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
-      <Header />
       <div className="max-w-xl mx-auto p-6">
         <NewEventForm />
       </div>

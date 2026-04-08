@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import Header from '@/components/Header'
 import EventResponseForm from '@/components/EventResponseForm'
 
 interface EventItem {
@@ -80,8 +79,7 @@ export default async function EventsPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
-      <Header />
-
+      
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
