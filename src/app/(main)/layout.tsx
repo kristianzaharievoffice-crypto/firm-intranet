@@ -7,11 +7,15 @@ export default function MainLayout({
 }) {
   return (
     <div className="min-h-screen bg-[#f5f6f8] flex">
+      
       <Sidebar />
 
-      <div className="flex-1 p-8">
-        {children}
-      </div>
+      <main className="flex-1 p-8">
+        <div className="max-w-6xl mx-auto">
+          {children}
+        </div>
+      </main>
+
     </div>
   )
 }
