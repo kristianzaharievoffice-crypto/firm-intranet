@@ -54,6 +54,13 @@ export default async function Sidebar() {
           </Link>
 
           <Link
+            href="/calendar"
+            className="block px-4 py-3 rounded-2xl hover:bg-yellow-50 hover:text-yellow-700 transition"
+          >
+            Календар
+          </Link>
+
+          <Link
             href="/events"
             className="block px-4 py-3 rounded-2xl hover:bg-yellow-50 hover:text-yellow-700 transition"
           >

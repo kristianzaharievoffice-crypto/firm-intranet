@@ -34,25 +34,12 @@ export default function NewTaskForm({
 
     setIsSaving(true)
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-      setMessage('Няма активен потребител.')
-      setIsSaving(false)
-      return
-    }
-
-    const { error } = await supabase.from('tasks').insert({
-      title: title.trim(),
-      description: description.trim(),
-      assigned_to: assignedTo,
-      created_by: user.id,
-      due_date: dueDate || null,
-      priority,
-      status: 'new',
+    const { error } = await supabase.rpc('create_task_with_notification', {
+      task_title: title.trim(),
+      task_description: description.trim(),
+      task_assigned_to: assignedTo,
+      task_due_date: dueDate || null,
+      task_priority: priority,
     })
 
     if (error) {
