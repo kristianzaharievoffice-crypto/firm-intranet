@@ -76,7 +76,7 @@ export default function PostsList({
               ✔ Проверено от админ
             </span>
           ) : (
-            <span className="text-blue-600 text-sm font-medium">
+            <span className="text-yellow-600 text-sm font-medium">
               ⏳ Чака проверка
             </span>
           )}

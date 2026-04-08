@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import Header from '@/components/Header'
 
 interface Profile {
   id: string
@@ -18,6 +17,7 @@ interface Post {
   employee_id: string
   status: string
   reviewed: boolean
+  attachment_url?: string | null
 }
 
 async function markReviewed(formData: FormData) {
@@ -54,7 +54,6 @@ async function markReviewed(formData: FormData) {
   revalidatePath('/notifications')
 }
 
-
 async function changePostStatus(formData: FormData) {
   'use server'
 
@@ -89,7 +88,6 @@ async function changePostStatus(formData: FormData) {
   revalidatePath('/wall')
   revalidatePath('/notifications')
 }
-
 
 async function deletePostFromDashboard(formData: FormData) {
   'use server'
@@ -154,11 +152,17 @@ export default async function DashboardPage({
 
   const { data: posts } = await supabase
     .from('wall_posts')
-    .select('id, content, created_at, employee_id, status, reviewed')
+    .select('id, content, created_at, employee_id, status, reviewed, attachment_url')
     .order('created_at', { ascending: false })
 
   const employees = (profiles ?? []) as Profile[]
   const allPosts = (posts ?? []) as Post[]
+
+  const totalPosts = allPosts.length
+  const totalInProgress = allPosts.filter((p) => p.status === 'в процес').length
+  const totalForReview = allPosts.filter((p) => p.status === 'за проверка').length
+  const totalDone = allPosts.filter((p) => p.status === 'готово').length
+  const totalReviewed = allPosts.filter((p) => p.reviewed).length
 
   const visibleEmployees = employees.filter((employee) => {
     if (selectedEmployee !== 'all' && employee.id !== selectedEmployee) {
@@ -176,181 +180,222 @@ export default async function DashboardPage({
   })
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
-      <Header />
+    <main className="space-y-8">
+      <div>
+        <h1 className="text-4xl font-extrabold tracking-tight text-[#1f2937]">
+          Dashboard
+        </h1>
+        <p className="text-gray-500 mt-2">
+          Общ преглед на постове, статуси и активност на екипа
+        </p>
+      </div>
 
-      <div className="max-w-6xl mx-auto p-6 space-y-8">
-        <div>
-          <h1 className="text-4xl font-extrabold tracking-tight">
-            Админ панел
-          </h1>
-          <p className="text-gray-500 mt-2">
-            Преглед, филтриране и управление на постовете
-          </p>
+      {/* Статистики */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <p className="text-gray-500 text-sm">Общо постове</p>
+          <h2 className="text-3xl font-bold mt-2">{totalPosts}</h2>
         </div>
 
-        <form
-          method="get"
-          className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100 flex flex-wrap gap-4 items-end"
-        >
-          <div className="flex-1 min-w-[220px]">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Служител
-            </label>
-            <select
-              name="employee"
-              defaultValue={selectedEmployee}
-              className="w-full border rounded-2xl px-4 py-3 bg-white"
-            >
-              <option value="all">Всички</option>
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.full_name ?? 'Без име'}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <p className="text-gray-500 text-sm">В процес</p>
+          <h2 className="text-3xl font-bold mt-2">{totalInProgress}</h2>
+        </div>
 
-          <div className="flex-1 min-w-[220px]">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Статус
-            </label>
-            <select
-              name="status"
-              defaultValue={selectedStatus}
-              className="w-full border rounded-2xl px-4 py-3 bg-white"
-            >
-              <option value="all">Всички</option>
-              <option value="в процес">В процес</option>
-              <option value="за проверка">За проверка</option>
-              <option value="готово">Готово</option>
-            </select>
-          </div>
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <p className="text-gray-500 text-sm">За проверка</p>
+          <h2 className="text-3xl font-bold mt-2">{totalForReview}</h2>
+        </div>
 
-          <button
-            type="submit"
-            className="bg-black text-white px-5 py-3 rounded-2xl"
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <p className="text-gray-500 text-sm">Готови</p>
+          <h2 className="text-3xl font-bold mt-2">{totalDone}</h2>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+          <p className="text-gray-500 text-sm">Проверени</p>
+          <h2 className="text-3xl font-bold mt-2">{totalReviewed}</h2>
+        </div>
+      </div>
+
+      {/* Филтри */}
+      <form
+        method="get"
+        className="bg-white rounded-3xl shadow-sm p-6 border border-gray-100 flex flex-wrap gap-4 items-end"
+      >
+        <div className="flex-1 min-w-[220px]">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Служител
+          </label>
+          <select
+            name="employee"
+            defaultValue={selectedEmployee}
+            className="w-full border rounded-2xl px-4 py-3 bg-white"
           >
-            Филтрирай
-          </button>
-        </form>
+            <option value="all">Всички</option>
+            {employees.map((employee) => (
+              <option key={employee.id} value={employee.id}>
+                {employee.full_name ?? 'Без име'}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        {visibleEmployees.length ? (
-          visibleEmployees.map((employee) => {
-            const employeePosts = allPosts.filter((post) => {
-              const sameEmployee = post.employee_id === employee.id
-              const sameStatus =
-                selectedStatus === 'all' ? true : post.status === selectedStatus
-              return sameEmployee && sameStatus
-            })
+        <div className="flex-1 min-w-[220px]">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Статус
+          </label>
+          <select
+            name="status"
+            defaultValue={selectedStatus}
+            className="w-full border rounded-2xl px-4 py-3 bg-white"
+          >
+            <option value="all">Всички</option>
+            <option value="в процес">В процес</option>
+            <option value="за проверка">За проверка</option>
+            <option value="готово">Готово</option>
+          </select>
+        </div>
 
-            return (
-              <div
-                key={employee.id}
-                className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100"
-              >
-                <h2 className="text-2xl font-bold mb-1">
+        <button
+          type="submit"
+          className="bg-[#d4af37] hover:bg-[#b8962e] text-white px-5 py-3 rounded-2xl font-medium"
+        >
+          Филтрирай
+        </button>
+      </form>
+
+      {/* Карти по служители */}
+      {visibleEmployees.length ? (
+        visibleEmployees.map((employee) => {
+          const employeePosts = allPosts.filter((post) => {
+            const sameEmployee = post.employee_id === employee.id
+            const sameStatus =
+              selectedStatus === 'all' ? true : post.status === selectedStatus
+            return sameEmployee && sameStatus
+          })
+
+          return (
+            <div
+              key={employee.id}
+              className="bg-white rounded-3xl shadow-sm p-6 border border-gray-100"
+            >
+              <div className="mb-5">
+                <h2 className="text-2xl font-bold text-[#1f2937]">
                   {employee.full_name ?? 'Без име'}
                 </h2>
-
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm text-gray-500 mt-1">
                   Роля: {employee.role}
                 </p>
-
-                <div className="space-y-4">
-                  {employeePosts.length ? (
-                    employeePosts.map((post) => (
-                      <div
-                        key={post.id}
-                        className="border rounded-2xl p-4 bg-gray-50"
-                      >
-                        <div className="flex items-center justify-between mb-3 gap-4">
-                          <span
-                            className={`text-sm font-medium px-3 py-1 rounded-full ${getStatusClasses(
-                              post.status
-                            )}`}
-                          >
-                            {post.status}
-                          </span>
-
-                          <p className="text-sm text-gray-500">
-                            {new Date(post.created_at).toLocaleString('bg-BG')}
-                          </p>
-                        </div>
-
-                        <p className="whitespace-pre-wrap mb-3">
-                          {post.content}
-                        </p>
-
-                        {post.reviewed ? (
-                          <span className="text-green-600 text-sm font-medium block mb-4">
-                            ✔ Проверено
-                          </span>
-                        ) : (
-                          <div className="mb-4">
-                            <span className="text-blue-600 text-sm font-medium block mb-2">
-                              ⏳ Чака проверка
-                            </span>
-
-                            <form action={markReviewed}>
-                              <input type="hidden" name="postId" value={post.id} />
-                              <button
-                                type="submit"
-                                className="text-sm bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700"
-                              >
-                                Маркирай като проверено
-                              </button>
-                            </form>
-                          </div>
-                        )}
-
-                        <div className="flex flex-wrap gap-3 items-center">
-                          <form action={changePostStatus} className="flex gap-2 items-center">
-                            <input type="hidden" name="postId" value={post.id} />
-
-                            <select
-                              name="status"
-                              defaultValue={post.status}
-                              className="border rounded-xl px-3 py-2 bg-white text-sm"
-                            >
-                              <option value="в процес">В процес</option>
-                              <option value="за проверка">За проверка</option>
-                              <option value="готово">Готово</option>
-                            </select>
-
-                            <button
-                              type="submit"
-                              className="text-sm bg-black text-white px-3 py-2 rounded-xl"
-                            >
-                              Смени статус
-                            </button>
-                          </form>
-
-                          <form action={deletePostFromDashboard}>
-                            <input type="hidden" name="postId" value={post.id} />
-                            <button
-                              type="submit"
-                              className="text-sm text-red-600 hover:underline"
-                            >
-                              Изтрий пост
-                            </button>
-                          </form>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500">Няма постове по тези филтри.</p>
-                  )}
-                </div>
               </div>
-            )
-          })
-        ) : (
-          <div className="bg-white rounded-3xl shadow-lg p-6 border border-gray-100">
-            <p className="text-gray-500">Няма намерени резултати.</p>
-          </div>
-        )}
-      </div>
+
+              <div className="space-y-4">
+                {employeePosts.length ? (
+                  employeePosts.map((post) => (
+                    <div
+                      key={post.id}
+                      className="border border-gray-100 rounded-3xl p-5 bg-[#fafafa]"
+                    >
+                      <div className="flex items-center justify-between mb-3 gap-4">
+                        <span
+                          className={`text-sm font-medium px-3 py-1 rounded-full ${getStatusClasses(
+                            post.status
+                          )}`}
+                        >
+                          {post.status}
+                        </span>
+
+                        <p className="text-sm text-gray-500">
+                          {new Date(post.created_at).toLocaleString('bg-BG')}
+                        </p>
+                      </div>
+
+                      <p className="whitespace-pre-wrap mb-4 text-gray-800">
+                        {post.content}
+                      </p>
+
+                      {post.attachment_url && (
+                        <a
+                          href={post.attachment_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-block text-sm text-yellow-700 hover:underline mb-4"
+                        >
+                          Отвори прикачения файл
+                        </a>
+                      )}
+
+                      {post.reviewed ? (
+                        <span className="text-green-600 text-sm font-medium block mb-4">
+                          ✔ Проверено
+                        </span>
+                      ) : (
+                        <div className="mb-4">
+                          <span className="text-blue-600 text-sm font-medium block mb-2">
+                            ⏳ Чака проверка
+                          </span>
+
+                          <form action={markReviewed}>
+                            <input type="hidden" name="postId" value={post.id} />
+                            <button
+                              type="submit"
+                              className="text-sm bg-green-600 text-white px-3 py-2 rounded-2xl hover:bg-green-700"
+                            >
+                              Маркирай като проверено
+                            </button>
+                          </form>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-3 items-center">
+                        <form
+                          action={changePostStatus}
+                          className="flex gap-2 items-center flex-wrap"
+                        >
+                          <input type="hidden" name="postId" value={post.id} />
+
+                          <select
+                            name="status"
+                            defaultValue={post.status}
+                            className="border rounded-2xl px-3 py-2 bg-white text-sm"
+                          >
+                            <option value="в процес">В процес</option>
+                            <option value="за проверка">За проверка</option>
+                            <option value="готово">Готово</option>
+                          </select>
+
+                          <button
+                            type="submit"
+                            className="text-sm bg-[#d4af37] hover:bg-[#b8962e] text-white px-3 py-2 rounded-2xl"
+                          >
+                            Смени статус
+                          </button>
+                        </form>
+
+                        <form action={deletePostFromDashboard}>
+                          <input type="hidden" name="postId" value={post.id} />
+                          <button
+                            type="submit"
+                            className="text-sm text-red-600 hover:underline"
+                          >
+                            Изтрий пост
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500">Няма постове по тези филтри.</p>
+                )}
+              </div>
+            </div>
+          )
+        })
+      ) : (
+        <div className="bg-white rounded-3xl shadow-sm p-6 border border-gray-100">
+          <p className="text-gray-500">Няма намерени резултати.</p>
+        </div>
+      )}
     </main>
   )
 }

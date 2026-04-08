@@ -44,7 +44,7 @@ export default async function WallPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
+    <main className="space-y-6">
       <Header />
 
       <div className="max-w-4xl mx-auto p-6 space-y-6">
