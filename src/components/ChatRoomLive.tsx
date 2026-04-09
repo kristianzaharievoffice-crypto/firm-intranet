@@ -45,31 +45,12 @@ export default function ChatRoomLive({
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const typingClearRef = useRef<NodeJS.Timeout | null>(null)
+  const uiChannelRef = useRef<any>(null)
 
   useEffect(() => {
     setMessages(initialMessages)
   }, [initialMessages])
-
-  useEffect(() => {
-    const loadOtherReadState = async () => {
-      const { data } = await supabase
-        .from('chat_reads')
-        .select('last_read_at')
-        .eq('chat_id', chatId)
-        .eq('user_id', otherUserId)
-        .maybeSingle()
-
-      setOtherLastReadAt(data?.last_read_at ?? null)
-    }
-
-    loadOtherReadState()
-  }, [chatId, otherUserId, supabase])
-
-  useEffect(() => {
-    if (isNearBottom) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [messages, typing, isNearBottom])
 
   useEffect(() => {
     const container = scrollRef.current
@@ -86,6 +67,91 @@ export default function ChatRoomLive({
     container.addEventListener('scroll', handleScroll)
     return () => container.removeEventListener('scroll', handleScroll)
   }, [])
+
+  useEffect(() => {
+    if (isNearBottom) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, typing, isNearBottom])
+
+  const markReadNow = async () => {
+    await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('chat_id', chatId)
+      .neq('sender_id', currentUserId)
+
+    await supabase.rpc('mark_chat_read', {
+      target_chat_id: chatId,
+    })
+  }
+
+  const updateOwnPresence = async () => {
+    await supabase.from('user_presence').upsert(
+      {
+        user_id: currentUserId,
+        last_seen_at: new Date().toISOString(),
+        current_chat_id: chatId,
+      },
+      { onConflict: 'user_id' }
+    )
+  }
+
+  const loadOtherState = async () => {
+    const { data: presence } = await supabase
+      .from('user_presence')
+      .select('last_seen_at, current_chat_id')
+      .eq('user_id', otherUserId)
+      .maybeSingle()
+
+    if (presence?.last_seen_at) {
+      const lastSeen = new Date(presence.last_seen_at).getTime()
+      const now = Date.now()
+      const diffSeconds = (now - lastSeen) / 1000
+
+      setOtherOnline(diffSeconds < 35)
+    } else {
+      setOtherOnline(false)
+    }
+
+    const { data: readRow } = await supabase
+      .from('chat_reads')
+      .select('last_read_at')
+      .eq('chat_id', chatId)
+      .eq('user_id', otherUserId)
+      .maybeSingle()
+
+    setOtherLastReadAt(readRow?.last_read_at ?? null)
+  }
+
+  useEffect(() => {
+    void markReadNow()
+    void updateOwnPresence()
+    void loadOtherState()
+
+    const heartbeat = setInterval(() => {
+      void updateOwnPresence()
+      void markReadNow()
+    }, 10000)
+
+    const otherStatePoll = setInterval(() => {
+      void loadOtherState()
+    }, 3000)
+
+    return () => {
+      clearInterval(heartbeat)
+      clearInterval(otherStatePoll)
+
+      void supabase.from('user_presence').upsert(
+        {
+          user_id: currentUserId,
+          last_seen_at: new Date().toISOString(),
+          current_chat_id: null,
+        },
+        { onConflict: 'user_id' }
+      )
+    }
+  }, [chatId, currentUserId, otherUserId, supabase])
 
   useEffect(() => {
     const messagesChannel = supabase
@@ -108,71 +174,40 @@ export default function ChatRoomLive({
           })
 
           if (newMessage.sender_id !== currentUserId) {
-            await supabase
-              .from('messages')
-              .update({ is_read: true })
-              .eq('id', newMessage.id)
-
-            await supabase.rpc('mark_chat_read', {
-              target_chat_id: chatId,
-            })
+            await markReadNow()
           }
         }
       )
       .subscribe()
 
-    const readsChannel = supabase
-      .channel(`chat-room-reads-${chatId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chat_reads',
-          filter: `chat_id=eq.${chatId}`,
-        },
-        async (payload) => {
-          const row = payload.new as { user_id?: string; last_read_at?: string } | null
-          if (!row?.user_id || !row.last_read_at) return
-
-          if (row.user_id === otherUserId) {
-            setOtherLastReadAt(row.last_read_at)
-          }
-        }
-      )
-      .subscribe()
-
-    const uiChannel = supabase.channel(`chat-room-ui-${chatId}`)
+    const uiChannel = supabase.channel(`chat-ui-${chatId}`)
+    uiChannelRef.current = uiChannel
 
     uiChannel
-      .on('presence', { event: 'sync' }, () => {
-        const state = uiChannel.presenceState()
-        const online = Object.keys(state).includes(otherUserId)
-        setOtherOnline(online)
-      })
       .on('broadcast', { event: 'typing' }, (payload) => {
         if (payload.payload?.userId === otherUserId) {
           setTyping(Boolean(payload.payload?.isTyping))
+
+          if (typingClearRef.current) {
+            clearTimeout(typingClearRef.current)
+          }
+
+          typingClearRef.current = setTimeout(() => {
+            setTyping(false)
+          }, 1600)
         }
       })
-
-    uiChannel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await uiChannel.track({
-          userId: currentUserId,
-          onlineAt: new Date().toISOString(),
-        })
-      }
-    })
+      .subscribe()
 
     return () => {
       supabase.removeChannel(messagesChannel)
-      supabase.removeChannel(readsChannel)
       supabase.removeChannel(uiChannel)
     }
   }, [chatId, currentUserId, otherUserId, supabase])
 
-  const lastOwnMessage = [...messages].reverse().find((m) => m.sender_id === currentUserId)
+  const lastOwnMessage = [...messages]
+    .reverse()
+    .find((m) => m.sender_id === currentUserId)
 
   const isLastOwnMessageSeen =
     !!lastOwnMessage &&
@@ -181,9 +216,9 @@ export default function ChatRoomLive({
       new Date(lastOwnMessage.created_at).getTime()
 
   const broadcastTyping = async (isTyping: boolean) => {
-    const channel = supabase.channel(`chat-room-ui-${chatId}`)
-    await channel.subscribe()
-    await channel.send({
+    if (!uiChannelRef.current) return
+
+    await uiChannelRef.current.send({
       type: 'broadcast',
       event: 'typing',
       payload: {
@@ -257,7 +292,7 @@ export default function ChatRoomLive({
       attachmentUrl = publicUrlData.publicUrl
     }
 
-    const { error } = await supabase.rpc('send_message', {
+    const { data, error } = await supabase.rpc('send_message', {
       target_chat_id: chatId,
       message_content: trimmedContent || (attachmentUrl ? 'Прикачен файл' : ''),
       message_attachment_url: attachmentUrl,
@@ -269,10 +304,21 @@ export default function ChatRoomLive({
       return
     }
 
+    if (data) {
+      const inserted = data as Message
+
+      setMessages((current) => {
+        const exists = current.some((m) => m.id === inserted.id)
+        if (exists) return current
+        return [...current, inserted]
+      })
+    }
+
     setContent('')
     setFile(null)
     setIsSending(false)
     await broadcastTyping(false)
+    await updateOwnPresence()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -387,7 +433,9 @@ export default function ChatRoomLive({
         <div className="grid gap-4">
           <textarea
             value={content}
-            onChange={(e) => handleTyping(e.target.value)}
+            onChange={(e) => {
+              void handleTyping(e.target.value)
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Напиши съобщение... (Enter = изпращане, Shift+Enter = нов ред)"
             className="min-h-28 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"

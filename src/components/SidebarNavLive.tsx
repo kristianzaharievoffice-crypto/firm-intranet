@@ -176,6 +176,7 @@ export default function SidebarNavLive({
         count={notificationsCount}
       />
       {role === 'admin' && <NavItem href="/dashboard" label="Dashboard" />}
+      {role === 'admin' && <NavItem href="/admin" label="Admin Panel" />}
     </nav>
   )
 }
