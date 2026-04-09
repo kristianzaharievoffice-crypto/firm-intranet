@@ -3,8 +3,7 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
-import RealtimeChat from '@/components/RealtimeChat'
-import SendMessageForm from '@/components/SendMessageForm'
+import ChatRoomLive from '@/components/ChatRoomLive'
 
 interface Message {
   id: string
@@ -76,24 +75,30 @@ export default async function ChatDetailsPage({
     .in('id', safeSenderIds)
 
   const senderNames = Object.fromEntries(
-    (profiles ?? []).map((profile) => [profile.id, profile.full_name ?? 'Потребител'])
+    (profiles ?? []).map((profile) => [
+      profile.id,
+      profile.full_name ?? 'Потребител',
+    ])
   )
+
+  const otherUserId = me.role === 'admin' ? chat.employee_id : chat.admin_id
+  const otherUserName = senderNames[otherUserId] ?? 'Потребител'
 
   return (
     <main className="space-y-8">
       <PageHeader
         title="Чат"
-        subtitle="Модерен разговор с файлове, ясни податели и красив изглед."
+        subtitle="Live чат с online статус, typing indicator и прочетено съобщение."
       />
 
-      <RealtimeChat
+      <ChatRoomLive
         initialMessages={(messages ?? []) as Message[]}
         currentUserId={user.id}
         chatId={chatId}
         senderNames={senderNames}
+        otherUserId={otherUserId}
+        otherUserName={otherUserName}
       />
-
-      <SendMessageForm chatId={chatId} />
     </main>
   )
 }
