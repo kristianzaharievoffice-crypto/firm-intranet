@@ -34,19 +34,19 @@ export default async function EmployeesPage() {
     <main className="space-y-8">
       <PageHeader
         title="Служители"
-        subtitle="Хората в системата, техните роли и основна информация."
+        subtitle="По-големи табове и по-големи снимки, за да се вижда ясно кой кой е."
       />
 
       {items.length ? (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {items.map((employee) => (
             <Link
               key={employee.id}
               href={`/employees/${employee.id}`}
-              className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              className="rounded-[36px] border border-[#ece5d8] bg-white p-8 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-xl font-black text-[#a88414]">
+              <div className="flex items-center gap-5">
+                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-3xl font-black text-[#a88414]">
                   {employee.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -59,15 +59,21 @@ export default async function EmployeesPage() {
                   )}
                 </div>
 
-                <div>
-                  <h2 className="text-xl font-black tracking-tight text-[#1f1a14]">
+                <div className="min-w-0">
+                  <h2 className="truncate text-2xl font-black tracking-tight text-[#1f1a14]">
                     {employee.full_name ?? 'Без име'}
                   </h2>
-                  <p className="mt-1 text-sm text-[#7b746b]">
+
+                  <p className="mt-2 text-base text-[#7b746b]">
                     {employee.job_title || 'Без длъжност'}
                   </p>
-                  <p className="text-sm text-[#a09a90]">
+
+                  <p className="mt-1 text-sm text-[#a09a90]">
                     {employee.department || 'Без отдел'}
+                  </p>
+
+                  <p className="mt-3 inline-flex rounded-full bg-[#fbf3dc] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#a88414]">
+                    {employee.role}
                   </p>
                 </div>
               </div>

@@ -88,7 +88,7 @@ export default async function ChatDetailsPage({
     <main className="space-y-8">
       <PageHeader
         title="Чат"
-        subtitle="Live чат с online статус, typing indicator и прочетено съобщение."
+        subtitle="Live чат с по-бързо изпращане, typing indicator, online статус и seen."
       />
 
       <ChatRoomLive
