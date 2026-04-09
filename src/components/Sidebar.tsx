@@ -42,14 +42,31 @@ export default async function Sidebar() {
   let unreadChatCount = 0
 
   if (chatIds.length) {
-    const { count } = await supabase
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .in('chat_id', chatIds)
-      .neq('sender_id', user.id)
-      .eq('is_read', false)
+    const { data: readRows } = await supabase
+      .from('chat_reads')
+      .select('chat_id, last_read_at')
+      .eq('user_id', user.id)
 
-    unreadChatCount = count ?? 0
+    const { data: messages } = await supabase
+      .from('messages')
+      .select('chat_id, created_at, sender_id')
+      .in('chat_id', chatIds)
+
+    const readMap = new Map(
+      (readRows ?? []).map((row) => [row.chat_id, row.last_read_at])
+    )
+
+    unreadChatCount = (messages ?? []).filter((message) => {
+      if (message.sender_id === user.id) return false
+
+      const lastReadAt = readMap.get(message.chat_id)
+      if (!lastReadAt) return true
+
+      return (
+        new Date(message.created_at).getTime() >
+        new Date(lastReadAt).getTime()
+      )
+    }).length
   }
 
   const taskColumn = profile.role === 'admin' ? 'created_by' : 'assigned_to'

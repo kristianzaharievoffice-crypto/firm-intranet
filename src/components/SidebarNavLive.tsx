@@ -58,6 +58,41 @@ export default function SidebarNavLive({
   const [unreadChatCount, setUnreadChatCount] = useState(initialUnreadChatCount)
   const [tasksCount, setTasksCount] = useState(initialTasksCount)
 
+  const refreshChatUnreadCount = async () => {
+    if (!chatIds.length) {
+      setUnreadChatCount(0)
+      return
+    }
+
+    const { data: readRows } = await supabase
+      .from('chat_reads')
+      .select('chat_id, last_read_at')
+      .eq('user_id', currentUserId)
+
+    const { data: messages } = await supabase
+      .from('messages')
+      .select('chat_id, created_at, sender_id')
+      .in('chat_id', chatIds)
+
+    const readMap = new Map(
+      (readRows ?? []).map((row) => [row.chat_id, row.last_read_at])
+    )
+
+    const unreadCount = (messages ?? []).filter((message) => {
+      if (message.sender_id === currentUserId) return false
+
+      const lastReadAt = readMap.get(message.chat_id)
+      if (!lastReadAt) return true
+
+      return (
+        new Date(message.created_at).getTime() >
+        new Date(lastReadAt).getTime()
+      )
+    }).length
+
+    setUnreadChatCount(unreadCount)
+  }
+
   const refreshCounts = async () => {
     const { count: notifCount } = await supabase
       .from('notifications')
@@ -67,18 +102,7 @@ export default function SidebarNavLive({
 
     setNotificationsCount(notifCount ?? 0)
 
-    if (chatIds.length) {
-      const { count: msgCount } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .in('chat_id', chatIds)
-        .neq('sender_id', currentUserId)
-        .eq('is_read', false)
-
-      setUnreadChatCount(msgCount ?? 0)
-    } else {
-      setUnreadChatCount(0)
-    }
+    await refreshChatUnreadCount()
 
     const taskColumn = role === 'admin' ? 'created_by' : 'assigned_to'
 
