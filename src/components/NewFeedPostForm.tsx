@@ -3,7 +3,11 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-export default function NewFeedPostForm() {
+export default function NewFeedPostForm({
+  onPosted,
+}: {
+  onPosted?: () => void
+}) {
   const supabase = createClient()
 
   const [content, setContent] = useState('')
@@ -81,7 +85,8 @@ export default function NewFeedPostForm() {
     setContent('')
     setFile(null)
     setIsSaving(false)
-    window.location.reload()
+    setMessage('')
+    onPosted?.()
   }
 
   return (
@@ -94,7 +99,7 @@ export default function NewFeedPostForm() {
       </h2>
 
       <p className="mt-2 text-sm text-[#7b746b]">
-        Общо пространство за съобщения, новини, файлове и бързи постове.
+        Общо пространство за съобщения, файлове и бързи публикации.
       </p>
 
       <div className="mt-4 grid gap-4">
