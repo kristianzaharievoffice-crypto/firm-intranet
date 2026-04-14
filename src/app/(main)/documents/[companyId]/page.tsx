@@ -1,30 +1,48 @@
 export const dynamic = 'force-dynamic'
 
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
-import NewCompanyForm from '@/components/NewCompanyForm'
+import NewDocumentForm from '@/components/NewDocumentForm'
 
 interface CompanyItem {
   id: string
   name: string
+}
+
+interface DocumentItem {
+  id: string
+  title: string
+  file_url: string
+  file_path: string
   created_at: string
 }
 
-async function deleteCompany(formData: FormData) {
+async function deleteDocument(formData: FormData) {
   'use server'
 
+  const documentId = String(formData.get('documentId') || '')
+  const filePath = String(formData.get('filePath') || '')
   const companyId = String(formData.get('companyId') || '')
+
   const supabase = await createClient()
 
-  await supabase.from('document_companies').delete().eq('id', companyId)
+  if (filePath) {
+    await supabase.storage.from('company-documents').remove([filePath])
+  }
 
-  revalidatePath('/documents')
+  await supabase.from('company_documents').delete().eq('id', documentId)
+
+  revalidatePath(`/documents/${companyId}`)
 }
 
-export default async function DocumentsPage() {
+export default async function CompanyDocumentsPage({
+  params,
+}: {
+  params: Promise<{ companyId: string }>
+}) {
+  const { companyId } = await params
   const supabase = await createClient()
 
   const {
@@ -41,55 +59,116 @@ export default async function DocumentsPage() {
 
   if (!me) redirect('/login')
 
-  const { data: companies } = await supabase
+  const { data: company, error: companyError } = await supabase
     .from('document_companies')
-    .select('id, name, created_at')
-    .order('name', { ascending: true })
+    .select('id, name')
+    .eq('id', companyId)
+    .single()
 
-  const items = (companies ?? []) as CompanyItem[]
+  if (companyError || !company) {
+    return (
+      <main className="space-y-8">
+        <PageHeader
+          title="Документи"
+          subtitle="Не успяхме да отворим фирмата."
+        />
+        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+          <p className="text-red-600">
+            {companyError?.message || 'Фирмата не е намерена.'}
+          </p>
+        </div>
+      </main>
+    )
+  }
+
+  const { data: documents, error: documentsError } = await supabase
+    .from('company_documents')
+    .select('id, title, file_url, file_path, created_at')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
+
+  if (documentsError) {
+    return (
+      <main className="space-y-8">
+        <PageHeader
+          title={company.name}
+          subtitle="Грешка при зареждане на документите."
+        />
+        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+          <p className="text-red-600">{documentsError.message}</p>
+        </div>
+      </main>
+    )
+  }
+
+  const companyItem = company as CompanyItem
+  const items = (documents ?? []) as DocumentItem[]
 
   return (
     <main className="space-y-8">
       <PageHeader
-        title="Документи"
-        subtitle="Секции по фирми и документи за разглеждане и сваляне."
+        title={companyItem.name}
+        subtitle="Документи на избраната фирма."
       />
 
-      {me.role === 'admin' && <NewCompanyForm />}
+      {me.role === 'admin' && <NewDocumentForm companyId={companyId} />}
 
       {items.length ? (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((company) => (
+        <div className="space-y-4">
+          {items.map((doc) => (
             <div
-              key={company.id}
-              className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
+              key={doc.id}
+              className="rounded-[28px] border border-[#ece5d8] bg-white p-6 shadow-sm"
             >
-              <Link href={`/documents/${company.id}`} className="block">
-                <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
-                  {company.name}
-                </h2>
-                <p className="mt-2 text-sm text-[#7b746b]">
-                  Отвори секцията с документи
-                </p>
-              </Link>
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-xl font-black tracking-tight text-[#1f1a14]">
+                    {doc.title}
+                  </h2>
+                  <p className="mt-2 text-sm text-[#7b746b]">
+                    Добавен на {new Date(doc.created_at).toLocaleString('bg-BG')}
+                  </p>
+                </div>
 
-              {me.role === 'admin' && (
-                <form action={deleteCompany} className="mt-4">
-                  <input type="hidden" name="companyId" value={company.id} />
-                  <button
-                    type="submit"
-                    className="text-sm font-medium text-red-600 hover:underline"
+                <div className="flex flex-wrap items-center gap-3">
+                  <a
+                    href={doc.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-[18px] border border-[#e7d6a1] bg-white px-4 py-2 font-semibold text-[#1f1a14] hover:bg-[#fbf6e8]"
                   >
-                    Изтрий фирма
-                  </button>
-                </form>
-              )}
+                    Отвори
+                  </a>
+
+                  <a
+                    href={doc.file_url}
+                    download
+                    className="rounded-[18px] bg-[#c9a227] px-4 py-2 font-semibold text-white hover:bg-[#a88414]"
+                  >
+                    Свали
+                  </a>
+
+                  {me.role === 'admin' && (
+                    <form action={deleteDocument}>
+                      <input type="hidden" name="documentId" value={doc.id} />
+                      <input type="hidden" name="filePath" value={doc.file_path} />
+                      <input type="hidden" name="companyId" value={companyId} />
+                      <button
+                        type="submit"
+                        className="text-sm font-medium text-red-600 hover:underline"
+                      >
+                        Изтрий
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>
       ) : (
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">Все още няма добавени фирми.</p>
+          <p className="text-[#7b746b]">Все още няма качени документи.</p>
         </div>
       )}
     </main>

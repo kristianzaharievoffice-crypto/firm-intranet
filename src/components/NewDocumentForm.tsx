@@ -49,7 +49,7 @@ export default function NewDocumentForm({
       })
 
     if (uploadError) {
-      setMessage(uploadError.message)
+      setMessage(`Upload error: ${uploadError.message}`)
       setIsSaving(false)
       return
     }

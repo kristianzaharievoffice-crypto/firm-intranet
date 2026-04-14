@@ -41,10 +41,24 @@ export default async function DocumentsPage() {
 
   if (!me) redirect('/login')
 
-  const { data: companies } = await supabase
+  const { data: companies, error } = await supabase
     .from('document_companies')
     .select('id, name, created_at')
     .order('name', { ascending: true })
+
+  if (error) {
+    return (
+      <main className="space-y-8">
+        <PageHeader
+          title="Документи"
+          subtitle="Секции по фирми и документи за разглеждане и сваляне."
+        />
+        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+          <p className="text-red-600">Грешка: {error.message}</p>
+        </div>
+      </main>
+    )
+  }
 
   const items = (companies ?? []) as CompanyItem[]
 
