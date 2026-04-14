@@ -13,7 +13,7 @@ export default function MainLayout({
           <Sidebar />
           <main className="modern-scroll flex-1 overflow-y-auto bg-[#fcfbf8]">
             <div className="mx-auto max-w-7xl p-6 md:p-8">
-              <TopAnnouncementBar currentUserId={''} role={''} chatIds={[]} initialNotificationsCount={0} initialUnreadChatCount={0} initialTasksCount={0} />
+              <TopAnnouncementBar />
               {children}
             </div>
           </main>
