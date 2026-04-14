@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import StatCard from '@/components/StatCard'
+import AdminAnnouncementForm from '@/components/AdminAnnouncementForm'
 
 interface ProfileRow {
   id: string
@@ -71,6 +72,14 @@ export default async function AdminPage() {
     .select('id, full_name, role, job_title, department, phone, bio, avatar_url')
     .order('full_name', { ascending: true })
 
+  const { data: currentAnnouncement } = await supabase
+    .from('site_announcements')
+    .select('id, content, is_active, expires_at, created_at')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   const { count: postsCount } = await supabase
     .from('wall_posts')
     .select('*', { count: 'exact', head: true })
@@ -93,7 +102,7 @@ export default async function AdminPage() {
     <main className="space-y-8">
       <PageHeader
         title="Admin Panel"
-        subtitle="Управление на потребители, роли и фирмени данни. Тук админът редактира съществуващите профили и има бърз достъп до основните функции."
+        subtitle="Управление на потребители, pinned новини и фирмени данни."
         action={
           <div className="flex flex-wrap gap-3">
             <Link
@@ -116,8 +125,14 @@ export default async function AdminPage() {
         <StatCard label="Потребители" value={users.length} />
         <StatCard label="Постове" value={postsCount ?? 0} />
         <StatCard label="Задачи" value={tasksCount ?? 0} tone="soft" />
-        <StatCard label="Събития / Чатове" value={`${eventsCount ?? 0} / ${chatsCount ?? 0}`} tone="gold" />
+        <StatCard
+          label="Събития / Чатове"
+          value={`${eventsCount ?? 0} / ${chatsCount ?? 0}`}
+          tone="gold"
+        />
       </div>
+
+      <AdminAnnouncementForm currentAnnouncement={currentAnnouncement ?? null} />
 
       <div className="space-y-5">
         {users.map((profile) => (

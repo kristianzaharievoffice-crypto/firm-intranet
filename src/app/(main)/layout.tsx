@@ -1,4 +1,5 @@
 import Sidebar from '@/components/Sidebar'
+import TopAnnouncementBar from '@/components/TopAnnouncementBar'
 
 export default function MainLayout({
   children,
@@ -11,10 +12,14 @@ export default function MainLayout({
         <div className="flex min-h-[calc(100vh-2rem)] overflow-hidden rounded-[32px] border border-[#ece5d8] bg-white/70 shadow-[0_20px_60px_rgba(31,26,20,0.08)] backdrop-blur">
           <Sidebar />
           <main className="modern-scroll flex-1 overflow-y-auto bg-[#fcfbf8]">
-            <div className="mx-auto max-w-7xl p-6 md:p-8">{children}</div>
+            <div className="mx-auto max-w-7xl p-6 md:p-8">
+              <TopAnnouncementBar currentUserId={''} role={''} chatIds={[]} initialNotificationsCount={0} initialUnreadChatCount={0} initialTasksCount={0} />
+              {children}
+            </div>
           </main>
         </div>
       </div>
+
     </div>
   )
 }
