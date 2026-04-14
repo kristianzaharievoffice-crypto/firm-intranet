@@ -158,6 +158,12 @@ export default function FeedLive({
   useEffect(() => {
     void loadFeed()
 
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void loadFeed()
+      }
+    }, 2000)
+
     const postsChannel = supabase
       .channel('feed-posts-live')
       .on(
@@ -192,6 +198,7 @@ export default function FeedLive({
       .subscribe()
 
     return () => {
+      clearInterval(pollInterval)
       supabase.removeChannel(postsChannel)
       supabase.removeChannel(likesChannel)
       supabase.removeChannel(commentsChannel)
