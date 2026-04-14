@@ -191,6 +191,7 @@ export default function SidebarNavLive({
       <NavItem href="/wall" label="Стена" />
       <NavItem href="/chat" label="Чат" count={unreadChatCount} />
       <NavItem href="/tasks" label="Задачи" count={tasksCount} />
+      <NavItem href="/documents" label="Документи" />
       <NavItem href="/calendar" label="Календар" />
       <NavItem href="/events" label="Събития" />
       <NavItem href="/employees" label="Служители" />
