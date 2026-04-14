@@ -116,6 +116,14 @@ export default function SidebarNavLive({
   }
 
   useEffect(() => {
+    void refreshCounts()
+
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refreshCounts()
+      }
+    }, 3000)
+
     const notificationChannel = supabase
       .channel(`sidebar-notifications-${currentUserId}`)
       .on(
@@ -126,8 +134,8 @@ export default function SidebarNavLive({
           table: 'notifications',
           filter: `user_id=eq.${currentUserId}`,
         },
-        async () => {
-          await refreshCounts()
+        () => {
+          void refreshCounts()
         }
       )
       .subscribe()
@@ -141,8 +149,8 @@ export default function SidebarNavLive({
           schema: 'public',
           table: 'messages',
         },
-        async () => {
-          await refreshCounts()
+        () => {
+          void refreshCounts()
         }
       )
       .subscribe()
@@ -157,8 +165,8 @@ export default function SidebarNavLive({
           table: 'chat_reads',
           filter: `user_id=eq.${currentUserId}`,
         },
-        async () => {
-          await refreshCounts()
+        () => {
+          void refreshCounts()
         }
       )
       .subscribe()
@@ -172,13 +180,14 @@ export default function SidebarNavLive({
           schema: 'public',
           table: 'tasks',
         },
-        async () => {
-          await refreshCounts()
+        () => {
+          void refreshCounts()
         }
       )
       .subscribe()
 
     return () => {
+      clearInterval(pollInterval)
       supabase.removeChannel(notificationChannel)
       supabase.removeChannel(messageChannel)
       supabase.removeChannel(readChannel)

@@ -1,6 +1,5 @@
 import Sidebar from '@/components/Sidebar'
 import TopAnnouncementBar from '@/components/TopAnnouncementBar'
-import AutoRefreshManager from '@/components/AutoRefreshManager'
 
 export default function MainLayout({
   children,
@@ -9,8 +8,6 @@ export default function MainLayout({
 }) {
   return (
     <div className="min-h-screen bg-transparent">
-      <AutoRefreshManager />
-
       <div className="mx-auto max-w-[1600px] p-4 md:p-6">
         <div className="flex min-h-[calc(100vh-2rem)] overflow-hidden rounded-[32px] border border-[#ece5d8] bg-white/70 shadow-[0_20px_60px_rgba(31,26,20,0.08)] backdrop-blur">
           <Sidebar />
