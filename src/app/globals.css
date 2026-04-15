@@ -1,1 +1,37 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================
+   GLOBAL BACKGROUND
+========================= */
+body {
+  background: linear-gradient(
+    135deg,
+    #fdf6e3 0%,
+    #fbf3dc 40%,
+    #f4e7c1 100%
+  );
+  background-attachment: fixed;
+  color: #1f1a14;
+}
+
+/* =========================
+   SCROLLBAR (optional premium look)
+========================= */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f4e7c1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c9a227;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a88414;
+}
