@@ -89,16 +89,18 @@ export default async function Sidebar() {
     <aside className="hidden w-[310px] shrink-0 border-r border-[#ece5d8] bg-[#fffdf8] xl:block">
       <div className="flex h-full flex-col px-6 py-7">
         <Link href="/feed" className="block">
-          <div className="rounded-[28px] bg-[#111111] px-5 py-5 text-white shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/70">
-              RCX NETWORK
-            </p>
-            <h1 className="mt-3 text-2xl font-black tracking-tight">
-              RCX NETWORK
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-white/75">
-              Inside information platform
-            </p>
+          <div className="rounded-[28px] bg-gradient-to-br from-[#d4af37] via-[#c9a227] to-[#a88414] px-5 py-5 text-white shadow-lg">
+   <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/80">
+  PREMIUM WORKSPACE
+</p>
+
+<h1 className="mt-3 text-2xl font-black tracking-tight text-white">
+  RCX NETWORK
+</h1>
+
+<p className="mt-2 text-sm leading-6 text-white/90">
+  Inside information platform
+</p>
           </div>
         </Link>
 
