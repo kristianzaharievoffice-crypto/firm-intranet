@@ -1,124 +1,113 @@
-export const dynamic = 'force-dynamic'
+'use client'
 
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import PageHeader from '@/components/PageHeader'
+import { useRouter } from 'next/navigation'
+import { useMemo, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
-interface TaskItem {
+interface UserItem {
   id: string
-  title: string
-  due_date: string | null
+  full_name: string
+  avatar_url: string | null
+  job_title: string | null
+  department: string | null
+  existing_chat_id: string | null
+  unread_count: number
 }
 
-interface EventItem {
-  id: string
-  title: string
-  date: string | null
-  time: string | null
+type ChatDirectoryProps = {
+  users: UserItem[]
 }
 
-export default async function CalendarPage() {
-  const supabase = await createClient()
+export default function ChatDirectory({ users }: ChatDirectoryProps) {
+  const router = useRouter()
+  const supabase = useMemo(() => createClient(), [])
+  const [loadingId, setLoadingId] = useState<string | null>(null)
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const openChat = async (userId: string, existingChatId: string | null) => {
+    if (existingChatId) {
+      router.push(`/chat/${existingChatId}`)
+      return
+    }
 
-  if (!user) redirect('/login')
+    setLoadingId(userId)
 
-  const { data: me } = await supabase
-    .from('profiles')
-    .select('id, role')
-    .eq('id', user.id)
-    .single()
+    const { data, error } = await supabase.rpc('get_or_create_direct_chat', {
+      other_user_id: userId,
+    })
 
-  if (!me) redirect('/login')
+    if (error || !data) {
+      setLoadingId(null)
+      return
+    }
 
-  let tasks: TaskItem[] = []
-
-  if (me.role === 'admin') {
-    const { data } = await supabase
-      .from('tasks')
-      .select('id, title, due_date')
-      .order('due_date', { ascending: true })
-
-    tasks = (data ?? []) as TaskItem[]
-  } else {
-    const { data } = await supabase
-      .from('tasks')
-      .select('id, title, due_date')
-      .eq('assigned_to', user.id)
-      .order('due_date', { ascending: true })
-
-    tasks = (data ?? []) as TaskItem[]
+    router.push(`/chat/${data}`)
   }
 
-  const { data: events } = await supabase
-    .from('events')
-    .select('id, title, date, time')
-    .order('date', { ascending: true })
-
-  const eventItems = (events ?? []) as EventItem[]
+  if (!users.length) {
+    return (
+      <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+        <p className="text-[#7b746b]">No users found.</p>
+      </div>
+    )
+  }
 
   return (
-    <main className="space-y-8">
-      <PageHeader
-        title="Calendar"
-        subtitle="📅 Your schedule with tasks and events in one place."
-      />
+    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      {users.map((user) => (
+        <div
+          key={user.id}
+          className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
+        >
+          <div className="flex items-center gap-4">
+            <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-2xl font-black text-[#a88414]">
+              {user.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user.avatar_url}
+                  alt={user.full_name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                (user.full_name?.[0] ?? 'U').toUpperCase()
+              )}
 
-      <div className="grid gap-8 xl:grid-cols-2">
-        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
-            ✅ Tasks
-          </h2>
-
-          {tasks.length ? (
-            <div className="mt-5 space-y-4">
-              {tasks.map((task) => (
-                <div key={task.id} className="rounded-[20px] bg-[#fcfbf8] p-4">
-                  <p className="font-semibold text-[#1f1a14]">📝 {task.title}</p>
-                  <p className="mt-2 text-sm text-[#7b746b]">
-                    Due date:{' '}
-                    {task.due_date
-                      ? new Date(task.due_date).toLocaleDateString('en-GB')
-                      : '-'}
-                  </p>
-                </div>
-              ))}
+              {user.unread_count > 0 && (
+                <span className="absolute -right-1 -top-1 inline-flex min-h-7 min-w-7 items-center justify-center rounded-full bg-[#c9a227] px-2 text-xs font-bold text-white shadow">
+                  {user.unread_count}
+                </span>
+              )}
             </div>
-          ) : (
-            <p className="mt-4 text-[#7b746b]">Nothing is scheduled yet.</p>
-          )}
-        </div>
 
-        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
-            🎉 Events
-          </h2>
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-2xl font-black tracking-tight text-[#1f1a14]">
+                {user.full_name}
+              </h2>
+              <p className="mt-1 text-sm text-[#7b746b]">
+                {user.job_title || 'No job title'}
+              </p>
+              <p className="mt-1 text-sm text-[#a09a90]">
+                {user.department || 'No department'}
+              </p>
 
-          {eventItems.length ? (
-            <div className="mt-5 space-y-4">
-              {eventItems.map((event) => (
-                <div key={event.id} className="rounded-[20px] bg-[#fcfbf8] p-4">
-                  <p className="font-semibold text-[#1f1a14]">🎈 {event.title}</p>
-                  <p className="mt-2 text-sm text-[#7b746b]">
-                    Date:{' '}
-                    {event.date
-                      ? new Date(event.date).toLocaleDateString('en-GB')
-                      : '-'}
-                  </p>
-                  <p className="mt-1 text-sm text-[#7b746b]">
-                    ⏰ {event.time || '-'}
-                  </p>
-                </div>
-              ))}
+              {user.unread_count > 0 && (
+                <p className="mt-2 text-sm font-semibold text-[#a88414]">
+                  {user.unread_count} unread message
+                  {user.unread_count === 1 ? '' : 's'}
+                </p>
+              )}
             </div>
-          ) : (
-            <p className="mt-4 text-[#7b746b]">Nothing is scheduled yet.</p>
-          )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void openChat(user.id, user.existing_chat_id)}
+            disabled={loadingId === user.id}
+            className="mt-5 rounded-[18px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
+          >
+            {loadingId === user.id ? 'Opening...' : 'Open chat'}
+          </button>
         </div>
-      </div>
-    </main>
+      ))}
+    </div>
   )
 }
