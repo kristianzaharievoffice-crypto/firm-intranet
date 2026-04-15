@@ -108,7 +108,7 @@ export default function FeedLive({
       profiles.map((p) => [
         p.id,
         {
-          name: p.full_name ?? 'Потребител',
+          name: p.full_name ?? 'User',
           avatar: p.avatar_url ?? null,
         },
       ])
@@ -124,7 +124,7 @@ export default function FeedLive({
           return {
             id: comment.id,
             user_id: comment.user_id,
-            user_name: commentProfile?.name ?? 'Потребител',
+            user_name: commentProfile?.name ?? 'User',
             user_avatar: commentProfile?.avatar ?? null,
             content: comment.content,
             created_at: comment.created_at,
@@ -142,7 +142,7 @@ export default function FeedLive({
         attachment_url: post.attachment_url,
         attachment_path: post.attachment_path,
         user_id: post.user_id,
-        user_name: postProfile?.name ?? 'Потребител',
+        user_name: postProfile?.name ?? 'User',
         user_avatar: postProfile?.avatar ?? null,
         like_count: postLikes.length,
         liked_by_me: postLikes.some((like) => like.user_id === currentUserId),
@@ -260,7 +260,7 @@ export default function FeedLive({
 
       {loading ? (
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">Зареждане...</p>
+          <p className="text-[#7b746b]">Loading...</p>
         </div>
       ) : posts.length ? (
         <div className="space-y-5">
@@ -340,15 +340,15 @@ export default function FeedLive({
                       : 'border border-[#e7d6a1] bg-white text-[#1f1a14]'
                   }`}
                 >
-                  {post.liked_by_me ? 'Харесано' : 'Харесай'}
+                  {post.liked_by_me ? 'Liked' : 'Like'}
                 </button>
 
                 <p className="text-sm text-[#7b746b]">
-                  {post.like_count} харесвания
+                  {post.like_count} likes
                 </p>
 
                 <p className="text-sm text-[#7b746b]">
-                  {post.comments.length} коментара
+                  {post.comments.length} comments
                 </p>
               </div>
 
@@ -407,7 +407,7 @@ export default function FeedLive({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-[#7b746b]">Още няма коментари.</p>
+                  <p className="text-sm text-[#7b746b]">No comments yet.</p>
                 )}
 
                 <div className="mt-4 flex flex-col gap-3 md:flex-row">
@@ -419,7 +419,7 @@ export default function FeedLive({
                         [post.id]: e.target.value,
                       }))
                     }
-                    placeholder="Напиши коментар..."
+                    placeholder="Write a comment..."
                     className="flex-1 rounded-[18px] border border-[#ece5d8] bg-white px-4 py-3 outline-none focus:border-[#c9a227]"
                   />
 
@@ -437,7 +437,7 @@ export default function FeedLive({
         </div>
       ) : (
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">Все още няма постове във feed.</p>
+          <p className="text-[#7b746b]">No posts in feed yet.</p>
         </div>
       )}
     </div>

@@ -20,7 +20,7 @@ export default function FeedPostsList({
   if (!posts.length) {
     return (
       <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-        <p className="text-[#7b746b]">Все още няма постове във feed.</p>
+        <p className="text-[#7b746b]">No posts in feed yet.</p>
       </div>
     )
   }
