@@ -198,16 +198,16 @@ export default function SidebarNavLive({
   return (
     <nav className="space-y-1">
       <NavItem href="/feed" label="Feed" />
-      <NavItem href="/wall" label="Стена" />
-      <NavItem href="/chat" label="Чат" count={unreadChatCount} />
-      <NavItem href="/tasks" label="Задачи" count={tasksCount} />
-      <NavItem href="/documents" label="Документи" />
-      <NavItem href="/calendar" label="Календар" />
-      <NavItem href="/events" label="Събития" />
-      <NavItem href="/employees" label="Служители" />
+      <NavItem href="/wall" label="Wall" />
+      <NavItem href="/chat" label="Chat" count={unreadChatCount} />
+      <NavItem href="/tasks" label="Tasks" count={tasksCount} />
+      <NavItem href="/documents" label="Documents" />
+      <NavItem href="/calendar" label="Calendar" />
+      <NavItem href="/events" label="Events" />
+      <NavItem href="/employees" label="Employees" />
       <NavItem
         href="/notifications"
-        label="Известия"
+        label="Notifications"
         count={notificationsCount}
       />
       {role === 'admin' && <NavItem href="/dashboard" label="Dashboard" />}

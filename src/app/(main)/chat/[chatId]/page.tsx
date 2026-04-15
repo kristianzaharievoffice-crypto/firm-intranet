@@ -28,24 +28,21 @@ export default async function ChatDetailsPage({
 
   if (!user) redirect('/login')
 
-  const { data: me } = await supabase
-    .from('profiles')
-    .select('id, full_name, role')
-    .eq('id', user.id)
-    .single()
-
-  if (!me) redirect('/login')
-
   const { data: chat } = await supabase
     .from('chats')
-    .select('id, admin_id, employee_id')
+    .select('id, user1_id, user2_id, admin_id, employee_id')
     .eq('id', chatId)
     .single()
 
   if (!chat) redirect('/chat')
 
-  if (me.role !== 'admin' && chat.employee_id !== user.id) {
-    redirect('/wall')
+  const chatUser1 = chat.user1_id ?? chat.admin_id
+  const chatUser2 = chat.user2_id ?? chat.employee_id
+
+  if (!chatUser1 || !chatUser2) redirect('/chat')
+
+  if (user.id !== chatUser1 && user.id !== chatUser2) {
+    redirect('/feed')
   }
 
   await supabase
@@ -77,18 +74,24 @@ export default async function ChatDetailsPage({
   const senderNames = Object.fromEntries(
     (profiles ?? []).map((profile) => [
       profile.id,
-      profile.full_name ?? 'Потребител',
+      profile.full_name ?? 'User',
     ])
   )
 
-  const otherUserId = me.role === 'admin' ? chat.employee_id : chat.admin_id
-  const otherUserName = senderNames[otherUserId] ?? 'Потребител'
+  const otherUserId = user.id === chatUser1 ? chatUser2 : chatUser1
+  const otherProfile = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .eq('id', otherUserId)
+    .single()
+
+  const otherUserName = otherProfile.data?.full_name ?? 'User'
 
   return (
     <main className="space-y-8">
       <PageHeader
-        title="Чат"
-        subtitle="Live чат с по-бързо изпращане, typing indicator, online статус и seen."
+        title="Chat"
+        subtitle="Direct message conversation."
       />
 
       <ChatRoomLive

@@ -108,7 +108,6 @@ export default function ChatRoomLive({
       const lastSeen = new Date(presence.last_seen_at).getTime()
       const now = Date.now()
       const diffSeconds = (now - lastSeen) / 1000
-
       setOtherOnline(diffSeconds < 35)
     } else {
       setOtherOnline(false)
@@ -248,7 +247,7 @@ export default function ChatRoomLive({
     const trimmedContent = content.trim()
 
     if (!trimmedContent && !file) {
-      setMessageError('Напиши съобщение или избери файл.')
+      setMessageError('Write a message or choose a file.')
       return
     }
 
@@ -263,7 +262,7 @@ export default function ChatRoomLive({
       } = await supabase.auth.getUser()
 
       if (userError || !user) {
-        setMessageError('Няма активен потребител.')
+        setMessageError('No active user.')
         setIsSending(false)
         return
       }
@@ -294,7 +293,7 @@ export default function ChatRoomLive({
 
     const { data, error } = await supabase.rpc('send_message', {
       target_chat_id: chatId,
-      message_content: trimmedContent || (attachmentUrl ? 'Прикачен файл' : ''),
+      message_content: trimmedContent || (attachmentUrl ? 'Attached file' : ''),
       message_attachment_url: attachmentUrl,
     })
 
@@ -344,13 +343,13 @@ export default function ChatRoomLive({
           <div>
             <p className="text-lg font-bold text-[#1f1a14]">{otherUserName}</p>
             <p className="mt-1 text-sm text-[#7b746b]">
-              {otherOnline ? 'Онлайн' : 'Офлайн'}
+              {otherOnline ? 'Online' : 'Offline'}
             </p>
           </div>
 
           {typing && (
             <div className="rounded-full bg-[#fbf3dc] px-4 py-2 text-sm font-medium text-[#a88414]">
-              {otherUserName} пише...
+              {otherUserName} is typing...
             </div>
           )}
         </div>
@@ -363,7 +362,7 @@ export default function ChatRoomLive({
         <div className="space-y-4">
           {messages.map((message) => {
             const isMine = message.sender_id === currentUserId
-            const senderName = senderNames[message.sender_id] ?? 'Потребител'
+            const senderName = senderNames[message.sender_id] ?? 'User'
 
             return (
               <div
@@ -379,7 +378,7 @@ export default function ChatRoomLive({
                     isMine ? 'text-white/80' : 'text-[#7b746b]'
                   }`}
                 >
-                  {isMine ? 'Ти' : senderName}
+                  {isMine ? 'You' : senderName}
                 </p>
 
                 {message.content && (
@@ -395,7 +394,7 @@ export default function ChatRoomLive({
                       isMine ? 'text-white' : 'text-[#a88414]'
                     }`}
                   >
-                    Отвори прикачения файл
+                    Open attached file
                   </a>
                 )}
 
@@ -417,7 +416,7 @@ export default function ChatRoomLive({
       <div className="flex justify-end">
         {lastOwnMessage && (
           <p className="text-sm text-[#7b746b]">
-            {isLastOwnMessageSeen ? 'Прочетено' : 'Изпратено'}
+            {isLastOwnMessageSeen ? 'Seen' : 'Sent'}
           </p>
         )}
       </div>
@@ -427,7 +426,7 @@ export default function ChatRoomLive({
         className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
       >
         <h2 className="mb-4 text-2xl font-black tracking-tight text-[#1f1a14]">
-          Ново съобщение
+          New message
         </h2>
 
         <div className="grid gap-4">
@@ -437,7 +436,7 @@ export default function ChatRoomLive({
               void handleTyping(e.target.value)
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Напиши съобщение... (Enter = изпращане, Shift+Enter = нов ред)"
+            placeholder="Write a message... (Enter = send, Shift+Enter = new line)"
             className="min-h-28 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
           />
 
@@ -454,7 +453,7 @@ export default function ChatRoomLive({
             disabled={isSending}
             className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
           >
-            {isSending ? 'Изпращане...' : 'Изпрати'}
+            {isSending ? 'Sending...' : 'Send'}
           </button>
 
           {messageError && (
