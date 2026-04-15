@@ -26,11 +26,25 @@ export const uiText = {
     noActiveUser: 'No active user.',
     untitled: 'Untitled',
     user: 'User',
+    noData: 'No data yet.',
   },
 
   announcement: {
     pinned: 'Pinned announcement',
     until: 'Until',
+    title: 'Pinned announcement',
+    subtitle:
+      'This message appears at the top for all users until you remove it or it expires.',
+    placeholder:
+      'Example: The office will close at 3 PM tomorrow. Or: Team event starts at 6 PM today.',
+    expiresAt: 'Expires at (optional)',
+    saved: 'Pinned announcement saved.',
+    savePin: 'Publish pin',
+    updatePin: 'Update pin',
+    removePin: 'Remove pin',
+    saving: 'Saving...',
+    removing: 'Removing...',
+    enterContent: 'Please enter announcement content.',
   },
 
   popup: {
@@ -119,7 +133,8 @@ export const uiText = {
 
   pamm: {
     title: 'PAMM',
-    subtitle: 'Shared items visible to everyone, with live updates and notifications.',
+    subtitle:
+      'Shared items visible to everyone, with live updates and notifications.',
     newItem: 'New PAMM item',
     newItemTitle: 'New PAMM item',
     newItemSubtitle: 'Create a shared PAMM item visible to everyone.',
@@ -162,5 +177,87 @@ export const uiText = {
     addedOn: 'Added on',
     enterCompany: 'Please enter a company name.',
     enterDocument: 'Please enter a document title and choose a file.',
+  },
+
+  admin: {
+    title: 'Admin Panel',
+    subtitle:
+      'Manage users, pinned announcements, and company data from one place.',
+    users: 'Users',
+    posts: 'Posts',
+    tasks: 'Tasks',
+    eventsChats: 'Events / Chats',
+    newTask: 'New task',
+    newEvent: 'New event',
+    saveChanges: 'Save changes',
+    openProfile: 'Open profile',
+    name: 'Name',
+    role: 'Role',
+    jobTitle: 'Job title',
+    department: 'Department',
+    phone: 'Phone',
+    avatarUrl: 'Avatar URL',
+    bio: 'Bio',
+    noName: 'No name',
+  },
+
+  employees: {
+    title: 'Employees',
+    subtitle: 'Larger cards and avatars so everyone is easier to recognize.',
+    noEmployees: 'No employees added yet.',
+    noJobTitle: 'No job title',
+    noDepartment: 'No department',
+    noName: 'No name',
+  },
+
+  dashboard: {
+    title: 'Dashboard',
+    subtitle: 'Overview of activity, workload, and current company status.',
+    totalEmployees: 'Total employees',
+    totalPosts: 'Total posts',
+    openTasks: 'Open tasks',
+    upcomingEvents: 'Upcoming events',
+    recentActivity: 'Recent activity',
+    noRecentActivity: 'No recent activity yet.',
+  },
+
+  events: {
+    title: 'Events',
+    subtitle: 'Company events, attendance, and upcoming plans.',
+    newEvent: 'New event',
+    noEvents: 'No events yet.',
+    location: 'Location',
+    date: 'Date',
+    time: 'Time',
+    description: 'Description',
+    attend: 'I will attend',
+    decline: 'I will not attend',
+    responseSaved: 'Your response has been saved.',
+    attending: 'Attending',
+    notAttending: 'Not attending',
+  },
+
+  wall: {
+    title: 'Wall',
+    subtitle: 'Project posts, updates, reviews, and shared work progress.',
+    noPosts: 'No wall posts yet.',
+    reviewed: 'Reviewed',
+    markReviewed: 'Mark as reviewed',
+    status: 'Status',
+    inProgress: 'In progress',
+    completed: 'Completed',
+    pending: 'Pending',
+    comments: 'Comments',
+    addComment: 'Add comment',
+    writeComment: 'Write a comment...',
+  },
+
+  notifications: {
+    title: 'Notifications',
+    subtitle: 'All your latest alerts in one place.',
+    noNotifications: 'No notifications yet.',
+    markRead: 'Mark as read',
+    unread: 'Unread',
+    read: 'Read',
   },
 } as const

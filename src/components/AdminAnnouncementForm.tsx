@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { uiText } from '@/lib/ui-text'
 
 interface Announcement {
   id: string
@@ -31,7 +32,7 @@ export default function AdminAnnouncementForm({
   const saveAnnouncement = async () => {
     setMessage('')
     if (!content.trim()) {
-      setMessage('Напиши съдържание за pinned съобщението.')
+      setMessage(uiText.announcement.enterContent)
       return
     }
 
@@ -42,7 +43,7 @@ export default function AdminAnnouncementForm({
     } = await supabase.auth.getUser()
 
     if (!user) {
-      setMessage('Няма активен потребител.')
+      setMessage(uiText.common.noActiveUser)
       setIsSaving(false)
       return
     }
@@ -78,7 +79,7 @@ export default function AdminAnnouncementForm({
     }
 
     setIsSaving(false)
-    setMessage('Pinned announcement е запазено.')
+    setMessage(uiText.announcement.saved)
     window.location.reload()
   }
 
@@ -107,11 +108,10 @@ export default function AdminAnnouncementForm({
     <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
       <div className="mb-5">
         <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
-          Pinned announcement
+          {uiText.announcement.title}
         </h2>
         <p className="mt-2 text-sm text-[#7b746b]">
-          Това съобщение стои най-горе за всички потребители, докато не го махнеш
-          или не изтече таймерът.
+          {uiText.announcement.subtitle}
         </p>
       </div>
 
@@ -119,13 +119,13 @@ export default function AdminAnnouncementForm({
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Например: Утре офисът работи до 15:00. Или: Днес има фирмено събитие."
+          placeholder={uiText.announcement.placeholder}
           className="min-h-32 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
         />
 
         <div className="max-w-sm">
           <label className="mb-2 block text-sm font-medium text-[#433b32]">
-            Изтича на (по желание)
+            {uiText.announcement.expiresAt}
           </label>
           <input
             type="datetime-local"
@@ -143,7 +143,11 @@ export default function AdminAnnouncementForm({
           disabled={isSaving}
           className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
         >
-          {isSaving ? 'Записване...' : currentAnnouncement ? 'Обнови pin' : 'Пусни pin'}
+          {isSaving
+            ? uiText.announcement.saving
+            : currentAnnouncement
+            ? uiText.announcement.updatePin
+            : uiText.announcement.savePin}
         </button>
 
         {currentAnnouncement && (
@@ -153,7 +157,7 @@ export default function AdminAnnouncementForm({
             disabled={isRemoving}
             className="rounded-[20px] border border-[#e7d6a1] bg-white px-5 py-3 font-semibold text-[#1f1a14] hover:bg-[#fbf6e8] disabled:opacity-60"
           >
-            {isRemoving ? 'Махане...' : 'Махни pin'}
+            {isRemoving ? uiText.announcement.removing : uiText.announcement.removePin}
           </button>
         )}
 

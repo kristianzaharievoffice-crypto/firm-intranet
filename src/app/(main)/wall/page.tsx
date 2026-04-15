@@ -1,22 +1,24 @@
 export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
-import NewPostForm from '@/components/NewPostForm'
-import PostsList from '@/components/PostsList'
+import PostList from '@/components/PostList'
+import { uiText } from '@/lib/ui-text'
 
-async function deletePost(formData: FormData) {
-  'use server'
+interface WallPost {
+  id: string
+  content: string
+  created_at: string
+  status: string | null
+  reviewed: boolean | null
+  attachment_url: string | null
+  employee_id: string | null
+}
 
-  const postId = formData.get('postId') as string
-  const supabase = await createClient()
-
-  await supabase.from('wall_posts').delete().eq('id', postId)
-
-  revalidatePath('/wall')
-  revalidatePath('/dashboard')
+interface ProfileRow {
+  id: string
+  full_name: string | null
 }
 
 export default async function WallPage() {
@@ -26,25 +28,62 @@ export default async function WallPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
+  if (!user) redirect('/login')
+
+  const { data: me } = await supabase
+    .from('profiles')
+    .select('id, role')
+    .eq('id', user.id)
+    .single()
+
+  if (!me) redirect('/login')
+
+  let posts: WallPost[] = []
+
+  if (me.role === 'admin') {
+    const { data } = await supabase
+      .from('wall_posts')
+      .select('id, content, created_at, status, reviewed, attachment_url, employee_id')
+      .order('created_at', { ascending: false })
+
+    posts = (data ?? []) as WallPost[]
+  } else {
+    const { data } = await supabase
+      .from('wall_posts')
+      .select('id, content, created_at, status, reviewed, attachment_url, employee_id')
+      .eq('employee_id', user.id)
+      .order('created_at', { ascending: false })
+
+    posts = (data ?? []) as WallPost[]
   }
 
-  const { data: posts } = await supabase
-    .from('wall_posts')
-    .select('id, content, created_at, status, reviewed, attachment_url')
-    .eq('employee_id', user.id)
-    .order('created_at', { ascending: false })
+  const employeeIds = [...new Set(posts.map((p) => p.employee_id).filter(Boolean))] as string[]
+  const safeIds = employeeIds.length
+    ? employeeIds
+    : ['00000000-0000-0000-0000-000000000000']
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('id', safeIds)
+
+  const nameMap = new Map(
+    ((profiles ?? []) as ProfileRow[]).map((p) => [p.id, p.full_name ?? uiText.common.user])
+  )
+
+  const mappedPosts = posts.map((post) => ({
+    ...post,
+    employee_name: post.employee_id ? nameMap.get(post.employee_id) ?? uiText.common.user : undefined,
+  }))
 
   return (
     <main className="space-y-8">
       <PageHeader
-        title="Моята стена"
-        subtitle="Тук добавяш проекти, файлове, статуси и следиш обратната връзка от админа."
+        title={uiText.wall.title}
+        subtitle={uiText.wall.subtitle}
       />
 
-      <NewPostForm />
-      <PostsList posts={posts ?? []} deleteAction={deletePost} />
+      <PostList posts={mappedPosts} />
     </main>
   )
 }

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import StatCard from '@/components/StatCard'
 import AdminAnnouncementForm from '@/components/AdminAnnouncementForm'
+import { uiText } from '@/lib/ui-text'
 
 interface ProfileRow {
   id: string
@@ -101,32 +102,32 @@ export default async function AdminPage() {
   return (
     <main className="space-y-8">
       <PageHeader
-        title="Admin Panel"
-        subtitle="Управление на потребители, pinned новини и фирмени данни."
+        title={uiText.admin.title}
+        subtitle={uiText.admin.subtitle}
         action={
           <div className="flex flex-wrap gap-3">
             <Link
               href="/tasks/new"
               className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414]"
             >
-              Нова задача
+              {uiText.admin.newTask}
             </Link>
             <Link
               href="/events/new"
               className="rounded-[20px] border border-[#e5d6ae] bg-white px-5 py-3 font-semibold text-[#1f1a14] hover:bg-[#fbf6e8]"
             >
-              Ново събитие
+              {uiText.admin.newEvent}
             </Link>
           </div>
         }
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Потребители" value={users.length} />
-        <StatCard label="Постове" value={postsCount ?? 0} />
-        <StatCard label="Задачи" value={tasksCount ?? 0} tone="soft" />
+        <StatCard label={uiText.admin.users} value={users.length} />
+        <StatCard label={uiText.admin.posts} value={postsCount ?? 0} />
+        <StatCard label={uiText.admin.tasks} value={tasksCount ?? 0} tone="soft" />
         <StatCard
-          label="Събития / Чатове"
+          label={uiText.admin.eventsChats}
           value={`${eventsCount ?? 0} / ${chatsCount ?? 0}`}
           tone="gold"
         />
@@ -159,7 +160,7 @@ export default async function AdminPage() {
 
               <div>
                 <p className="text-2xl font-black tracking-tight text-[#1f1a14]">
-                  {profile.full_name ?? 'Без име'}
+                  {profile.full_name ?? uiText.admin.noName}
                 </p>
                 <p className="mt-1 text-sm text-[#7b746b]">ID: {profile.id}</p>
               </div>
@@ -169,7 +170,7 @@ export default async function AdminPage() {
               <input
                 name="full_name"
                 defaultValue={profile.full_name ?? ''}
-                placeholder="Име"
+                placeholder={uiText.admin.name}
                 className="rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none"
               />
 
@@ -185,28 +186,28 @@ export default async function AdminPage() {
               <input
                 name="job_title"
                 defaultValue={profile.job_title ?? ''}
-                placeholder="Длъжност"
+                placeholder={uiText.admin.jobTitle}
                 className="rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none"
               />
 
               <input
                 name="department"
                 defaultValue={profile.department ?? ''}
-                placeholder="Отдел"
+                placeholder={uiText.admin.department}
                 className="rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none"
               />
 
               <input
                 name="phone"
                 defaultValue={profile.phone ?? ''}
-                placeholder="Телефон"
+                placeholder={uiText.admin.phone}
                 className="rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none"
               />
 
               <input
                 name="avatar_url"
                 defaultValue={profile.avatar_url ?? ''}
-                placeholder="Avatar URL"
+                placeholder={uiText.admin.avatarUrl}
                 className="rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none"
               />
             </div>
@@ -214,7 +215,7 @@ export default async function AdminPage() {
             <textarea
               name="bio"
               defaultValue={profile.bio ?? ''}
-              placeholder="Описание"
+              placeholder={uiText.admin.bio}
               className="mt-4 min-h-28 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none"
             />
 
@@ -223,14 +224,14 @@ export default async function AdminPage() {
                 type="submit"
                 className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414]"
               >
-                Запази промените
+                {uiText.admin.saveChanges}
               </button>
 
               <Link
                 href={`/employees/${profile.id}`}
                 className="rounded-[20px] border border-[#e5d6ae] bg-white px-5 py-3 font-semibold text-[#1f1a14] hover:bg-[#fbf6e8]"
               >
-                Отвори профила
+                {uiText.admin.openProfile}
               </Link>
             </div>
           </form>

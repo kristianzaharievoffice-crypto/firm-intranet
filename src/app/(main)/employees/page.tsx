@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
+import { uiText } from '@/lib/ui-text'
 
 interface Employee {
   id: string
@@ -33,8 +34,8 @@ export default async function EmployeesPage() {
   return (
     <main className="space-y-8">
       <PageHeader
-        title="Служители"
-        subtitle="По-големи табове и по-големи снимки, за да се вижда ясно кой кой е."
+        title={uiText.employees.title}
+        subtitle={uiText.employees.subtitle}
       />
 
       {items.length ? (
@@ -61,15 +62,15 @@ export default async function EmployeesPage() {
 
                 <div className="min-w-0">
                   <h2 className="truncate text-2xl font-black tracking-tight text-[#1f1a14]">
-                    {employee.full_name ?? 'Без име'}
+                    {employee.full_name ?? uiText.employees.noName}
                   </h2>
 
                   <p className="mt-2 text-base text-[#7b746b]">
-                    {employee.job_title || 'Без длъжност'}
+                    {employee.job_title || uiText.employees.noJobTitle}
                   </p>
 
                   <p className="mt-1 text-sm text-[#a09a90]">
-                    {employee.department || 'Без отдел'}
+                    {employee.department || uiText.employees.noDepartment}
                   </p>
 
                   <p className="mt-3 inline-flex rounded-full bg-[#fbf3dc] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#a88414]">
@@ -82,7 +83,7 @@ export default async function EmployeesPage() {
         </div>
       ) : (
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">Няма добавени служители.</p>
+          <p className="text-[#7b746b]">{uiText.employees.noEmployees}</p>
         </div>
       )}
     </main>
