@@ -13,7 +13,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="bg">
-      <body>{children}</body>
+      <body className="bg-gradient-to-br from-[#fffaf0] via-[#fbf3dc] to-[#f4e7c1] text-[#1f1a14]">
+</body>
     </html>
   )
 }
