@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { uiText } from '@/lib/ui-text'
 
 export default function NewPammForm() {
   const supabase = createClient()
@@ -18,12 +19,12 @@ export default function NewPammForm() {
     setMessage('')
 
     if (!title.trim()) {
-      setMessage('Please enter a title.')
+      setMessage(uiText.pamm.enterTitle)
       return
     }
 
     if (!amount || Number.isNaN(Number(amount))) {
-      setMessage('Please enter a valid amount.')
+      setMessage(uiText.pamm.enterAmount)
       return
     }
 
@@ -35,7 +36,7 @@ export default function NewPammForm() {
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      setMessage('No active user.')
+      setMessage(uiText.common.noActiveUser)
       setIsSaving(false)
       return
     }
@@ -65,24 +66,24 @@ export default function NewPammForm() {
     >
       <div className="mb-6">
         <h1 className="text-3xl font-black tracking-tight text-[#1f1a14]">
-          New PAMM item
+          {uiText.pamm.newItemTitle}
         </h1>
         <p className="mt-2 text-sm text-[#7b746b]">
-          Create a shared PAMM item visible to everyone.
+          {uiText.pamm.newItemSubtitle}
         </p>
       </div>
 
       <div className="grid gap-4">
         <input
           className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
-          placeholder="Title"
+          placeholder={uiText.pamm.titlePlaceholder}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
 
         <textarea
           className="min-h-32 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
-          placeholder="Description"
+          placeholder={uiText.pamm.descriptionPlaceholder}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
@@ -92,7 +93,7 @@ export default function NewPammForm() {
             type="number"
             step="0.01"
             className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
-            placeholder="Amount"
+            placeholder={uiText.pamm.amountPlaceholder}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
           />
@@ -114,7 +115,7 @@ export default function NewPammForm() {
           disabled={isSaving}
           className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
         >
-          {isSaving ? 'Saving...' : 'Create PAMM item'}
+          {isSaving ? uiText.pamm.saving : uiText.pamm.create}
         </button>
 
         {message && <p className="text-sm text-[#7b746b]">{message}</p>}

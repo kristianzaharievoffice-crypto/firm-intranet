@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import ChatRoomLive from '@/components/ChatRoomLive'
+import { uiText } from '@/lib/ui-text'
 
 interface Message {
   id: string
@@ -74,7 +75,7 @@ export default async function ChatDetailsPage({
   const senderNames = Object.fromEntries(
     (profiles ?? []).map((profile) => [
       profile.id,
-      profile.full_name ?? 'User',
+      profile.full_name ?? uiText.common.user,
     ])
   )
 
@@ -85,13 +86,13 @@ export default async function ChatDetailsPage({
     .eq('id', otherUserId)
     .single()
 
-  const otherUserName = otherProfile.data?.full_name ?? 'User'
+  const otherUserName = otherProfile.data?.full_name ?? uiText.common.user
 
   return (
     <main className="space-y-8">
       <PageHeader
-        title="Chat"
-        subtitle="Direct message conversation."
+        title={uiText.chat.title}
+        subtitle={uiText.chat.roomSubtitle}
       />
 
       <ChatRoomLive

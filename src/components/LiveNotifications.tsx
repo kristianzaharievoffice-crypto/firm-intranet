@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { uiText } from '@/lib/ui-text'
 
 interface LiveNotificationItem {
   id: string
@@ -33,9 +34,7 @@ export default function LiveNotifications({
       if (!audioRef.current) return
       audioRef.current.currentTime = 0
       await audioRef.current.play()
-    } catch {
-      // ако браузърът блокира autoplay, просто няма да счупи UI
-    }
+    } catch {}
   }
 
   const pushNotification = async (newItem: LiveNotificationItem) => {
@@ -123,7 +122,7 @@ export default function LiveNotifications({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a88414]">
-                Ново известие
+                {uiText.popup.newNotification}
               </p>
 
               <h3 className="mt-1 text-base font-black tracking-tight text-[#1f1a14]">
@@ -142,7 +141,7 @@ export default function LiveNotifications({
                     href={item.link}
                     className="rounded-[14px] bg-[#c9a227] px-3 py-2 text-sm font-semibold text-white hover:bg-[#a88414]"
                   >
-                    Отвори
+                    {uiText.popup.open}
                   </Link>
                 )}
 
@@ -151,7 +150,7 @@ export default function LiveNotifications({
                   onClick={() => dismiss(item.id)}
                   className="text-sm font-medium text-[#7b746b] hover:text-[#1f1a14]"
                 >
-                  Затвори
+                  {uiText.popup.close}
                 </button>
               </div>
             </div>

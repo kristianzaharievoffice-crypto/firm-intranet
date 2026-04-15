@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import ChatDirectory from '@/components/ChatDirectory'
+import { uiText } from '@/lib/ui-text'
 
 interface ProfileRow {
   id: string
@@ -66,7 +67,7 @@ export default async function ChatPage() {
 
   const directoryUsers: DirectoryUser[] = people.map((person) => ({
     id: person.id,
-    full_name: person.full_name ?? 'User',
+    full_name: person.full_name ?? uiText.common.user,
     avatar_url: person.avatar_url ?? null,
     job_title: person.job_title ?? null,
     department: person.department ?? null,
@@ -76,8 +77,8 @@ export default async function ChatPage() {
   return (
     <main className="space-y-8">
       <PageHeader
-        title="Chat"
-        subtitle="Direct messages with anyone in the company."
+        title={uiText.chat.title}
+        subtitle={uiText.chat.subtitle}
       />
 
       <ChatDirectory users={directoryUsers} />

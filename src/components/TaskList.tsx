@@ -1,3 +1,5 @@
+import { uiText } from '@/lib/ui-text'
+
 interface TaskItem {
   id: string
   title: string
@@ -34,22 +36,22 @@ function getStatusClasses(status: string) {
 function getPriorityLabel(priority: string) {
   switch (priority) {
     case 'high':
-      return 'Висок'
+      return 'High'
     case 'low':
-      return 'Нисък'
+      return 'Low'
     default:
-      return 'Среден'
+      return 'Medium'
   }
 }
 
 function getStatusLabel(status: string) {
   switch (status) {
     case 'done':
-      return 'Готова'
+      return uiText.tasks.statusDone
     case 'in_progress':
-      return 'В процес'
+      return uiText.tasks.statusInProgress
     default:
-      return 'Нова'
+      return uiText.tasks.statusNew
   }
 }
 
@@ -67,7 +69,7 @@ export default function TaskList({
   if (!tasks.length) {
     return (
       <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-        <p className="text-[#7b746b]">Няма задачи.</p>
+        <p className="text-[#7b746b]">{uiText.tasks.noTasks}</p>
       </div>
     )
   }
@@ -95,7 +97,7 @@ export default function TaskList({
 
           {isAdmin && task.employee_name && (
             <p className="mt-2 text-sm text-[#7b746b]">
-              Възложена на: {task.employee_name}
+              {uiText.tasks.assignedTo}: {task.employee_name}
             </p>
           )}
 
@@ -106,10 +108,10 @@ export default function TaskList({
           )}
 
           <div className="mt-4 text-sm text-[#7b746b]">
-            Срок:{' '}
+            {uiText.tasks.dueDate}:{' '}
             {task.due_date
               ? new Date(task.due_date).toLocaleDateString('bg-BG')
-              : 'Няма'}
+              : uiText.tasks.noDueDate}
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -121,16 +123,16 @@ export default function TaskList({
                 defaultValue={task.status}
                 className="rounded-[16px] border border-[#ece5d8] bg-[#fcfbf8] px-3 py-2 text-sm outline-none"
               >
-                <option value="new">Нова</option>
-                <option value="in_progress">В процес</option>
-                <option value="done">Готова</option>
+                <option value="new">{uiText.tasks.statusNew}</option>
+                <option value="in_progress">{uiText.tasks.statusInProgress}</option>
+                <option value="done">{uiText.tasks.statusDone}</option>
               </select>
 
               <button
                 type="submit"
                 className="rounded-[16px] bg-[#c9a227] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a88414]"
               >
-                Смени статус
+                {uiText.tasks.changeStatus}
               </button>
             </form>
 
@@ -141,7 +143,7 @@ export default function TaskList({
                   type="submit"
                   className="text-sm font-medium text-red-600 hover:underline"
                 >
-                  Изтрий задача
+                  {uiText.tasks.deleteTask}
                 </button>
               </form>
             )}

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import NewCompanyForm from '@/components/NewCompanyForm'
+import { uiText } from '@/lib/ui-text'
 
 interface CompanyItem {
   id: string
@@ -50,11 +51,11 @@ export default async function DocumentsPage() {
     return (
       <main className="space-y-8">
         <PageHeader
-          title="Документи"
-          subtitle="Секции по фирми и документи за разглеждане и сваляне."
+          title={uiText.documents.title}
+          subtitle={uiText.documents.subtitle}
         />
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-red-600">Грешка: {error.message}</p>
+          <p className="text-red-600">Error: {error.message}</p>
         </div>
       </main>
     )
@@ -65,8 +66,8 @@ export default async function DocumentsPage() {
   return (
     <main className="space-y-8">
       <PageHeader
-        title="Документи"
-        subtitle="Секции по фирми и документи за разглеждане и сваляне."
+        title={uiText.documents.title}
+        subtitle={uiText.documents.subtitle}
       />
 
       {me.role === 'admin' && <NewCompanyForm />}
@@ -83,7 +84,7 @@ export default async function DocumentsPage() {
                   {company.name}
                 </h2>
                 <p className="mt-2 text-sm text-[#7b746b]">
-                  Отвори секцията с документи
+                  {uiText.documents.openSection}
                 </p>
               </Link>
 
@@ -94,7 +95,7 @@ export default async function DocumentsPage() {
                     type="submit"
                     className="text-sm font-medium text-red-600 hover:underline"
                   >
-                    Изтрий фирма
+                    {uiText.documents.deleteCompany}
                   </button>
                 </form>
               )}
@@ -103,7 +104,7 @@ export default async function DocumentsPage() {
         </div>
       ) : (
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">Все още няма добавени фирми.</p>
+          <p className="text-[#7b746b]">{uiText.documents.noCompanies}</p>
         </div>
       )}
     </main>

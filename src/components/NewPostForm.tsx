@@ -2,27 +2,32 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { uiText } from '@/lib/ui-text'
 
-export default function NewPostForm() {
+export default function NewFeedPostForm({
+  onPosted,
+}: {
+  onPosted?: () => void
+}) {
   const supabase = createClient()
+
   const [content, setContent] = useState('')
-  const [status, setStatus] = useState('в процес')
   const [file, setFile] = useState<File | null>(null)
   const [message, setMessage] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setMessage('')
 
-    const trimmedContent = content.trim()
+    const trimmed = content.trim()
 
-    if (!trimmedContent) {
-      setMessage('Моля, опиши какво е свършено.')
+    if (!trimmed && !file) {
+      setMessage(uiText.feed.writeOrChoose)
       return
     }
 
-    setIsSubmitting(true)
+    setIsSaving(true)
 
     const {
       data: { user },
@@ -30,12 +35,13 @@ export default function NewPostForm() {
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      setMessage('Няма активен потребител.')
-      setIsSubmitting(false)
+      setMessage(uiText.common.noActiveUser)
+      setIsSaving(false)
       return
     }
 
     let attachmentUrl: string | null = null
+    let attachmentPath: string | null = null
 
     if (file) {
       const originalName = file.name || 'file'
@@ -43,7 +49,7 @@ export default function NewPostForm() {
       const filePath = `${user.id}/${Date.now()}_${safeName}`
 
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('post-files')
+        .from('feed-files')
         .upload(filePath, file, {
           upsert: false,
           contentType: file.type || undefined,
@@ -51,36 +57,37 @@ export default function NewPostForm() {
 
       if (uploadError) {
         setMessage(`Upload error: ${uploadError.message}`)
-        setIsSubmitting(false)
+        setIsSaving(false)
         return
       }
 
+      attachmentPath = uploadData.path
+
       const { data: publicUrlData } = supabase.storage
-        .from('post-files')
+        .from('feed-files')
         .getPublicUrl(uploadData.path)
 
       attachmentUrl = publicUrlData.publicUrl
     }
 
-    const { error } = await supabase.from('wall_posts').insert({
-      employee_id: user.id,
-      content: trimmedContent,
-      status,
+    const { error } = await supabase.from('feed_posts').insert({
+      user_id: user.id,
+      content: trimmed || uiText.feed.attachedFile,
       attachment_url: attachmentUrl,
+      attachment_path: attachmentPath,
     })
 
     if (error) {
       setMessage(error.message)
-      setIsSubmitting(false)
+      setIsSaving(false)
       return
     }
 
     setContent('')
-    setStatus('в процес')
     setFile(null)
-    setMessage('Проектът е добавен успешно.')
-    setIsSubmitting(false)
-    window.location.reload()
+    setIsSaving(false)
+    setMessage('')
+    onPosted?.()
   }
 
   return (
@@ -88,49 +95,36 @@ export default function NewPostForm() {
       onSubmit={handleSubmit}
       className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
     >
-      <div className="mb-6">
-        <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
-          Нов проект / отчет
-        </h2>
-        <p className="mt-2 text-sm text-[#7b746b]">
-          Добави какво си свършил, статус и файл при нужда.
-        </p>
-      </div>
+      <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
+        {uiText.feed.newPostTitle}
+      </h2>
 
-      <div className="grid gap-4">
+      <p className="mt-2 text-sm text-[#7b746b]">
+        {uiText.feed.newPostSubtitle}
+      </p>
+
+      <div className="mt-4 grid gap-4">
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Например: Завърших дизайна на началната страница и качих новите файлове..."
-          className="min-h-36 w-full rounded-[24px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-4 text-[#1f1a14] outline-none transition focus:border-[#c9a227] focus:ring-2 focus:ring-[#f5e7b6]"
+          placeholder={uiText.feed.placeholder}
+          className="min-h-32 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
         />
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 text-[#1f1a14] outline-none focus:border-[#c9a227]"
-          >
-            <option value="в процес">В процес</option>
-            <option value="за проверка">За проверка</option>
-            <option value="готово">Готово</option>
-          </select>
-
-          <input
-            type="file"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 text-[#1f1a14]"
-          />
-        </div>
+        <input
+          type="file"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3"
+        />
       </div>
 
       <div className="mt-5 flex items-center gap-4">
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="rounded-[20px] bg-[#c9a227] px-6 py-3 font-semibold text-white transition hover:bg-[#a88414] disabled:opacity-60"
+          disabled={isSaving}
+          className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
         >
-          {isSubmitting ? 'Записване...' : 'Добави'}
+          {isSaving ? uiText.feed.publishing : uiText.feed.publish}
         </button>
 
         {message && <p className="text-sm text-[#7b746b]">{message}</p>}

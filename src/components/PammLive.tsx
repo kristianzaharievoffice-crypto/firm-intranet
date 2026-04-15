@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import NewPammForm from '@/components/NewPammForm'
 import StatCard from '@/components/StatCard'
+import { uiText } from '@/lib/ui-text'
 
 interface PammLiveProps {
   currentUserId: string
@@ -52,16 +53,15 @@ function getStatusClasses(status: string) {
 function getStatusLabel(status: string) {
   switch (status) {
     case 'done':
-      return 'Done'
+      return uiText.pamm.done
     case 'in_progress':
-      return 'In progress'
+      return uiText.pamm.inProgress
     default:
-      return 'New'
+      return uiText.pamm.new
   }
 }
 
 export default function PammLive({
-  currentUserId,
   currentUserRole,
 }: PammLiveProps) {
   const supabase = useMemo(() => createClient(), [])
@@ -88,13 +88,13 @@ export default function PammLive({
     const creatorMap = new Map(
       ((creators ?? []) as ProfileRow[]).map((creator) => [
         creator.id,
-        creator.full_name ?? 'User',
+        creator.full_name ?? uiText.common.user,
       ])
     )
 
     const mapped: PammVm[] = rows.map((item) => ({
       ...item,
-      creator_name: creatorMap.get(item.created_by) ?? 'User',
+      creator_name: creatorMap.get(item.created_by) ?? uiText.common.user,
     }))
 
     setItems(mapped)
@@ -147,15 +147,15 @@ export default function PammLive({
       <NewPammForm />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total items" value={total} />
-        <StatCard label="New" value={totalNew} />
-        <StatCard label="In progress" value={totalInProgress} tone="soft" />
-        <StatCard label="Done" value={totalDone} tone="gold" />
+        <StatCard label={uiText.pamm.total} value={total} />
+        <StatCard label={uiText.pamm.new} value={totalNew} />
+        <StatCard label={uiText.pamm.inProgress} value={totalInProgress} tone="soft" />
+        <StatCard label={uiText.pamm.done} value={totalDone} tone="gold" />
       </div>
 
       {loading ? (
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">Loading...</p>
+          <p className="text-[#7b746b]">{uiText.common.loading}</p>
         </div>
       ) : items.length ? (
         <div className="space-y-5">
@@ -183,11 +183,11 @@ export default function PammLive({
               </h2>
 
               <p className="mt-2 text-sm text-[#7b746b]">
-                Created by: {item.creator_name}
+                {uiText.pamm.createdBy}: {item.creator_name}
               </p>
 
               <p className="mt-1 text-sm text-[#7b746b]">
-                Date: {new Date(item.created_at).toLocaleDateString('bg-BG')}
+                {uiText.pamm.date}: {new Date(item.created_at).toLocaleDateString('bg-BG')}
               </p>
 
               {item.description && (
@@ -202,9 +202,9 @@ export default function PammLive({
                   onChange={(e) => void updateStatus(item.id, e.target.value)}
                   className="rounded-[16px] border border-[#ece5d8] bg-[#fcfbf8] px-3 py-2 text-sm outline-none"
                 >
-                  <option value="new">New</option>
-                  <option value="in_progress">In progress</option>
-                  <option value="done">Done</option>
+                  <option value="new">{uiText.pamm.new}</option>
+                  <option value="in_progress">{uiText.pamm.inProgress}</option>
+                  <option value="done">{uiText.pamm.done}</option>
                 </select>
 
                 {currentUserRole === 'admin' && (
@@ -213,7 +213,7 @@ export default function PammLive({
                     onClick={() => void deleteItem(item.id)}
                     className="text-sm font-medium text-red-600 hover:underline"
                   >
-                    Delete
+                    {uiText.pamm.delete}
                   </button>
                 )}
               </div>
@@ -222,7 +222,7 @@ export default function PammLive({
         </div>
       ) : (
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">No PAMM items yet.</p>
+          <p className="text-[#7b746b]">{uiText.pamm.noItems}</p>
         </div>
       )}
     </div>

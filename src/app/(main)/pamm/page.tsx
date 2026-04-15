@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import PammLive from '@/components/PammLive'
+import { uiText } from '@/lib/ui-text'
 
 export default async function PammPage() {
   const supabase = await createClient()
@@ -25,8 +26,8 @@ export default async function PammPage() {
   return (
     <main className="space-y-8">
       <PageHeader
-        title="PAMM"
-        subtitle="Shared items visible to everyone, with live updates and notifications."
+        title={uiText.pamm.title}
+        subtitle={uiText.pamm.subtitle}
       />
 
       <PammLive currentUserId={user.id} currentUserRole={me.role} />

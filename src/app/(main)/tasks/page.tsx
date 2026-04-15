@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import StatCard from '@/components/StatCard'
 import TaskList from '@/components/TaskList'
+import { uiText } from '@/lib/ui-text'
 
 interface TaskItem {
   id: string
@@ -94,11 +95,11 @@ export default async function TasksPage() {
     .in('id', safeEmployeeIds)
 
   const people = (employees ?? []) as ProfileItem[]
-  const nameMap = new Map(people.map((p) => [p.id, p.full_name ?? 'Служител']))
+  const nameMap = new Map(people.map((p) => [p.id, p.full_name ?? uiText.common.user]))
 
   const enrichedTasks = tasks.map((task) => ({
     ...task,
-    employee_name: nameMap.get(task.assigned_to) ?? 'Служител',
+    employee_name: nameMap.get(task.assigned_to) ?? uiText.common.user,
   }))
 
   const total = enrichedTasks.length
@@ -109,25 +110,25 @@ export default async function TasksPage() {
   return (
     <main className="space-y-8">
       <PageHeader
-        title="Задачи"
-        subtitle="Управление на възложените задачи и следене на статуса им."
+        title={uiText.tasks.title}
+        subtitle={uiText.tasks.subtitle}
         action={
           me.role === 'admin' ? (
             <Link
               href="/tasks/new"
               className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414]"
             >
-              Нова задача
+              {uiText.tasks.newTask}
             </Link>
           ) : null
         }
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Общо задачи" value={total} />
-        <StatCard label="Нови" value={totalNew} />
-        <StatCard label="В процес" value={totalInProgress} tone="soft" />
-        <StatCard label="Готови" value={totalDone} tone="gold" />
+        <StatCard label={uiText.tasks.total} value={total} />
+        <StatCard label={uiText.tasks.new} value={totalNew} />
+        <StatCard label={uiText.tasks.inProgress} value={totalInProgress} tone="soft" />
+        <StatCard label={uiText.tasks.done} value={totalDone} tone="gold" />
       </div>
 
       <TaskList

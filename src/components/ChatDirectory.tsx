@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { uiText } from '@/lib/ui-text'
 
 interface UserItem {
   id: string
@@ -45,7 +46,7 @@ export default function ChatDirectory({
   if (!users.length) {
     return (
       <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-        <p className="text-[#7b746b]">No users found.</p>
+        <p className="text-[#7b746b]">{uiText.chat.noUsers}</p>
       </div>
     )
   }
@@ -76,10 +77,10 @@ export default function ChatDirectory({
                 {user.full_name}
               </h2>
               <p className="mt-1 text-sm text-[#7b746b]">
-                {user.job_title || 'No job title'}
+                {user.job_title || uiText.chat.noJobTitle}
               </p>
               <p className="mt-1 text-sm text-[#a09a90]">
-                {user.department || 'No department'}
+                {user.department || uiText.chat.noDepartment}
               </p>
             </div>
           </div>
@@ -90,7 +91,7 @@ export default function ChatDirectory({
             disabled={loadingId === user.id}
             className="mt-5 rounded-[18px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
           >
-            {loadingId === user.id ? 'Opening...' : 'Open chat'}
+            {loadingId === user.id ? uiText.chat.opening : uiText.chat.openChat}
           </button>
         </div>
       ))}

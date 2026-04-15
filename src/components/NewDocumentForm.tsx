@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { uiText } from '@/lib/ui-text'
 
 export default function NewDocumentForm({
   companyId,
@@ -20,7 +21,7 @@ export default function NewDocumentForm({
     setMessage('')
 
     if (!title.trim() || !file) {
-      setMessage('Напиши име на документа и избери файл.')
+      setMessage(uiText.documents.enterDocument)
       return
     }
 
@@ -32,7 +33,7 @@ export default function NewDocumentForm({
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      setMessage('Няма активен потребител.')
+      setMessage(uiText.common.noActiveUser)
       setIsSaving(false)
       return
     }
@@ -84,17 +85,17 @@ export default function NewDocumentForm({
       className="rounded-[28px] border border-[#ece5d8] bg-white p-5 shadow-sm"
     >
       <h2 className="text-xl font-black tracking-tight text-[#1f1a14]">
-        Нов документ
+        {uiText.documents.newDocument}
       </h2>
       <p className="mt-2 text-sm text-[#7b746b]">
-        Качи документ към тази фирма
+        {uiText.documents.newDocumentSubtitle}
       </p>
 
       <div className="mt-4 grid gap-3">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Име на документа"
+          placeholder={uiText.documents.documentNamePlaceholder}
           className="rounded-[18px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
         />
 
@@ -109,7 +110,7 @@ export default function NewDocumentForm({
           disabled={isSaving}
           className="rounded-[18px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
         >
-          {isSaving ? 'Качване...' : 'Качи документ'}
+          {isSaving ? uiText.documents.uploading : uiText.documents.uploadDocument}
         </button>
       </div>
 

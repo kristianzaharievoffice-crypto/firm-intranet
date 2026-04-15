@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import NewDocumentForm from '@/components/NewDocumentForm'
+import { uiText } from '@/lib/ui-text'
 
 interface CompanyItem {
   id: string
@@ -69,12 +70,12 @@ export default async function CompanyDocumentsPage({
     return (
       <main className="space-y-8">
         <PageHeader
-          title="Документи"
-          subtitle="Не успяхме да отворим фирмата."
+          title={uiText.documents.title}
+          subtitle="Could not open company."
         />
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
           <p className="text-red-600">
-            {companyError?.message || 'Фирмата не е намерена.'}
+            {companyError?.message || 'Company not found.'}
           </p>
         </div>
       </main>
@@ -92,7 +93,7 @@ export default async function CompanyDocumentsPage({
       <main className="space-y-8">
         <PageHeader
           title={company.name}
-          subtitle="Грешка при зареждане на документите."
+          subtitle="Error while loading documents."
         />
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
           <p className="text-red-600">{documentsError.message}</p>
@@ -108,7 +109,7 @@ export default async function CompanyDocumentsPage({
     <main className="space-y-8">
       <PageHeader
         title={companyItem.name}
-        subtitle="Документи на избраната фирма."
+        subtitle={uiText.documents.companyDocumentsSubtitle}
       />
 
       {me.role === 'admin' && <NewDocumentForm companyId={companyId} />}
@@ -126,7 +127,7 @@ export default async function CompanyDocumentsPage({
                     {doc.title}
                   </h2>
                   <p className="mt-2 text-sm text-[#7b746b]">
-                    Добавен на {new Date(doc.created_at).toLocaleString('bg-BG')}
+                    {uiText.documents.addedOn} {new Date(doc.created_at).toLocaleString('bg-BG')}
                   </p>
                 </div>
 
@@ -137,7 +138,7 @@ export default async function CompanyDocumentsPage({
                     rel="noreferrer"
                     className="rounded-[18px] border border-[#e7d6a1] bg-white px-4 py-2 font-semibold text-[#1f1a14] hover:bg-[#fbf6e8]"
                   >
-                    Отвори
+                    {uiText.common.open}
                   </a>
 
                   <a
@@ -145,7 +146,7 @@ export default async function CompanyDocumentsPage({
                     download
                     className="rounded-[18px] bg-[#c9a227] px-4 py-2 font-semibold text-white hover:bg-[#a88414]"
                   >
-                    Свали
+                    {uiText.common.download}
                   </a>
 
                   {me.role === 'admin' && (
@@ -157,7 +158,7 @@ export default async function CompanyDocumentsPage({
                         type="submit"
                         className="text-sm font-medium text-red-600 hover:underline"
                       >
-                        Изтрий
+                        {uiText.common.delete}
                       </button>
                     </form>
                   )}
@@ -168,7 +169,7 @@ export default async function CompanyDocumentsPage({
         </div>
       ) : (
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">Все още няма качени документи.</p>
+          <p className="text-[#7b746b]">{uiText.documents.noDocuments}</p>
         </div>
       )}
     </main>

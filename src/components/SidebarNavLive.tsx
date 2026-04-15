@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { uiText } from '@/lib/ui-text'
 
 function Badge({ count }: { count: number }) {
   if (!count) return null
@@ -197,22 +198,22 @@ export default function SidebarNavLive({
 
   return (
     <nav className="space-y-1">
-      <NavItem href="/feed" label="Feed" />
-      <NavItem href="/wall" label="Wall" />
-      <NavItem href="/chat" label="Chat" count={unreadChatCount} />
-      <NavItem href="/tasks" label="Tasks" count={tasksCount} />
-      <NavItem href="/pamm" label="PAMM" />
-      <NavItem href="/documents" label="Documents" />
-      <NavItem href="/calendar" label="Calendar" />
-      <NavItem href="/events" label="Events" />
-      <NavItem href="/employees" label="Employees" />
+      <NavItem href="/feed" label={uiText.sidebar.feed} />
+      <NavItem href="/wall" label={uiText.sidebar.wall} />
+      <NavItem href="/chat" label={uiText.sidebar.chat} count={unreadChatCount} />
+      <NavItem href="/tasks" label={uiText.sidebar.tasks} count={tasksCount} />
+      <NavItem href="/pamm" label={uiText.sidebar.pamm} />
+      <NavItem href="/documents" label={uiText.sidebar.documents} />
+      <NavItem href="/calendar" label={uiText.sidebar.calendar} />
+      <NavItem href="/events" label={uiText.sidebar.events} />
+      <NavItem href="/employees" label={uiText.sidebar.employees} />
       <NavItem
         href="/notifications"
-        label="Notifications"
+        label={uiText.sidebar.notifications}
         count={notificationsCount}
       />
-      {role === 'admin' && <NavItem href="/dashboard" label="Dashboard" />}
-      {role === 'admin' && <NavItem href="/admin" label="Admin Panel" />}
+      {role === 'admin' && <NavItem href="/dashboard" label={uiText.sidebar.dashboard} />}
+      {role === 'admin' && <NavItem href="/admin" label={uiText.sidebar.adminPanel} />}
     </nav>
   )
 }

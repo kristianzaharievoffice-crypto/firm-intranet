@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { uiText } from '@/lib/ui-text'
 
 interface Message {
   id: string
@@ -247,7 +248,7 @@ export default function ChatRoomLive({
     const trimmedContent = content.trim()
 
     if (!trimmedContent && !file) {
-      setMessageError('Write a message or choose a file.')
+      setMessageError(uiText.chat.writeOrChoose)
       return
     }
 
@@ -262,7 +263,7 @@ export default function ChatRoomLive({
       } = await supabase.auth.getUser()
 
       if (userError || !user) {
-        setMessageError('No active user.')
+        setMessageError(uiText.common.noActiveUser)
         setIsSending(false)
         return
       }
@@ -293,7 +294,7 @@ export default function ChatRoomLive({
 
     const { data, error } = await supabase.rpc('send_message', {
       target_chat_id: chatId,
-      message_content: trimmedContent || (attachmentUrl ? 'Attached file' : ''),
+      message_content: trimmedContent || 'Attached file',
       message_attachment_url: attachmentUrl,
     })
 
@@ -343,13 +344,13 @@ export default function ChatRoomLive({
           <div>
             <p className="text-lg font-bold text-[#1f1a14]">{otherUserName}</p>
             <p className="mt-1 text-sm text-[#7b746b]">
-              {otherOnline ? 'Online' : 'Offline'}
+              {otherOnline ? uiText.chat.online : uiText.chat.offline}
             </p>
           </div>
 
           {typing && (
             <div className="rounded-full bg-[#fbf3dc] px-4 py-2 text-sm font-medium text-[#a88414]">
-              {otherUserName} is typing...
+              {otherUserName} {uiText.chat.typing}
             </div>
           )}
         </div>
@@ -362,7 +363,7 @@ export default function ChatRoomLive({
         <div className="space-y-4">
           {messages.map((message) => {
             const isMine = message.sender_id === currentUserId
-            const senderName = senderNames[message.sender_id] ?? 'User'
+            const senderName = senderNames[message.sender_id] ?? uiText.common.user
 
             return (
               <div
@@ -378,7 +379,7 @@ export default function ChatRoomLive({
                     isMine ? 'text-white/80' : 'text-[#7b746b]'
                   }`}
                 >
-                  {isMine ? 'You' : senderName}
+                  {isMine ? uiText.chat.you : senderName}
                 </p>
 
                 {message.content && (
@@ -394,7 +395,7 @@ export default function ChatRoomLive({
                       isMine ? 'text-white' : 'text-[#a88414]'
                     }`}
                   >
-                    Open attached file
+                    {uiText.chat.openAttached}
                   </a>
                 )}
 
@@ -416,7 +417,7 @@ export default function ChatRoomLive({
       <div className="flex justify-end">
         {lastOwnMessage && (
           <p className="text-sm text-[#7b746b]">
-            {isLastOwnMessageSeen ? 'Seen' : 'Sent'}
+            {isLastOwnMessageSeen ? uiText.chat.seen : uiText.chat.sent}
           </p>
         )}
       </div>
@@ -426,7 +427,7 @@ export default function ChatRoomLive({
         className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
       >
         <h2 className="mb-4 text-2xl font-black tracking-tight text-[#1f1a14]">
-          New message
+          {uiText.chat.newMessage}
         </h2>
 
         <div className="grid gap-4">
@@ -436,7 +437,7 @@ export default function ChatRoomLive({
               void handleTyping(e.target.value)
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Write a message... (Enter = send, Shift+Enter = new line)"
+            placeholder={uiText.chat.writeMessage}
             className="min-h-28 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
           />
 
@@ -453,7 +454,7 @@ export default function ChatRoomLive({
             disabled={isSending}
             className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
           >
-            {isSending ? 'Sending...' : 'Send'}
+            {isSending ? uiText.chat.sending : uiText.chat.send}
           </button>
 
           {messageError && (
