@@ -201,6 +201,7 @@ export default function SidebarNavLive({
       <NavItem href="/wall" label="Wall" />
       <NavItem href="/chat" label="Chat" count={unreadChatCount} />
       <NavItem href="/tasks" label="Tasks" count={tasksCount} />
+      <NavItem href="/pamm" label="PAMM" />
       <NavItem href="/documents" label="Documents" />
       <NavItem href="/calendar" label="Calendar" />
       <NavItem href="/events" label="Events" />

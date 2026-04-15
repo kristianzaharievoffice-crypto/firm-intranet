@@ -26,7 +26,7 @@ export default async function FeedPage() {
     <main className="space-y-8">
       <PageHeader
         title="Feed"
-        subtitle="Общият фирмен feed за съобщения, файлове, лайкове и коментари в реално време."
+        subtitle="The common company feed for messages, files, likes and comments in real time."
       />
 
       <FeedLive currentUserId={user.id} currentUserRole={me.role} />
