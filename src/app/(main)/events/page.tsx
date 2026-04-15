@@ -62,7 +62,7 @@ export default async function EventsPage() {
               className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
             >
               <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
-                {event.title}
+                🎉 {event.title}
               </h2>
 
               <div className="mt-4 grid gap-2 text-sm text-[#7b746b] md:grid-cols-3">

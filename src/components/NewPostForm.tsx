@@ -85,8 +85,8 @@ export default function NewFeedPostForm({
 
     setContent('')
     setFile(null)
-    setIsSaving(false)
     setMessage('')
+    setIsSaving(false)
     onPosted?.()
   }
 

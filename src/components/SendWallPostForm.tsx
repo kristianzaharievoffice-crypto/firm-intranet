@@ -79,6 +79,7 @@ export default function SendWallPostForm() {
 
     setContent('')
     setFile(null)
+    setMessage('')
     setIsSaving(false)
     window.location.reload()
   }

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import PostList from '@/components/PostList'
+import SendWallPostForm from '@/components/SendWallPostForm'
 import { uiText } from '@/lib/ui-text'
 
 interface WallPost {
@@ -82,6 +83,8 @@ export default async function WallPage() {
         title={uiText.wall.title}
         subtitle={uiText.wall.subtitle}
       />
+
+      {me.role !== 'admin' && <SendWallPostForm />}
 
       <PostList posts={mappedPosts} />
     </main>
