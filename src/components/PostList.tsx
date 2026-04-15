@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
+import ClientDateTime from '@/components/ClientDateTime'
 
 interface PostItem {
   id: string
@@ -34,6 +35,28 @@ export default function PostList({
     window.location.reload()
   }
 
+  const deletePost = async (postId: string) => {
+    setLoadingId(postId)
+
+    await supabase
+      .from('wall_posts')
+      .delete()
+      .eq('id', postId)
+
+    window.location.reload()
+  }
+
+  const changeStatus = async (postId: string, status: string) => {
+    setLoadingId(postId)
+
+    await supabase
+      .from('wall_posts')
+      .update({ status })
+      .eq('id', postId)
+
+    window.location.reload()
+  }
+
   if (!posts.length) {
     return (
       <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
@@ -60,7 +83,9 @@ export default function PostList({
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[#7b746b]">
-            <span>{new Date(post.created_at).toLocaleString('bg-BG')}</span>
+            <span>
+              <ClientDateTime value={post.created_at} />
+            </span>
 
             {post.status && (
               <span className="rounded-full bg-[#f4efe4] px-3 py-1">
@@ -95,15 +120,36 @@ export default function PostList({
             </div>
           )}
 
-          {isAdmin && !post.reviewed && (
-            <div className="mt-5">
+          {isAdmin && (
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <select
+                defaultValue={post.status ?? 'pending'}
+                onChange={(e) => void changeStatus(post.id, e.target.value)}
+                className="rounded-[16px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-2 text-sm outline-none"
+              >
+                <option value="pending">Pending</option>
+                <option value="in_progress">In progress</option>
+                <option value="completed">Completed</option>
+              </select>
+
+              {!post.reviewed && (
+                <button
+                  type="button"
+                  onClick={() => void markReviewed(post.id)}
+                  disabled={loadingId === post.id}
+                  className="rounded-[16px] bg-[#c9a227] px-4 py-2 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
+                >
+                  {loadingId === post.id ? 'Saving...' : 'Mark as reviewed'}
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={() => void markReviewed(post.id)}
+                onClick={() => void deletePost(post.id)}
                 disabled={loadingId === post.id}
-                className="rounded-[16px] bg-[#c9a227] px-4 py-2 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
+                className="rounded-[16px] border border-red-200 bg-white px-4 py-2 font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
               >
-                {loadingId === post.id ? 'Saving...' : 'Mark as reviewed'}
+                Delete
               </button>
             </div>
           )}
