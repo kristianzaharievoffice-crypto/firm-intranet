@@ -27,6 +27,21 @@ export const uiText = {
     untitled: 'Untitled',
     user: 'User',
     noData: 'No data yet.',
+    back: 'Back',
+    submit: 'Submit',
+    cancel: 'Cancel',
+    edit: 'Edit',
+    remove: 'Remove',
+  },
+
+  login: {
+    title: 'Welcome back',
+    subtitle: 'Sign in to access RCX Network.',
+    email: 'Email',
+    password: 'Password',
+    signIn: 'Sign in',
+    signingIn: 'Signing in...',
+    invalidCredentials: 'Invalid email or password.',
   },
 
   announcement: {
@@ -208,6 +223,9 @@ export const uiText = {
     noJobTitle: 'No job title',
     noDepartment: 'No department',
     noName: 'No name',
+    profileTitle: 'Employee profile',
+    contact: 'Contact',
+    about: 'About',
   },
 
   dashboard: {
@@ -225,11 +243,21 @@ export const uiText = {
     title: 'Events',
     subtitle: 'Company events, attendance, and upcoming plans.',
     newEvent: 'New event',
+    newEventTitle: 'Create event',
+    newEventSubtitle: 'Publish a new company event for everyone.',
     noEvents: 'No events yet.',
     location: 'Location',
     date: 'Date',
     time: 'Time',
     description: 'Description',
+    titleField: 'Event title',
+    locationField: 'Event location',
+    dateField: 'Event date',
+    timeField: 'Event time',
+    descriptionField: 'Event description',
+    createEvent: 'Create event',
+    creating: 'Creating...',
+    fillRequired: 'Please fill in the title, date, and time.',
     attend: 'I will attend',
     decline: 'I will not attend',
     responseSaved: 'Your response has been saved.',
@@ -240,6 +268,11 @@ export const uiText = {
   wall: {
     title: 'Wall',
     subtitle: 'Project posts, updates, reviews, and shared work progress.',
+    newPostTitle: 'New wall post',
+    newPostSubtitle: 'Share project progress, files, and updates.',
+    placeholder: 'Write your project update...',
+    publish: 'Publish',
+    publishing: 'Publishing...',
     noPosts: 'No wall posts yet.',
     reviewed: 'Reviewed',
     markReviewed: 'Mark as reviewed',
@@ -250,6 +283,7 @@ export const uiText = {
     comments: 'Comments',
     addComment: 'Add comment',
     writeComment: 'Write a comment...',
+    writeOrChoose: 'Write a post or choose a file.',
   },
 
   notifications: {
