@@ -1,9 +1,10 @@
 export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
-import { uiText } from '@/lib/ui-text'
+import NotificationsLiveRefresh from '@/components/NotificationsLiveRefresh'
 
 interface NotificationItem {
   id: string
@@ -12,6 +13,25 @@ interface NotificationItem {
   link: string | null
   is_read: boolean | null
   created_at: string
+}
+
+async function clearAllNotifications() {
+  'use server'
+
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return
+
+  await supabase
+    .from('notifications')
+    .delete()
+    .eq('user_id', user.id)
+
+  revalidatePath('/notifications')
 }
 
 export default async function NotificationsPage() {
@@ -23,6 +43,12 @@ export default async function NotificationsPage() {
 
   if (!user) redirect('/login')
 
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', user.id)
+    .eq('is_read', false)
+
   const { data: notifications } = await supabase
     .from('notifications')
     .select('id, title, body, link, is_read, created_at')
@@ -33,9 +59,23 @@ export default async function NotificationsPage() {
 
   return (
     <main className="space-y-8">
+      <NotificationsLiveRefresh currentUserId={user.id} />
+
       <PageHeader
-        title={uiText.notifications.title}
-        subtitle={uiText.notifications.subtitle}
+        title="Notifications"
+        subtitle="All your latest alerts in one place."
+        action={
+          items.length ? (
+            <form action={clearAllNotifications}>
+              <button
+                type="submit"
+                className="rounded-[20px] border border-[#e5d6ae] bg-white px-5 py-3 font-semibold text-[#1f1a14] hover:bg-[#fbf6e8]"
+              >
+                Clear all
+              </button>
+            </form>
+          ) : null
+        }
       />
 
       {items.length ? (
@@ -48,7 +88,7 @@ export default async function NotificationsPage() {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-black tracking-tight text-[#1f1a14]">
-                    {item.title || uiText.common.untitled}
+                    {item.title || 'Untitled'}
                   </h2>
 
                   {item.body && (
@@ -56,19 +96,13 @@ export default async function NotificationsPage() {
                   )}
 
                   <p className="mt-3 text-sm text-[#7b746b]">
-                    {new Date(item.created_at).toLocaleString('bg-BG')}
+                    {new Date(item.created_at).toLocaleString('en-GB')}
                   </p>
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <span
-                    className={`rounded-full px-3 py-1 text-sm font-semibold ${
-                      item.is_read
-                        ? 'bg-gray-100 text-gray-700'
-                        : 'bg-[#fbf3dc] text-[#a88414]'
-                    }`}
-                  >
-                    {item.is_read ? uiText.notifications.read : uiText.notifications.unread}
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700">
+                    Read
                   </span>
 
                   {item.link && (
@@ -76,7 +110,7 @@ export default async function NotificationsPage() {
                       href={item.link}
                       className="rounded-[16px] bg-[#c9a227] px-4 py-2 font-semibold text-white hover:bg-[#a88414]"
                     >
-                      {uiText.common.open}
+                      Open
                     </a>
                   )}
                 </div>
@@ -86,7 +120,7 @@ export default async function NotificationsPage() {
         </div>
       ) : (
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">{uiText.notifications.noNotifications}</p>
+          <p className="text-[#7b746b]">No notifications yet.</p>
         </div>
       )}
     </main>

@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
-import { uiText } from '@/lib/ui-text'
 
 interface TaskItem {
   id: string
@@ -64,59 +63,59 @@ export default async function CalendarPage() {
   return (
     <main className="space-y-8">
       <PageHeader
-        title={uiText.calendar.title}
-        subtitle={uiText.calendar.subtitle}
+        title="Calendar"
+        subtitle="📅 Your schedule with tasks and events in one place."
       />
 
       <div className="grid gap-8 xl:grid-cols-2">
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
           <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
-            {uiText.calendar.tasks}
+            ✅ Tasks
           </h2>
 
           {tasks.length ? (
             <div className="mt-5 space-y-4">
               {tasks.map((task) => (
                 <div key={task.id} className="rounded-[20px] bg-[#fcfbf8] p-4">
-                  <p className="font-semibold text-[#1f1a14]">{task.title}</p>
+                  <p className="font-semibold text-[#1f1a14]">📝 {task.title}</p>
                   <p className="mt-2 text-sm text-[#7b746b]">
-                    {uiText.calendar.dueDate}:{' '}
+                    Due date:{' '}
                     {task.due_date
-                      ? new Date(task.due_date).toLocaleDateString('bg-BG')
+                      ? new Date(task.due_date).toLocaleDateString('en-GB')
                       : '-'}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="mt-4 text-[#7b746b]">{uiText.calendar.noItems}</p>
+            <p className="mt-4 text-[#7b746b]">Nothing is scheduled yet.</p>
           )}
         </div>
 
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
           <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
-            {uiText.calendar.events}
+            🎉 Events
           </h2>
 
           {eventItems.length ? (
             <div className="mt-5 space-y-4">
               {eventItems.map((event) => (
                 <div key={event.id} className="rounded-[20px] bg-[#fcfbf8] p-4">
-                  <p className="font-semibold text-[#1f1a14]">{event.title}</p>
+                  <p className="font-semibold text-[#1f1a14]">🎈 {event.title}</p>
                   <p className="mt-2 text-sm text-[#7b746b]">
-                    {uiText.calendar.date}:{' '}
+                    Date:{' '}
                     {event.date
-                      ? new Date(event.date).toLocaleDateString('bg-BG')
+                      ? new Date(event.date).toLocaleDateString('en-GB')
                       : '-'}
                   </p>
                   <p className="mt-1 text-sm text-[#7b746b]">
-                    {event.time || '-'}
+                    ⏰ {event.time || '-'}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="mt-4 text-[#7b746b]">{uiText.calendar.noItems}</p>
+            <p className="mt-4 text-[#7b746b]">Nothing is scheduled yet.</p>
           )}
         </div>
       </div>
