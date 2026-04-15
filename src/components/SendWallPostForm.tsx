@@ -2,13 +2,13 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { uiText } from '@/lib/ui-text'
 
 export default function SendWallPostForm() {
   const supabase = createClient()
 
   const [content, setContent] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [status, setStatus] = useState<'pending' | 'in_progress' | 'completed'>('in_progress')
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
@@ -19,7 +19,7 @@ export default function SendWallPostForm() {
     const trimmed = content.trim()
 
     if (!trimmed && !file) {
-      setMessage(uiText.wall.writeOrChoose)
+      setMessage('Write a report/project update or choose a file.')
       return
     }
 
@@ -31,7 +31,7 @@ export default function SendWallPostForm() {
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      setMessage(uiText.common.noActiveUser)
+      setMessage('No active user.')
       setIsSaving(false)
       return
     }
@@ -67,7 +67,7 @@ export default function SendWallPostForm() {
       employee_id: user.id,
       content: trimmed || 'Attached file',
       attachment_url: attachmentUrl,
-      status: 'pending',
+      status,
       reviewed: false,
     })
 
@@ -79,6 +79,7 @@ export default function SendWallPostForm() {
 
     setContent('')
     setFile(null)
+    setStatus('in_progress')
     setMessage('')
     setIsSaving(false)
     window.location.reload()
@@ -90,20 +91,32 @@ export default function SendWallPostForm() {
       className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
     >
       <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
-        {uiText.wall.newPostTitle}
+        New report / project post
       </h2>
 
       <p className="mt-2 text-sm text-[#7b746b]">
-        {uiText.wall.newPostSubtitle}
+        Create a work report or project update and share your progress.
       </p>
 
       <div className="mt-4 grid gap-4">
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder={uiText.wall.placeholder}
+          placeholder="Write your report or project update..."
           className="min-h-32 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
         />
+
+        <select
+          value={status}
+          onChange={(e) =>
+            setStatus(e.target.value as 'pending' | 'in_progress' | 'completed')
+          }
+          className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
+        >
+          <option value="in_progress">In progress</option>
+          <option value="completed">Completed</option>
+          <option value="pending">Pending</option>
+        </select>
 
         <input
           type="file"
@@ -118,7 +131,7 @@ export default function SendWallPostForm() {
           disabled={isSaving}
           className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
         >
-          {isSaving ? uiText.wall.publishing : uiText.wall.publish}
+          {isSaving ? 'Publishing...' : 'Publish'}
         </button>
 
         {message && <p className="text-sm text-[#7b746b]">{message}</p>}

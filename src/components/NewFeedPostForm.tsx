@@ -22,7 +22,7 @@ export default function NewFeedPostForm({
     const trimmed = content.trim()
 
     if (!trimmed && !file) {
-      setMessage('Напиши нещо или избери файл.')
+      setMessage('Write something or choose a file.')
       return
     }
 
@@ -34,7 +34,7 @@ export default function NewFeedPostForm({
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
-      setMessage('Няма активен потребител.')
+      setMessage('No active user.')
       setIsSaving(false)
       return
     }
@@ -71,7 +71,7 @@ export default function NewFeedPostForm({
 
     const { error } = await supabase.from('feed_posts').insert({
       user_id: user.id,
-      content: trimmed || 'Прикачен файл',
+      content: trimmed || 'Attached file',
       attachment_url: attachmentUrl,
       attachment_path: attachmentPath,
     })
@@ -84,8 +84,8 @@ export default function NewFeedPostForm({
 
     setContent('')
     setFile(null)
-    setIsSaving(false)
     setMessage('')
+    setIsSaving(false)
     onPosted?.()
   }
 
@@ -95,18 +95,18 @@ export default function NewFeedPostForm({
       className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
     >
       <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
-        Нов пост във Feed
+        New post in Feed
       </h2>
 
       <p className="mt-2 text-sm text-[#7b746b]">
-        Общо пространство за съобщения, файлове и бързи публикации.
+        Share an announcement, update, file, or quick message with everyone.
       </p>
 
       <div className="mt-4 grid gap-4">
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Напиши нещо към екипа..."
+          placeholder="Write something for the team..."
           className="min-h-32 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
         />
 
@@ -123,7 +123,7 @@ export default function NewFeedPostForm({
           disabled={isSaving}
           className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
         >
-          {isSaving ? 'Публикуване...' : 'Публикувай'}
+          {isSaving ? 'Publishing...' : 'Publish'}
         </button>
 
         {message && <p className="text-sm text-[#7b746b]">{message}</p>}

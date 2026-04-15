@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import NewFeedPostForm from '@/components/NewFeedPostForm'
-import { uiText } from '@/lib/ui-text'
 
 interface FeedLiveProps {
   currentUserId: string
@@ -109,7 +108,7 @@ export default function FeedLive({
       profiles.map((p) => [
         p.id,
         {
-          name: p.full_name ?? uiText.common.user,
+          name: p.full_name ?? 'User',
           avatar: p.avatar_url ?? null,
         },
       ])
@@ -125,7 +124,7 @@ export default function FeedLive({
           return {
             id: comment.id,
             user_id: comment.user_id,
-            user_name: commentProfile?.name ?? uiText.common.user,
+            user_name: commentProfile?.name ?? 'User',
             user_avatar: commentProfile?.avatar ?? null,
             content: comment.content,
             created_at: comment.created_at,
@@ -143,7 +142,7 @@ export default function FeedLive({
         attachment_url: post.attachment_url,
         attachment_path: post.attachment_path,
         user_id: post.user_id,
-        user_name: postProfile?.name ?? uiText.common.user,
+        user_name: postProfile?.name ?? 'User',
         user_avatar: postProfile?.avatar ?? null,
         like_count: postLikes.length,
         liked_by_me: postLikes.some((like) => like.user_id === currentUserId),
@@ -261,7 +260,7 @@ export default function FeedLive({
 
       {loading ? (
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">{uiText.common.loading}</p>
+          <p className="text-[#7b746b]">Loading...</p>
         </div>
       ) : posts.length ? (
         <div className="space-y-5">
@@ -301,7 +300,7 @@ export default function FeedLive({
                     onClick={() => void deletePost(post.id, post.attachment_path)}
                     className="text-sm font-medium text-red-600 hover:underline"
                   >
-                    {uiText.common.delete}
+                    Delete
                   </button>
                 )}
               </div>
@@ -318,7 +317,7 @@ export default function FeedLive({
                     rel="noreferrer"
                     className="rounded-[16px] border border-[#e7d6a1] bg-white px-4 py-2 font-semibold text-[#1f1a14] hover:bg-[#fbf6e8]"
                   >
-                    {uiText.feed.openFile}
+                    Open file
                   </a>
 
                   <a
@@ -326,7 +325,7 @@ export default function FeedLive({
                     download
                     className="rounded-[16px] bg-[#c9a227] px-4 py-2 font-semibold text-white hover:bg-[#a88414]"
                   >
-                    {uiText.feed.downloadFile}
+                    Download
                   </a>
                 </div>
               )}
@@ -341,21 +340,21 @@ export default function FeedLive({
                       : 'border border-[#e7d6a1] bg-white text-[#1f1a14]'
                   }`}
                 >
-                  {post.liked_by_me ? uiText.feed.liked : uiText.feed.like}
+                  {post.liked_by_me ? 'Liked' : 'Like'}
                 </button>
 
                 <p className="text-sm text-[#7b746b]">
-                  {post.like_count} {uiText.feed.likes}
+                  {post.like_count} likes
                 </p>
 
                 <p className="text-sm text-[#7b746b]">
-                  {post.comments.length} {uiText.feed.comments}
+                  {post.comments.length} comments
                 </p>
               </div>
 
               <div className="mt-6 rounded-[24px] border border-[#ece5d8] bg-[#fcfbf8] p-4">
                 <h3 className="mb-3 text-lg font-bold text-[#1f1a14]">
-                  {uiText.feed.commentsTitle}
+                  Comments
                 </h3>
 
                 {post.comments.length ? (
@@ -396,7 +395,7 @@ export default function FeedLive({
                               onClick={() => void deleteComment(comment.id)}
                               className="text-sm font-medium text-red-600 hover:underline"
                             >
-                              {uiText.common.delete}
+                              Delete
                             </button>
                           )}
                         </div>
@@ -408,7 +407,7 @@ export default function FeedLive({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-[#7b746b]">{uiText.feed.noComments}</p>
+                  <p className="text-sm text-[#7b746b]">No comments yet.</p>
                 )}
 
                 <div className="mt-4 flex flex-col gap-3 md:flex-row">
@@ -420,7 +419,7 @@ export default function FeedLive({
                         [post.id]: e.target.value,
                       }))
                     }
-                    placeholder={uiText.feed.writeComment}
+                    placeholder="Write a comment..."
                     className="flex-1 rounded-[18px] border border-[#ece5d8] bg-white px-4 py-3 outline-none focus:border-[#c9a227]"
                   />
 
@@ -429,7 +428,7 @@ export default function FeedLive({
                     onClick={() => void submitComment(post.id)}
                     className="rounded-[18px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414]"
                   >
-                    {uiText.feed.addComment}
+                    Add comment
                   </button>
                 </div>
               </div>
@@ -438,7 +437,7 @@ export default function FeedLive({
         </div>
       ) : (
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">{uiText.feed.noPosts}</p>
+          <p className="text-[#7b746b]">No feed posts yet.</p>
         </div>
       )}
     </div>

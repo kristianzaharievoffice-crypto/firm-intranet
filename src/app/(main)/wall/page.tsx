@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import PostList from '@/components/PostList'
 import SendWallPostForm from '@/components/SendWallPostForm'
-import { uiText } from '@/lib/ui-text'
 
 interface WallPost {
   id: string
@@ -69,24 +68,24 @@ export default async function WallPage() {
     .in('id', safeIds)
 
   const nameMap = new Map(
-    ((profiles ?? []) as ProfileRow[]).map((p) => [p.id, p.full_name ?? uiText.common.user])
+    ((profiles ?? []) as ProfileRow[]).map((p) => [p.id, p.full_name ?? 'User'])
   )
 
   const mappedPosts = posts.map((post) => ({
     ...post,
-    employee_name: post.employee_id ? nameMap.get(post.employee_id) ?? uiText.common.user : undefined,
+    employee_name: post.employee_id ? nameMap.get(post.employee_id) ?? 'User' : undefined,
   }))
 
   return (
     <main className="space-y-8">
       <PageHeader
-        title={uiText.wall.title}
-        subtitle={uiText.wall.subtitle}
+        title="Wall"
+        subtitle="Project reports, work updates, and progress posts."
       />
 
       {me.role !== 'admin' && <SendWallPostForm />}
 
-      <PostList posts={mappedPosts} />
+      <PostList posts={mappedPosts} isAdmin={me.role === 'admin'} />
     </main>
   )
 }

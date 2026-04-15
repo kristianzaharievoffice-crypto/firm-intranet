@@ -4,7 +4,6 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import FeedLive from '@/components/FeedLive'
-import { uiText } from '@/lib/ui-text'
 
 export default async function FeedPage() {
   const supabase = await createClient()
@@ -26,8 +25,8 @@ export default async function FeedPage() {
   return (
     <main className="space-y-8">
       <PageHeader
-        title={uiText.feed.title}
-        subtitle={uiText.feed.subtitle}
+        title="Feed"
+        subtitle="The shared company feed for messages, files, likes, comments, and live updates."
       />
 
       <FeedLive currentUserId={user.id} currentUserRole={me.role} />

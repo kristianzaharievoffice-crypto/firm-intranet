@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { uiText } from '@/lib/ui-text'
 
 export default function LoginPage() {
   const supabase = createClient()
@@ -23,7 +22,7 @@ export default function LoginPage() {
     })
 
     if (error) {
-      setMessage(uiText.login.invalidCredentials)
+      setMessage('Invalid email or password.')
       setIsLoading(false)
       return
     }
@@ -32,43 +31,55 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#fcfbf8] p-6">
-      <div className="w-full max-w-md rounded-[32px] border border-[#ece5d8] bg-white p-8 shadow-sm">
-        <div className="mb-8">
-          <h1 className="text-4xl font-black tracking-tight text-[#1f1a14]">
-            {uiText.login.title}
+    <main className="flex min-h-screen items-center justify-center bg-[#f5f3ee] p-6">
+      <div className="w-full max-w-md rounded-[32px] bg-white p-8 shadow-[0_18px_60px_rgba(0,0,0,0.08)]">
+        <div className="mb-8 text-center">
+          <h1 className="text-5xl font-black tracking-tight text-[#111111]">
+            RCX NETWORK
           </h1>
-          <p className="mt-3 text-sm text-[#7b746b]">
-            {uiText.login.subtitle}
+          <p className="mt-4 text-lg text-[#6f6a62]">
+            Internal communication and reporting system
           </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <input
-            type="email"
-            placeholder={uiText.login.email}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
-          />
+        <form onSubmit={handleLogin} className="space-y-5">
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-[#202020]">
+              Email
+            </label>
+            <input
+              type="email"
+              placeholder="Enter email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-[20px] border border-[#d8d1c4] bg-white px-5 py-4 outline-none transition focus:border-[#c9a227]"
+            />
+          </div>
 
-          <input
-            type="password"
-            placeholder={uiText.login.password}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
-          />
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-[#202020]">
+              Password
+            </label>
+            <input
+              type="password"
+              placeholder="Enter password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-[20px] border border-[#d8d1c4] bg-white px-5 py-4 outline-none transition focus:border-[#c9a227]"
+            />
+          </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
+            className="w-full rounded-[20px] bg-black px-5 py-4 text-lg font-bold text-white transition hover:opacity-90 disabled:opacity-60"
           >
-            {isLoading ? uiText.login.signingIn : uiText.login.signIn}
+            {isLoading ? 'Signing in...' : 'Sign in'}
           </button>
 
-          {message && <p className="text-sm text-[#7b746b]">{message}</p>}
+          {message && (
+            <p className="text-center text-sm text-[#7b746b]">{message}</p>
+          )}
         </form>
       </div>
     </main>

@@ -1,6 +1,7 @@
 'use client'
 
-import { uiText } from '@/lib/ui-text'
+import { createClient } from '@/lib/supabase/client'
+import { useState } from 'react'
 
 interface PostItem {
   id: string
@@ -14,13 +15,29 @@ interface PostItem {
 
 export default function PostList({
   posts,
+  isAdmin = false,
 }: {
   posts: PostItem[]
+  isAdmin?: boolean
 }) {
+  const supabase = createClient()
+  const [loadingId, setLoadingId] = useState<string | null>(null)
+
+  const markReviewed = async (postId: string) => {
+    setLoadingId(postId)
+
+    await supabase
+      .from('wall_posts')
+      .update({ reviewed: true })
+      .eq('id', postId)
+
+    window.location.reload()
+  }
+
   if (!posts.length) {
     return (
       <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-        <p className="text-[#7b746b]">{uiText.wall.noPosts}</p>
+        <p className="text-[#7b746b]">No wall posts yet.</p>
       </div>
     )
   }
@@ -47,13 +64,13 @@ export default function PostList({
 
             {post.status && (
               <span className="rounded-full bg-[#f4efe4] px-3 py-1">
-                {uiText.wall.status}: {post.status}
+                Status: {post.status}
               </span>
             )}
 
             {post.reviewed && (
               <span className="rounded-full bg-[#e9f7ef] px-3 py-1 text-[#247a4d]">
-                {uiText.wall.reviewed}
+                Reviewed
               </span>
             )}
           </div>
@@ -66,15 +83,28 @@ export default function PostList({
                 rel="noreferrer"
                 className="rounded-[16px] border border-[#e7d6a1] bg-white px-4 py-2 font-semibold text-[#1f1a14] hover:bg-[#fbf6e8]"
               >
-                {uiText.common.open}
+                Open
               </a>
               <a
                 href={post.attachment_url}
                 download
                 className="rounded-[16px] bg-[#c9a227] px-4 py-2 font-semibold text-white hover:bg-[#a88414]"
               >
-                {uiText.common.download}
+                Download
               </a>
+            </div>
+          )}
+
+          {isAdmin && !post.reviewed && (
+            <div className="mt-5">
+              <button
+                type="button"
+                onClick={() => void markReviewed(post.id)}
+                disabled={loadingId === post.id}
+                className="rounded-[16px] bg-[#c9a227] px-4 py-2 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
+              >
+                {loadingId === post.id ? 'Saving...' : 'Mark as reviewed'}
+              </button>
             </div>
           )}
         </div>
