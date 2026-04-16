@@ -85,7 +85,11 @@ export default async function WallPage() {
 
       {me.role !== 'admin' && <SendWallPostForm />}
 
-      <PostList posts={mappedPosts} isAdmin={me.role === 'admin'} />
+      <PostList
+        posts={mappedPosts}
+        isAdmin={me.role === 'admin'}
+        currentUserId={user.id}
+      />
     </main>
   )
 }

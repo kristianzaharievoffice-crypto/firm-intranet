@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import NotificationsLiveRefresh from '@/components/NotificationsLiveRefresh'
+import ClientDateTime from '@/components/ClientDateTime'
 
 interface NotificationItem {
   id: string
@@ -26,10 +27,14 @@ async function clearAllNotifications() {
 
   if (!user) return
 
-  await supabase
+  const { error } = await supabase
     .from('notifications')
     .delete()
     .eq('user_id', user.id)
+
+  if (error) {
+    console.error('Clear all notifications error:', error.message)
+  }
 
   revalidatePath('/notifications')
 }
@@ -96,7 +101,7 @@ export default async function NotificationsPage() {
                   )}
 
                   <p className="mt-3 text-sm text-[#7b746b]">
-                    {new Date(item.created_at).toLocaleString('en-GB')}
+                    <ClientDateTime value={item.created_at} />
                   </p>
                 </div>
 
