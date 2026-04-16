@@ -17,7 +17,7 @@ export default function NotificationsLiveRefresh({
       if (document.visibilityState === 'visible') {
         router.refresh()
       }
-    }, 2000)
+    }, 2500)
 
     const channel = supabase
       .channel(`notifications-page-${currentUserId}`)

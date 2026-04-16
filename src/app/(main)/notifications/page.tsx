@@ -27,10 +27,7 @@ async function clearAllNotifications() {
 
   if (!user) return
 
-  const { error } = await supabase
-    .from('notifications')
-    .delete()
-    .eq('user_id', user.id)
+  const { error } = await supabase.rpc('clear_all_my_notifications')
 
   if (error) {
     console.error('Clear all notifications error:', error.message)
@@ -48,17 +45,36 @@ export default async function NotificationsPage() {
 
   if (!user) redirect('/login')
 
-  await supabase
-    .from('notifications')
-    .update({ is_read: true })
-    .eq('user_id', user.id)
-    .eq('is_read', false)
+  const { error: markReadError } = await supabase.rpc(
+    'mark_all_my_notifications_read'
+  )
 
-  const { data: notifications } = await supabase
+  if (markReadError) {
+    console.error('Mark notifications read error:', markReadError.message)
+  }
+
+  const { data: notifications, error: loadError } = await supabase
     .from('notifications')
     .select('id, title, body, link, is_read, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
+
+  if (loadError) {
+    return (
+      <main className="space-y-8">
+        <NotificationsLiveRefresh currentUserId={user.id} />
+
+        <PageHeader
+          title="Notifications"
+          subtitle="All your latest alerts in one place."
+        />
+
+        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
+          <p className="text-red-600">{loadError.message}</p>
+        </div>
+      </main>
+    )
+  }
 
   const items = (notifications ?? []) as NotificationItem[]
 
