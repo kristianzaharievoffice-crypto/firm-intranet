@@ -1,18 +1,18 @@
 export const dynamic = 'force-dynamic'
 
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
-import { uiText } from '@/lib/ui-text'
+import EmployeesList from '@/components/EmployeesList'
 
-interface Employee {
+interface ProfileRow {
   id: string
   full_name: string | null
-  role: string
+  avatar_url: string | null
   job_title: string | null
   department: string | null
-  avatar_url: string | null
+  role: string
+  office: string | null
 }
 
 export default async function EmployeesPage() {
@@ -24,68 +24,44 @@ export default async function EmployeesPage() {
 
   if (!user) redirect('/login')
 
-  const { data: employees } = await supabase
+  const { data: me } = await supabase
     .from('profiles')
-    .select('id, full_name, role, job_title, department, avatar_url')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select(
+      'id, full_name, avatar_url, job_title, department, role, office'
+    )
     .order('full_name', { ascending: true })
 
-  const items = (employees ?? []) as Employee[]
+  const users = (profiles ?? []) as ProfileRow[]
+
+  const sofia = users.filter((u) => (u.office ?? 'sofia') === 'sofia')
+  const dubai = users.filter((u) => u.office === 'dubai')
 
   return (
-    <main className="space-y-8">
+    <main className="space-y-10">
       <PageHeader
-        title={uiText.employees.title}
-        subtitle={uiText.employees.subtitle}
+        title="Employees"
+        subtitle="Company team divided by offices."
       />
 
-      {items.length ? (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((employee) => (
-            <Link
-              key={employee.id}
-              href={`/employees/${employee.id}`}
-              className="rounded-[36px] border border-[#ece5d8] bg-white p-8 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className="flex items-center gap-5">
-                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-3xl font-black text-[#a88414]">
-                  {employee.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={employee.avatar_url}
-                      alt={employee.full_name ?? 'Avatar'}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    (employee.full_name?.[0] ?? 'U').toUpperCase()
-                  )}
-                </div>
+      <div>
+        <h2 className="mb-4 text-2xl font-black text-[#1f1a14]">
+          🇧🇬 Office Sofia
+        </h2>
+        <EmployeesList users={sofia} isAdmin={me?.role === 'admin'} />
+      </div>
 
-                <div className="min-w-0">
-                  <h2 className="truncate text-2xl font-black tracking-tight text-[#1f1a14]">
-                    {employee.full_name ?? uiText.employees.noName}
-                  </h2>
-
-                  <p className="mt-2 text-base text-[#7b746b]">
-                    {employee.job_title || uiText.employees.noJobTitle}
-                  </p>
-
-                  <p className="mt-1 text-sm text-[#a09a90]">
-                    {employee.department || uiText.employees.noDepartment}
-                  </p>
-
-                  <p className="mt-3 inline-flex rounded-full bg-[#fbf3dc] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#a88414]">
-                    {employee.role}
-                  </p>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">{uiText.employees.noEmployees}</p>
-        </div>
-      )}
+      <div>
+        <h2 className="mb-4 text-2xl font-black text-[#1f1a14]">
+          🇦🇪 Office Dubai
+        </h2>
+        <EmployeesList users={dubai} isAdmin={me?.role === 'admin'} />
+      </div>
     </main>
   )
 }
