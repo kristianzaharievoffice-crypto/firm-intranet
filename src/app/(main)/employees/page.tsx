@@ -15,6 +15,16 @@ interface ProfileRow {
   office: string | null
 }
 
+interface EmployeeVm {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  job_title: string | null
+  department: string | null
+  role: string
+  office: string
+}
+
 export default async function EmployeesPage() {
   const supabase = await createClient()
 
@@ -37,9 +47,12 @@ export default async function EmployeesPage() {
     )
     .order('full_name', { ascending: true })
 
-  const users = (profiles ?? []) as ProfileRow[]
+  const users: EmployeeVm[] = ((profiles ?? []) as ProfileRow[]).map((user) => ({
+    ...user,
+    office: user.office ?? 'sofia',
+  }))
 
-  const sofia = users.filter((u) => (u.office ?? 'sofia') === 'sofia')
+  const sofia = users.filter((u) => u.office === 'sofia')
   const dubai = users.filter((u) => u.office === 'dubai')
 
   return (
