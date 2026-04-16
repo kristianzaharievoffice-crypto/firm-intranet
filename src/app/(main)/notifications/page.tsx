@@ -1,10 +1,10 @@
 export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import NotificationsLiveRefresh from '@/components/NotificationsLiveRefresh'
+import ClearNotificationsButton from '@/components/ClearNotificationsButton'
 import ClientDateTime from '@/components/ClientDateTime'
 
 interface NotificationItem {
@@ -16,26 +16,6 @@ interface NotificationItem {
   created_at: string
 }
 
-async function clearAllNotifications() {
-  'use server'
-
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) return
-
-  const { error } = await supabase.rpc('clear_all_my_notifications')
-
-  if (error) {
-    console.error('Clear all notifications error:', error.message)
-  }
-
-  revalidatePath('/notifications')
-}
-
 export default async function NotificationsPage() {
   const supabase = await createClient()
 
@@ -45,21 +25,23 @@ export default async function NotificationsPage() {
 
   if (!user) redirect('/login')
 
-  const { error: markReadError } = await supabase.rpc(
+  // ✅ Mark all as read via RPC
+  const { error: markError } = await supabase.rpc(
     'mark_all_my_notifications_read'
   )
 
-  if (markReadError) {
-    console.error('Mark notifications read error:', markReadError.message)
+  if (markError) {
+    console.error('Mark read error:', markError.message)
   }
 
-  const { data: notifications, error: loadError } = await supabase
+  // ✅ Load notifications
+  const { data: notifications, error } = await supabase
     .from('notifications')
     .select('id, title, body, link, is_read, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  if (loadError) {
+  if (error) {
     return (
       <main className="space-y-8">
         <NotificationsLiveRefresh currentUserId={user.id} />
@@ -70,7 +52,7 @@ export default async function NotificationsPage() {
         />
 
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-red-600">{loadError.message}</p>
+          <p className="text-red-600">{error.message}</p>
         </div>
       </main>
     )
@@ -80,22 +62,14 @@ export default async function NotificationsPage() {
 
   return (
     <main className="space-y-8">
+      {/* ✅ Live refresh */}
       <NotificationsLiveRefresh currentUserId={user.id} />
 
       <PageHeader
         title="Notifications"
         subtitle="All your latest alerts in one place."
         action={
-          items.length ? (
-            <form action={clearAllNotifications}>
-              <button
-                type="submit"
-                className="rounded-[20px] border border-[#e5d6ae] bg-white px-5 py-3 font-semibold text-[#1f1a14] hover:bg-[#fbf6e8]"
-              >
-                Clear all
-              </button>
-            </form>
-          ) : null
+          items.length ? <ClearNotificationsButton /> : null
         }
       />
 
@@ -113,7 +87,9 @@ export default async function NotificationsPage() {
                   </h2>
 
                   {item.body && (
-                    <p className="mt-2 leading-7 text-[#443d35]">{item.body}</p>
+                    <p className="mt-2 leading-7 text-[#443d35]">
+                      {item.body}
+                    </p>
                   )}
 
                   <p className="mt-3 text-sm text-[#7b746b]">
