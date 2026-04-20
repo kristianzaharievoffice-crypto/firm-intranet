@@ -3,32 +3,20 @@ import Sidebar from '@/components/Sidebar'
 import TopAnnouncementBar from '@/components/TopAnnouncementBar'
 import LiveNotifications from '@/components/LiveNotifications'
 
-export default async function MainLayout({
+export default function MainLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
   return (
-    <div className="min-h-screen bg-transparent">
-      {user?.id && <LiveNotifications currentUserId={user.id} />}
+    <div className="min-h-screen xl:flex">
+      <Sidebar />
 
-      <div className="mx-auto max-w-[1600px] p-4 md:p-6">
-        <div className="flex min-h-[calc(100vh-2rem)] overflow-hidden rounded-[32px] border border-[#ece5d8] bg-white/70 shadow-[0_20px_60px_rgba(31,26,20,0.08)] backdrop-blur">
-          <Sidebar />
-          <main className="modern-scroll flex-1 overflow-y-auto bg-[#fcfbf8]">
-            <div className="mx-auto max-w-7xl p-6 md:p-8">
-              <TopAnnouncementBar />
-              {children}
-            </div>
-          </main>
+      <main className="min-w-0 flex-1">
+        <div className="px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 xl:px-8 xl:py-8">
+          {children}
         </div>
-      </div>
+      </main>
     </div>
   )
 }
