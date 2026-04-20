@@ -2,20 +2,24 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import MobileNav from '@/components/MobileNav'
+import MobileNavLive from '@/components/MobileNavLive'
 
 export default function MobileSidebarShell({
   fullName,
   role,
-  notificationsCount,
-  unreadChatCount,
-  tasksCount,
+  currentUserId,
+  chatIds,
+  initialNotificationsCount,
+  initialUnreadChatCount,
+  initialTasksCount,
 }: {
   fullName: string
   role: string
-  notificationsCount: number
-  unreadChatCount: number
-  tasksCount: number
+  currentUserId: string
+  chatIds: string[]
+  initialNotificationsCount: number
+  initialUnreadChatCount: number
+  initialTasksCount: number
 }) {
   const [open, setOpen] = useState(false)
 
@@ -91,11 +95,13 @@ export default function MobileSidebarShell({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
-              <MobileNav
+              <MobileNavLive
+                currentUserId={currentUserId}
                 role={role}
-                notificationsCount={notificationsCount}
-                unreadChatCount={unreadChatCount}
-                tasksCount={tasksCount}
+                chatIds={chatIds}
+                initialNotificationsCount={initialNotificationsCount}
+                initialUnreadChatCount={initialUnreadChatCount}
+                initialTasksCount={initialTasksCount}
                 onNavigate={() => setOpen(false)}
               />
             </div>
