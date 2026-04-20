@@ -50,31 +50,27 @@ export default async function Sidebar() {
   let unreadChatCount = 0
 
   if (chatIds.length) {
-    const { data: reads } = await supabase
+    const { data: readRows } = await supabase
       .from('chat_reads')
       .select('chat_id, last_read_at')
       .eq('user_id', user.id)
-      .in('chat_id', chatIds)
+
+    const readMap = new Map(
+      (readRows ?? []).map((row) => [row.chat_id, row.last_read_at])
+    )
 
     const { data: messages } = await supabase
       .from('messages')
       .select('chat_id, created_at, sender_id')
       .in('chat_id', chatIds)
 
-    const readMap = new Map(
-      (reads ?? []).map((row) => [row.chat_id, row.last_read_at])
-    )
+    unreadChatCount = (messages ?? []).filter((msg) => {
+      if (msg.sender_id === user.id) return false
 
-    unreadChatCount = (messages ?? []).filter((message) => {
-      if (message.sender_id === user.id) return false
+      const lastRead = readMap.get(msg.chat_id)
+      if (!lastRead) return true
 
-      const lastReadAt = readMap.get(message.chat_id)
-      if (!lastReadAt) return true
-
-      return (
-        new Date(message.created_at).getTime() >
-        new Date(lastReadAt).getTime()
-      )
+      return new Date(msg.created_at) > new Date(lastRead)
     }).length
   }
 
