@@ -2,22 +2,23 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import MobileNav from '@/components/MobileNav'
 
 export default function MobileSidebarShell({
   fullName,
   role,
-  children,
 }: {
   fullName: string
   role: string
-  children: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
     if (!open) return
+
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+
     return () => {
       document.body.style.overflow = previous
     }
@@ -83,11 +84,8 @@ export default function MobileSidebarShell({
               </div>
             </div>
 
-            <div
-              className="min-h-0 flex-1 overflow-y-auto px-4 pb-6"
-              onClick={() => setOpen(false)}
-            >
-              {children}
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
+              <MobileNav role={role} onNavigate={() => setOpen(false)} />
             </div>
           </div>
         </div>

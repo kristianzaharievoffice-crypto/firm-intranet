@@ -86,25 +86,12 @@ export default async function Sidebar() {
     .eq(taskColumn, user.id)
     .neq('status', 'done')
 
-  const nav = (
-    <SidebarNavLive
-      currentUserId={user.id}
-      role={me.role}
-      chatIds={chatIds}
-      initialNotificationsCount={notificationsCount ?? 0}
-      initialUnreadChatCount={unreadChatCount}
-      initialTasksCount={tasksCount ?? 0}
-    />
-  )
-
   return (
     <>
       <MobileSidebarShell
         fullName={me.full_name || 'User'}
         role={me.role}
-      >
-        {nav}
-      </MobileSidebarShell>
+      />
 
       <aside className="hidden w-[310px] shrink-0 border-r border-[#ece5d8] bg-[#fffdf8] xl:block">
         <div className="flex h-full flex-col px-6 py-7">
@@ -132,7 +119,16 @@ export default async function Sidebar() {
             <p className="mt-1 text-sm text-[#7b746b]">{me.role}</p>
           </div>
 
-          <div className="mt-6 flex-1">{nav}</div>
+          <div className="mt-6 flex-1">
+            <SidebarNavLive
+              currentUserId={user.id}
+              role={me.role}
+              chatIds={chatIds}
+              initialNotificationsCount={notificationsCount ?? 0}
+              initialUnreadChatCount={unreadChatCount}
+              initialTasksCount={tasksCount ?? 0}
+            />
+          </div>
         </div>
       </aside>
     </>
