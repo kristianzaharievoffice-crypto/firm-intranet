@@ -7,9 +7,15 @@ import MobileNav from '@/components/MobileNav'
 export default function MobileSidebarShell({
   fullName,
   role,
+  notificationsCount,
+  unreadChatCount,
+  tasksCount,
 }: {
   fullName: string
   role: string
+  notificationsCount: number
+  unreadChatCount: number
+  tasksCount: number
 }) {
   const [open, setOpen] = useState(false)
 
@@ -85,7 +91,13 @@ export default function MobileSidebarShell({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
-              <MobileNav role={role} onNavigate={() => setOpen(false)} />
+              <MobileNav
+                role={role}
+                notificationsCount={notificationsCount}
+                unreadChatCount={unreadChatCount}
+                tasksCount={tasksCount}
+                onNavigate={() => setOpen(false)}
+              />
             </div>
           </div>
         </div>

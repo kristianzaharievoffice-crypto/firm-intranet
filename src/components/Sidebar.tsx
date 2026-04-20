@@ -91,6 +91,9 @@ export default async function Sidebar() {
       <MobileSidebarShell
         fullName={me.full_name || 'User'}
         role={me.role}
+        notificationsCount={notificationsCount ?? 0}
+        unreadChatCount={unreadChatCount}
+        tasksCount={tasksCount ?? 0}
       />
 
       <aside className="hidden w-[310px] shrink-0 border-r border-[#ece5d8] bg-[#fffdf8] xl:block">
