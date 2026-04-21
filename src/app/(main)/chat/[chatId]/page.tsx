@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import PageHeader from '@/components/PageHeader'
 import ChatRoomLive from '@/components/ChatRoomLive'
 
 interface Message {
@@ -97,25 +96,18 @@ export default async function ChatDetailsPage({
   const otherUserJobTitle = otherProfile.data?.job_title ?? null
 
   return (
-    <main className="h-[calc(100dvh-72px)] overflow-hidden space-y-4 sm:h-[calc(100dvh-96px)] sm:space-y-5">
-      <PageHeader
-        title="Chat"
-        subtitle="Professional direct conversation."
+    <main className="h-[calc(100dvh-110px)] overflow-hidden">
+      <ChatRoomLive
+        initialMessages={(messages ?? []) as Message[]}
+        currentUserId={user.id}
+        chatId={chatId}
+        senderNames={senderNames}
+        senderAvatars={senderAvatars}
+        otherUserId={otherUserId}
+        otherUserName={otherUserName}
+        otherUserAvatar={otherUserAvatar}
+        otherUserJobTitle={otherUserJobTitle}
       />
-
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <ChatRoomLive
-          initialMessages={(messages ?? []) as Message[]}
-          currentUserId={user.id}
-          chatId={chatId}
-          senderNames={senderNames}
-          senderAvatars={senderAvatars}
-          otherUserId={otherUserId}
-          otherUserName={otherUserName}
-          otherUserAvatar={otherUserAvatar}
-          otherUserJobTitle={otherUserJobTitle}
-        />
-      </div>
     </main>
   )
 }

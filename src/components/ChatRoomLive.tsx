@@ -114,7 +114,7 @@ export default function ChatRoomLive({
 
   useEffect(() => {
     void loadReactions(initialMessages.map((m) => m.id))
-    setTimeout(() => scrollToBottom('auto'), 50)
+    setTimeout(() => scrollToBottom('auto'), 60)
   }, [initialMessages.length])
 
   const markReadNow = async () => {

@@ -83,8 +83,8 @@ export default function ChatDirectory({
 }) {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
-  const [loadingId, setLoadingId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [loadingId, setLoadingId] = useState<string | null>(null)
   const [users, setUsers] = useState<UserItem[]>([])
 
   const loadDirectory = async () => {
@@ -345,8 +345,12 @@ export default function ChatDirectory({
   }
 
   const openChat = async (userId: string, existingChatId: string | null) => {
+    setLoadingId(userId)
     const chatId = await ensureChat(userId, existingChatId)
+    setLoadingId(null)
+
     if (!chatId) return
+
     router.push(`/chat/${chatId}`)
   }
 
@@ -366,7 +370,9 @@ export default function ChatDirectory({
 
     setUsers((current) =>
       current.map((u) =>
-        u.id === userId ? { ...u, existing_chat_id: chatId, is_pinned: nextPinned } : u
+        u.id === userId
+          ? { ...u, existing_chat_id: chatId, is_pinned: nextPinned }
+          : u
       )
     )
 
