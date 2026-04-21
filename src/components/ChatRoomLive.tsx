@@ -74,6 +74,8 @@ export default function ChatRoomLive({
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const typingClearRef = useRef<NodeJS.Timeout | null>(null)
   const uiChannelRef = useRef<any>(null)
+  const shouldStickBottomRef = useRef(true)
+  const markingReadRef = useRef(false)
 
   const loadMessages = async () => {
     const { data } = await supabase
@@ -108,25 +110,17 @@ export default function ChatRoomLive({
     el.scrollTo({ top: el.scrollHeight, behavior })
   }
 
-  useEffect(() => {
-    setMessages(initialMessages)
-  }, [initialMessages])
-
-  useEffect(() => {
-    void loadReactions(initialMessages.map((m) => m.id))
-    setTimeout(() => scrollToBottom('auto'), 60)
-  }, [initialMessages.length])
-
   const markReadNow = async () => {
-    await supabase
-      .from('messages')
-      .update({ is_read: true })
-      .eq('chat_id', chatId)
-      .neq('sender_id', currentUserId)
+    if (markingReadRef.current) return
+    markingReadRef.current = true
 
-    await supabase.rpc('mark_chat_read', {
-      target_chat_id: chatId,
-    })
+    try {
+      await supabase.rpc('mark_chat_read', {
+        target_chat_id: chatId,
+      })
+    } finally {
+      markingReadRef.current = false
+    }
   }
 
   const updateOwnPresence = async () => {
@@ -143,7 +137,7 @@ export default function ChatRoomLive({
   const loadOtherState = async () => {
     const { data: presence } = await supabase
       .from('user_presence')
-      .select('last_seen_at, current_chat_id')
+      .select('last_seen_at')
       .eq('user_id', otherUserId)
       .maybeSingle()
 
@@ -167,14 +161,21 @@ export default function ChatRoomLive({
   }
 
   useEffect(() => {
+    setMessages(initialMessages)
+  }, [initialMessages])
+
+  useEffect(() => {
+    void loadReactions(initialMessages.map((m) => m.id))
+    setTimeout(() => scrollToBottom('auto'), 60)
+  }, [initialMessages.length])
+
+  useEffect(() => {
     void markReadNow()
     void updateOwnPresence()
     void loadOtherState()
-    void loadMessages()
 
     const heartbeat = setInterval(() => {
       void updateOwnPresence()
-      void markReadNow()
     }, 10000)
 
     const otherStatePoll = setInterval(() => {
@@ -197,20 +198,37 @@ export default function ChatRoomLive({
   }, [chatId, currentUserId, otherUserId, supabase])
 
   useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    const onScroll = () => {
+      const distance = el.scrollHeight - el.scrollTop - el.clientHeight
+      shouldStickBottomRef.current = distance < 120
+    }
+
+    el.addEventListener('scroll', onScroll)
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
     const messagesChannel = supabase
       .channel(`chat-room-messages-${chatId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'messages',
           filter: `chat_id=eq.${chatId}`,
         },
         async () => {
           await loadMessages()
+          await loadReactions()
           await markReadNow()
-          setTimeout(() => scrollToBottom('smooth'), 80)
+
+          if (shouldStickBottomRef.current) {
+            setTimeout(() => scrollToBottom('smooth'), 80)
+          }
         }
       )
       .subscribe()
@@ -379,6 +397,9 @@ export default function ChatRoomLive({
     await broadcastTyping(false)
     await updateOwnPresence()
     await loadMessages()
+    await loadReactions()
+
+    shouldStickBottomRef.current = true
     setTimeout(() => scrollToBottom('smooth'), 80)
   }
 
@@ -405,7 +426,6 @@ export default function ChatRoomLive({
       }
     }
   }
-
 
   const getMessageReactions = (messageId: string) =>
     reactions.filter((reaction) => reaction.message_id === messageId)

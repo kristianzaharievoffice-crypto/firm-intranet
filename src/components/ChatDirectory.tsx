@@ -239,7 +239,6 @@ export default function ChatDirectory({
         const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : 0
 
         if (bTime !== aTime) return bTime - aTime
-
         return a.full_name.localeCompare(b.full_name)
       })
 
@@ -249,72 +248,67 @@ export default function ChatDirectory({
   useEffect(() => {
     void loadDirectory()
 
-    const poll = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        void loadDirectory()
-      }
-    }, 3000)
+    const messageChannel = supabase
+      .channel(`chat-list-messages-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages' },
+        () => void loadDirectory()
+      )
+      .subscribe()
 
-    const channels = [
-      supabase
-        .channel(`chat-list-messages-${currentUserId}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'messages' },
-          () => void loadDirectory()
-        )
-        .subscribe(),
+    const readChannel = supabase
+      .channel(`chat-list-reads-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_reads',
+          filter: `user_id=eq.${currentUserId}`,
+        },
+        () => void loadDirectory()
+      )
+      .subscribe()
 
-      supabase
-        .channel(`chat-list-reads-${currentUserId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'chat_reads',
-            filter: `user_id=eq.${currentUserId}`,
-          },
-          () => void loadDirectory()
-        )
-        .subscribe(),
+    const presenceChannel = supabase
+      .channel(`chat-list-presence-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_presence' },
+        () => void loadDirectory()
+      )
+      .subscribe()
 
-      supabase
-        .channel(`chat-list-presence-${currentUserId}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'user_presence' },
-          () => void loadDirectory()
-        )
-        .subscribe(),
+    const pinChannel = supabase
+      .channel(`chat-list-pins-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_pins',
+          filter: `user_id=eq.${currentUserId}`,
+        },
+        () => void loadDirectory()
+      )
+      .subscribe()
 
-      supabase
-        .channel(`chat-list-pins-${currentUserId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'chat_pins',
-            filter: `user_id=eq.${currentUserId}`,
-          },
-          () => void loadDirectory()
-        )
-        .subscribe(),
-
-      supabase
-        .channel(`chat-list-chats-${currentUserId}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'chats' },
-          () => void loadDirectory()
-        )
-        .subscribe(),
-    ]
+    const chatChannel = supabase
+      .channel(`chat-list-chats-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chats' },
+        () => void loadDirectory()
+      )
+      .subscribe()
 
     return () => {
-      clearInterval(poll)
-      channels.forEach((channel) => supabase.removeChannel(channel))
+      supabase.removeChannel(messageChannel)
+      supabase.removeChannel(readChannel)
+      supabase.removeChannel(presenceChannel)
+      supabase.removeChannel(pinChannel)
+      supabase.removeChannel(chatChannel)
     }
   }, [currentUserId, supabase])
 
@@ -350,7 +344,6 @@ export default function ChatDirectory({
     setLoadingId(null)
 
     if (!chatId) return
-
     router.push(`/chat/${chatId}`)
   }
 
