@@ -78,7 +78,7 @@ export default async function ChatDetailsPage({
   const otherProfile = (profiles ?? []).find((p) => p.id === otherUserId)
 
   return (
-    <main className="h-[calc(100dvh-110px)] overflow-hidden">
+    <main className="h-[calc(100dvh-32px)] overflow-hidden">
       <ChatRoomLive
         initialMessages={(messages ?? []) as Message[]}
         currentUserId={user.id}

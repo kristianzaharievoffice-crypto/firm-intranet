@@ -98,12 +98,12 @@ export default function ChatRoomLive({
     }
   }
 
-  const updateOwnPresence = async () => {
+  const updateOwnPresence = async (currentChat: string | null) => {
     await supabase.from('user_presence').upsert(
       {
         user_id: currentUserId,
         last_seen_at: new Date().toISOString(),
-        current_chat_id: chatId,
+        current_chat_id: currentChat,
       },
       { onConflict: 'user_id' }
     )
@@ -137,16 +137,16 @@ export default function ChatRoomLive({
 
   useEffect(() => {
     setMessages(initialMessages)
-    setTimeout(() => scrollToBottom('auto'), 60)
+    setTimeout(() => scrollToBottom('auto'), 40)
   }, [initialMessages])
 
   useEffect(() => {
     void markReadNow()
-    void updateOwnPresence()
+    void updateOwnPresence(chatId)
     void loadOtherState()
 
     const heartbeat = setInterval(() => {
-      void updateOwnPresence()
+      void updateOwnPresence(chatId)
     }, 10000)
 
     const otherStatePoll = setInterval(() => {
@@ -156,17 +156,9 @@ export default function ChatRoomLive({
     return () => {
       clearInterval(heartbeat)
       clearInterval(otherStatePoll)
-
-      void supabase.from('user_presence').upsert(
-        {
-          user_id: currentUserId,
-          last_seen_at: new Date().toISOString(),
-          current_chat_id: null,
-        },
-        { onConflict: 'user_id' }
-      )
+      void updateOwnPresence(null)
     }
-  }, [chatId, currentUserId, otherUserId, supabase])
+  }, [chatId, currentUserId, otherUserId])
 
   useEffect(() => {
     const el = scrollRef.current
@@ -197,7 +189,7 @@ export default function ChatRoomLive({
           await markReadNow()
 
           if (shouldStickBottomRef.current) {
-            setTimeout(() => scrollToBottom('smooth'), 80)
+            setTimeout(() => scrollToBottom('smooth'), 60)
           }
         }
       )
@@ -242,7 +234,7 @@ export default function ChatRoomLive({
       supabase.removeChannel(presenceChannel)
       supabase.removeChannel(uiChannel)
     }
-  }, [chatId, currentUserId, otherUserId, supabase])
+  }, [chatId, otherUserId])
 
   const lastOwnMessage = [...messages]
     .reverse()
@@ -349,11 +341,11 @@ export default function ChatRoomLive({
     setReplyTo(null)
     setIsSending(false)
     await broadcastTyping(false)
-    await updateOwnPresence()
+    await updateOwnPresence(chatId)
     await loadMessages()
 
     shouldStickBottomRef.current = true
-    setTimeout(() => scrollToBottom('smooth'), 80)
+    setTimeout(() => scrollToBottom('smooth'), 60)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -380,10 +372,10 @@ export default function ChatRoomLive({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="mb-3 shrink-0 rounded-[26px] border border-[#ece5d8] bg-white/95 p-4 shadow-sm backdrop-blur">
-        <div className="flex items-center gap-4">
-          <div className="relative h-14 w-14 shrink-0">
-            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-lg font-black text-[#a88414]">
+      <div className="mb-2 shrink-0 rounded-[22px] border border-[#ece5d8] bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
+        <div className="flex items-center gap-3">
+          <div className="relative h-12 w-12 shrink-0">
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-base font-black text-[#a88414]">
               {otherUserAvatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -397,21 +389,21 @@ export default function ChatRoomLive({
             </div>
 
             <span
-              className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white shadow ${
+              className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white shadow ${
                 otherOnline ? 'bg-emerald-500' : 'bg-gray-300'
               }`}
             />
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-black tracking-tight text-[#1f1a14]">
+            <p className="truncate text-base font-black tracking-tight text-[#1f1a14]">
               {otherUserName}
             </p>
-            <p className="mt-1 text-sm text-[#7b746b]">
+            <p className="mt-0.5 text-xs text-[#7b746b]">
               {otherUserJobTitle || 'Team member'}
             </p>
             <p
-              className={`mt-1 text-xs font-semibold ${
+              className={`mt-0.5 text-xs font-semibold ${
                 typing
                   ? 'text-[#a88414]'
                   : otherOnline
@@ -427,8 +419,7 @@ export default function ChatRoomLive({
 
       <div
         ref={scrollRef}
-        className="modern-scroll min-h-0 flex-1 overflow-y-auto rounded-[28px] border border-[#ece5d8] bg-white p-4 shadow-sm sm:p-6"
-        style={{ minHeight: '0', height: '100%' }}
+        className="modern-scroll min-h-0 flex-1 overflow-y-auto rounded-[24px] border border-[#ece5d8] bg-white px-4 py-4 shadow-sm sm:px-5 sm:py-5"
       >
         <div className="space-y-4">
           {messages.map((message) => {
@@ -449,8 +440,8 @@ export default function ChatRoomLive({
                     isMine ? 'flex-row-reverse' : 'flex-row'
                   }`}
                 >
-                  <div className="relative h-9 w-9 shrink-0 sm:h-10 sm:w-10">
-                    <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-xs font-black text-[#a88414] sm:h-10 sm:w-10 sm:text-sm">
+                  <div className="relative h-8 w-8 shrink-0 sm:h-9 sm:w-9">
+                    <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-[11px] font-black text-[#a88414] sm:h-9 sm:w-9 sm:text-xs">
                       {senderAvatar ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -466,7 +457,7 @@ export default function ChatRoomLive({
 
                   <div className="space-y-1">
                     <div
-                      className={`rounded-[22px] px-4 py-3 shadow-sm ${
+                      className={`rounded-[20px] px-4 py-3 shadow-sm ${
                         isMine
                           ? 'bg-gradient-to-br from-[#d1ac35] to-[#a88414] text-white'
                           : 'border border-[#efe6d4] bg-[#f8f4eb] text-[#1f1a14]'
@@ -494,7 +485,7 @@ export default function ChatRoomLive({
 
                       {repliedMessage && (
                         <div
-                          className={`mb-3 rounded-[14px] px-3 py-2 text-xs ${
+                          className={`mb-3 rounded-[12px] px-3 py-2 text-xs ${
                             isMine ? 'bg-white/15 text-white/85' : 'bg-white text-[#7b746b]'
                           }`}
                         >
@@ -505,7 +496,7 @@ export default function ChatRoomLive({
                       )}
 
                       {message.content && (
-                        <p className="whitespace-pre-wrap break-words leading-7">
+                        <p className="whitespace-pre-wrap break-words leading-6">
                           {message.content}
                         </p>
                       )}
@@ -524,7 +515,7 @@ export default function ChatRoomLive({
                       )}
 
                       <p
-                        className={`mt-3 text-[11px] ${
+                        className={`mt-2 text-[11px] ${
                           isMine ? 'text-white/80' : 'text-[#7b746b]'
                         }`}
                       >
@@ -539,9 +530,9 @@ export default function ChatRoomLive({
         </div>
       </div>
 
-      <div className="mt-2 flex shrink-0 justify-end px-1">
+      <div className="mt-1 flex shrink-0 justify-end px-1">
         {lastOwnMessage && (
-          <p className="text-sm text-[#7b746b]">
+          <p className="text-xs text-[#7b746b]">
             {isLastOwnMessageSeen ? 'Seen' : 'Sent'}
           </p>
         )}
@@ -549,10 +540,10 @@ export default function ChatRoomLive({
 
       <form
         onSubmit={handleSubmit}
-        className="mt-3 shrink-0 rounded-[28px] border border-[#ece5d8] bg-white p-4 shadow-sm sm:p-5"
+        className="mt-2 shrink-0 rounded-[24px] border border-[#ece5d8] bg-white p-3 shadow-sm sm:p-4"
       >
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-xl font-black tracking-tight text-[#1f1a14] sm:text-2xl">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-black tracking-tight text-[#1f1a14]">
             New message
           </h2>
 
@@ -564,7 +555,7 @@ export default function ChatRoomLive({
         </div>
 
         {replyTo && (
-          <div className="mb-4 flex items-start justify-between gap-3 rounded-[18px] border border-[#eadfbe] bg-[#fcfbf8] px-4 py-3">
+          <div className="mb-3 flex items-start justify-between gap-3 rounded-[16px] border border-[#eadfbe] bg-[#fcfbf8] px-4 py-3">
             <div className="min-w-0">
               <p className="text-xs font-semibold text-[#a88414]">
                 Replying to {senderNames[replyTo.sender_id] ?? 'User'}
@@ -584,7 +575,7 @@ export default function ChatRoomLive({
           </div>
         )}
 
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           <textarea
             value={content}
             onChange={(e) => {
@@ -592,21 +583,21 @@ export default function ChatRoomLive({
             }}
             onKeyDown={handleKeyDown}
             placeholder="Write a message... (Enter = send, Shift+Enter = new line)"
-            className="min-h-24 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227] sm:min-h-28"
+            className="min-h-20 w-full rounded-[18px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
           />
 
           <input
             type="file"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3"
+            className="w-full rounded-[18px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3"
           />
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-4">
+        <div className="mt-4 flex flex-wrap items-center gap-4">
           <button
             type="submit"
             disabled={isSending}
-            className="w-full rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60 sm:w-auto"
+            className="w-full rounded-[18px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60 sm:w-auto"
           >
             {isSending ? 'Sending...' : 'Send'}
           </button>
