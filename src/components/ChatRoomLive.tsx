@@ -13,13 +13,6 @@ interface Message {
   reply_to_message_id?: string | null
 }
 
-interface ReactionRow {
-  id: string
-  message_id: string
-  user_id: string
-  emoji: string
-}
-
 interface SenderMap {
   [key: string]: string
 }
@@ -34,8 +27,6 @@ function formatMessageTime(value: string) {
     minute: '2-digit',
   })
 }
-
-const REACTION_SET = ['👍', '❤️', '🔥', '😂', '👏']
 
 export default function ChatRoomLive({
   initialMessages,
@@ -60,7 +51,6 @@ export default function ChatRoomLive({
 }) {
   const supabase = useMemo(() => createClient(), [])
   const [messages, setMessages] = useState<Message[]>(initialMessages)
-  const [reactions, setReactions] = useState<ReactionRow[]>([])
   const [typing, setTyping] = useState(false)
   const [otherOnline, setOtherOnline] = useState(false)
   const [otherLastReadAt, setOtherLastReadAt] = useState<string | null>(null)
@@ -87,21 +77,6 @@ export default function ChatRoomLive({
       .order('created_at', { ascending: true })
 
     setMessages((data ?? []) as Message[])
-  }
-
-  const loadReactions = async (messageIds?: string[]) => {
-    const ids = messageIds ?? messages.map((m) => m.id)
-    if (!ids.length) {
-      setReactions([])
-      return
-    }
-
-    const { data } = await supabase
-      .from('message_reactions')
-      .select('id, message_id, user_id, emoji')
-      .in('message_id', ids)
-
-    setReactions((data ?? []) as ReactionRow[])
   }
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
@@ -162,12 +137,8 @@ export default function ChatRoomLive({
 
   useEffect(() => {
     setMessages(initialMessages)
-  }, [initialMessages])
-
-  useEffect(() => {
-    void loadReactions(initialMessages.map((m) => m.id))
     setTimeout(() => scrollToBottom('auto'), 60)
-  }, [initialMessages.length])
+  }, [initialMessages])
 
   useEffect(() => {
     void markReadNow()
@@ -223,27 +194,11 @@ export default function ChatRoomLive({
         },
         async () => {
           await loadMessages()
-          await loadReactions()
           await markReadNow()
 
           if (shouldStickBottomRef.current) {
             setTimeout(() => scrollToBottom('smooth'), 80)
           }
-        }
-      )
-      .subscribe()
-
-    const reactionsChannel = supabase
-      .channel(`chat-room-reactions-${chatId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'message_reactions',
-        },
-        async () => {
-          await loadReactions()
         }
       )
       .subscribe()
@@ -284,7 +239,6 @@ export default function ChatRoomLive({
 
     return () => {
       supabase.removeChannel(messagesChannel)
-      supabase.removeChannel(reactionsChannel)
       supabase.removeChannel(presenceChannel)
       supabase.removeChannel(uiChannel)
     }
@@ -397,18 +351,9 @@ export default function ChatRoomLive({
     await broadcastTyping(false)
     await updateOwnPresence()
     await loadMessages()
-    await loadReactions()
 
     shouldStickBottomRef.current = true
     setTimeout(() => scrollToBottom('smooth'), 80)
-  }
-
-  const toggleReaction = async (messageId: string, emoji: string) => {
-    await supabase.rpc('toggle_message_reaction', {
-      target_message_id: messageId,
-      target_emoji: emoji,
-    })
-    await loadReactions()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -426,9 +371,6 @@ export default function ChatRoomLive({
       }
     }
   }
-
-  const getMessageReactions = (messageId: string) =>
-    reactions.filter((reaction) => reaction.message_id === messageId)
 
   const replyPreviewText = replyTo?.content?.trim()
     ? replyTo.content
@@ -495,16 +437,6 @@ export default function ChatRoomLive({
             const repliedMessage = message.reply_to_message_id
               ? messages.find((m) => m.id === message.reply_to_message_id)
               : null
-
-            const messageReactions = getMessageReactions(message.id)
-            const grouped = REACTION_SET.map((emoji) => {
-              const rows = messageReactions.filter((r) => r.emoji === emoji)
-              return {
-                emoji,
-                count: rows.length,
-                active: rows.some((r) => r.user_id === currentUserId),
-              }
-            }).filter((item) => item.count > 0)
 
             return (
               <div
@@ -597,28 +529,6 @@ export default function ChatRoomLive({
                       >
                         {formatMessageTime(message.created_at)}
                       </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 px-1">
-                      {REACTION_SET.map((emoji) => {
-                        const item = grouped.find((g) => g.emoji === emoji)
-                        return (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => void toggleReaction(message.id, emoji)}
-                            className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
-                              item?.active
-                                ? 'bg-[#c9a227] text-white'
-                                : item
-                                ? 'bg-[#f4efe4] text-[#1f1a14]'
-                                : 'border border-[#ece5d8] bg-white text-[#9b948a]'
-                            }`}
-                          >
-                            {emoji}{item ? ` ${item.count}` : ''}
-                          </button>
-                        )
-                      })}
                     </div>
                   </div>
                 </div>

@@ -18,7 +18,7 @@ export default async function ChatPage() {
     <main className="space-y-8">
       <PageHeader
         title="Chat"
-        subtitle="Direct messages with anyone in the company."
+        subtitle="Choose who you want to message."
       />
 
       <ChatDirectory currentUserId={user.id} />
