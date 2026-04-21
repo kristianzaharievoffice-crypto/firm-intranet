@@ -51,6 +51,9 @@ export default function ChatDirectory({
   const [localPins, setLocalPins] = useState<Record<string, boolean>>(
     Object.fromEntries(users.map((u) => [u.id, u.is_pinned]))
   )
+  const [localChatIds, setLocalChatIds] = useState<Record<string, string | null>>(
+    Object.fromEntries(users.map((u) => [u.id, u.existing_chat_id]))
+  )
 
   const filtered = users.filter((user) => {
     const q = query.trim().toLowerCase()
@@ -67,34 +70,35 @@ export default function ChatDirectory({
   const pinned = filtered.filter((u) => localPins[u.id])
   const regular = filtered.filter((u) => !localPins[u.id])
 
-  const openChat = async (userId: string, existingChatId: string | null) => {
-    if (existingChatId) {
-      router.push(`/chat/${existingChatId}`)
-      return
-    }
-
-    setLoadingId(userId)
+  const ensureChat = async (userId: string, existingChatId: string | null) => {
+    if (existingChatId) return existingChatId
 
     const { data, error } = await supabase.rpc('get_or_create_direct_chat', {
       other_user_id: userId,
     })
 
-    if (error || !data) {
-      setLoadingId(null)
-      return
-    }
+    if (error || !data) return null
 
-    router.push(`/chat/${data}`)
+    const createdChatId = data as string
+    setLocalChatIds((current) => ({ ...current, [userId]: createdChatId }))
+    return createdChatId
+  }
+
+  const openChat = async (userId: string, existingChatId: string | null) => {
+    const chatId = await ensureChat(userId, localChatIds[userId] ?? existingChatId)
+    if (!chatId) return
+    router.push(`/chat/${chatId}`)
   }
 
   const togglePin = async (
     e: React.MouseEvent,
     userId: string,
-    chatId: string | null
+    existingChatId: string | null
   ) => {
     e.stopPropagation()
     e.preventDefault()
 
+    const chatId = await ensureChat(userId, localChatIds[userId] ?? existingChatId)
     if (!chatId) return
 
     const nextPinned = !localPins[userId]
@@ -118,25 +122,27 @@ export default function ChatDirectory({
     <button
       key={user.id}
       type="button"
-      onClick={() => void openChat(user.id, user.existing_chat_id)}
+      onClick={() => void openChat(user.id, localChatIds[user.id] ?? user.existing_chat_id)}
       disabled={loadingId === user.id}
       className="w-full rounded-[24px] border border-[#ece5d8] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60"
     >
       <div className="flex items-start gap-3">
-        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-lg font-black text-[#a88414]">
-          {user.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={user.avatar_url}
-              alt={user.full_name}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            (user.full_name?.[0] ?? 'U').toUpperCase()
-          )}
+        <div className="relative h-14 w-14 shrink-0">
+          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-lg font-black text-[#a88414]">
+            {user.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.avatar_url}
+                alt={user.full_name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              (user.full_name?.[0] ?? 'U').toUpperCase()
+            )}
+          </div>
 
           <span
-            className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white ${
+            className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white shadow ${
               user.is_online ? 'bg-emerald-500' : 'bg-gray-300'
             }`}
           />
@@ -183,17 +189,17 @@ export default function ChatDirectory({
             </span>
 
             <div className="flex items-center gap-3">
-              {user.existing_chat_id && (
-                <button
-                  type="button"
-                  onClick={(e) => void togglePin(e, user.id, user.existing_chat_id)}
-                  className={`text-xs font-semibold ${
-                    localPins[user.id] ? 'text-[#a88414]' : 'text-[#9b948a]'
-                  }`}
-                >
-                  {localPins[user.id] ? 'Pinned' : 'Pin'}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={(e) =>
+                  void togglePin(e, user.id, localChatIds[user.id] ?? user.existing_chat_id)
+                }
+                className={`text-xs font-semibold ${
+                  localPins[user.id] ? 'text-[#a88414]' : 'text-[#9b948a]'
+                }`}
+              >
+                {localPins[user.id] ? 'Pinned' : 'Pin'}
+              </button>
 
               <span className="text-sm font-semibold text-[#a88414]">
                 {loadingId === user.id ? 'Opening...' : 'Open'}
