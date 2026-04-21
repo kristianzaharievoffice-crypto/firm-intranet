@@ -34,6 +34,11 @@ interface ChatReadRow {
   last_read_at: string | null
 }
 
+interface PresenceRow {
+  user_id: string
+  last_seen_at: string | null
+}
+
 interface UserItem {
   id: string
   full_name: string
@@ -44,6 +49,7 @@ interface UserItem {
   unread_count: number
   last_message: string
   last_message_at: string | null
+  is_online: boolean
 }
 
 function formatTime(value: string | null) {
@@ -118,6 +124,28 @@ export default function ChatDirectory({
       reads = (readsData ?? []) as ChatReadRow[]
     }
 
+    const otherUserIds = myChats
+      .map((chat) => {
+        const first = chat.user1_id ?? chat.admin_id
+        const second = chat.user2_id ?? chat.employee_id
+        if (!first || !second) return null
+        return first === currentUserId ? second : first
+      })
+      .filter(Boolean) as string[]
+
+    let presences: PresenceRow[] = []
+    if (otherUserIds.length) {
+      const { data: presenceData } = await supabase
+        .from('user_presence')
+        .select('user_id, last_seen_at')
+        .in('user_id', otherUserIds)
+
+      presences = (presenceData ?? []) as PresenceRow[]
+    }
+
+    const presenceMap = new Map(
+      presences.map((row) => [row.user_id, row.last_seen_at])
+    )
     const readMap = new Map(reads.map((row) => [row.chat_id, row.last_read_at]))
     const existingChatMap = new Map<string, string>()
     const unreadMap = new Map<string, number>()
@@ -163,17 +191,25 @@ export default function ChatDirectory({
       unreadMap.set(otherUserId, unreadCount)
     }
 
-    const mapped: UserItem[] = people.map((person) => ({
-      id: person.id,
-      full_name: person.full_name ?? 'User',
-      avatar_url: person.avatar_url ?? null,
-      job_title: person.job_title ?? null,
-      department: person.department ?? null,
-      existing_chat_id: existingChatMap.get(person.id) ?? null,
-      unread_count: unreadMap.get(person.id) ?? 0,
-      last_message: lastMessageMap.get(person.id)?.text ?? 'No messages yet',
-      last_message_at: lastMessageMap.get(person.id)?.created_at ?? null,
-    }))
+    const mapped: UserItem[] = people.map((person) => {
+      const lastSeenAt = presenceMap.get(person.id)
+      const isOnline = lastSeenAt
+        ? Date.now() - new Date(lastSeenAt).getTime() < 35000
+        : false
+
+      return {
+        id: person.id,
+        full_name: person.full_name ?? 'User',
+        avatar_url: person.avatar_url ?? null,
+        job_title: person.job_title ?? null,
+        department: person.department ?? null,
+        existing_chat_id: existingChatMap.get(person.id) ?? null,
+        unread_count: unreadMap.get(person.id) ?? 0,
+        last_message: lastMessageMap.get(person.id)?.text ?? 'No messages yet',
+        last_message_at: lastMessageMap.get(person.id)?.created_at ?? null,
+        is_online: isOnline,
+      }
+    })
 
     mapped.sort((a, b) => {
       if (b.unread_count !== a.unread_count) return b.unread_count - a.unread_count
@@ -211,6 +247,11 @@ export default function ChatDirectory({
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'chats' },
+        () => void loadDirectory()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_presence' },
         () => void loadDirectory()
       )
       .subscribe()
@@ -277,17 +318,25 @@ export default function ChatDirectory({
               className="w-full rounded-[24px] border border-[#ece5d8] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60"
             >
               <div className="flex items-start gap-3">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-lg font-black text-[#a88414]">
-                  {user.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={user.avatar_url}
-                      alt={user.full_name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    (user.full_name?.[0] ?? 'U').toUpperCase()
-                  )}
+                <div className="relative h-14 w-14 shrink-0">
+                  <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-lg font-black text-[#a88414]">
+                    {user.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={user.avatar_url}
+                        alt={user.full_name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      (user.full_name?.[0] ?? 'U').toUpperCase()
+                    )}
+                  </div>
+
+                  <span
+                    className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white shadow ${
+                      user.is_online ? 'bg-emerald-500' : 'bg-gray-300'
+                    }`}
+                  />
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -321,8 +370,18 @@ export default function ChatDirectory({
                     {user.last_message}
                   </p>
 
-                  <div className="mt-3 text-sm font-semibold text-[#a88414]">
-                    {loadingId === user.id ? 'Opening...' : 'Open'}
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <span
+                      className={`text-xs font-semibold ${
+                        user.is_online ? 'text-emerald-600' : 'text-[#9b948a]'
+                      }`}
+                    >
+                      {user.is_online ? 'Online' : 'Offline'}
+                    </span>
+
+                    <span className="text-sm font-semibold text-[#a88414]">
+                      {loadingId === user.id ? 'Opening...' : 'Open'}
+                    </span>
                   </div>
                 </div>
               </div>

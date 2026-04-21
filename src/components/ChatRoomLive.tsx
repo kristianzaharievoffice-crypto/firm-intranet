@@ -428,6 +428,7 @@ export default function ChatRoomLive({
       <div
         ref={scrollRef}
         className="modern-scroll min-h-0 flex-1 overflow-y-auto rounded-[28px] border border-[#ece5d8] bg-white p-4 shadow-sm sm:p-6"
+        style={{ minHeight: '0', height: '100%' }}
       >
         <div className="space-y-4">
           {messages.map((message) => {
