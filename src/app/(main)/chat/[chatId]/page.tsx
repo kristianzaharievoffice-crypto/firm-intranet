@@ -68,7 +68,7 @@ export default async function ChatDetailsPage({
 
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, full_name')
+    .select('id, full_name, avatar_url')
     .in('id', safeSenderIds)
 
   const senderNames = Object.fromEntries(
@@ -78,20 +78,26 @@ export default async function ChatDetailsPage({
     ])
   )
 
+  const senderAvatars = Object.fromEntries(
+    (profiles ?? []).map((profile) => [profile.id, profile.avatar_url ?? null])
+  )
+
   const otherUserId = user.id === chatUser1 ? chatUser2 : chatUser1
   const otherProfile = await supabase
     .from('profiles')
-    .select('id, full_name')
+    .select('id, full_name, avatar_url, job_title')
     .eq('id', otherUserId)
     .single()
 
   const otherUserName = otherProfile.data?.full_name ?? 'User'
+  const otherUserAvatar = otherProfile.data?.avatar_url ?? null
+  const otherUserJobTitle = otherProfile.data?.job_title ?? null
 
   return (
     <main className="space-y-8">
       <PageHeader
         title="Chat"
-        subtitle="Direct message conversation."
+        subtitle="Professional direct conversation."
       />
 
       <ChatRoomLive
@@ -99,8 +105,11 @@ export default async function ChatDetailsPage({
         currentUserId={user.id}
         chatId={chatId}
         senderNames={senderNames}
+        senderAvatars={senderAvatars}
         otherUserId={otherUserId}
         otherUserName={otherUserName}
+        otherUserAvatar={otherUserAvatar}
+        otherUserJobTitle={otherUserJobTitle}
       />
     </main>
   )

@@ -16,20 +16,37 @@ interface SenderMap {
   [key: string]: string
 }
 
+interface AvatarMap {
+  [key: string]: string | null
+}
+
+function formatMessageTime(value: string) {
+  return new Date(value).toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export default function ChatRoomLive({
   initialMessages,
   currentUserId,
   chatId,
   senderNames,
+  senderAvatars,
   otherUserId,
   otherUserName,
+  otherUserAvatar,
+  otherUserJobTitle,
 }: {
   initialMessages: Message[]
   currentUserId: string
   chatId: string
   senderNames: SenderMap
+  senderAvatars: AvatarMap
   otherUserId: string
   otherUserName: string
+  otherUserAvatar: string | null
+  otherUserJobTitle: string | null
 }) {
   const supabase = useMemo(() => createClient(), [])
   const [messages, setMessages] = useState<Message[]>(initialMessages)
@@ -337,130 +354,197 @@ export default function ChatRoomLive({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-[24px] border border-[#ece5d8] bg-white px-5 py-4 shadow-sm">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-lg font-bold text-[#1f1a14]">{otherUserName}</p>
-            <p className="mt-1 text-sm text-[#7b746b]">
-              {otherOnline ? 'Online' : 'Offline'}
-            </p>
+    <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="rounded-[30px] border border-[#ece5d8] bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-xl font-black text-[#a88414]">
+            {otherUserAvatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={otherUserAvatar}
+                alt={otherUserName}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              (otherUserName?.[0] ?? 'U').toUpperCase()
+            )}
+
+            <span
+              className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white ${
+                otherOnline ? 'bg-emerald-500' : 'bg-gray-300'
+              }`}
+            />
           </div>
 
-          {typing && (
-            <div className="rounded-full bg-[#fbf3dc] px-4 py-2 text-sm font-medium text-[#a88414]">
-              {otherUserName} is typing...
-            </div>
-          )}
+          <div className="min-w-0">
+            <p className="truncate text-xl font-black tracking-tight text-[#1f1a14]">
+              {otherUserName}
+            </p>
+            <p className="mt-1 text-sm text-[#7b746b]">
+              {otherUserJobTitle || 'Team member'}
+            </p>
+            <p
+              className={`mt-2 text-xs font-semibold ${
+                otherOnline ? 'text-emerald-600' : 'text-[#9b948a]'
+              }`}
+            >
+              {otherOnline ? 'Online now' : 'Offline'}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div
-        ref={scrollRef}
-        className="modern-scroll max-h-[62vh] overflow-y-auto rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
-      >
-        <div className="space-y-4">
-          {messages.map((message) => {
-            const isMine = message.sender_id === currentUserId
-            const senderName = senderNames[message.sender_id] ?? 'User'
+        <div className="mt-6 rounded-[22px] bg-[#fcfbf8] p-4">
+          <p className="text-sm font-semibold text-[#1f1a14]">Conversation status</p>
+          <p className="mt-2 text-sm text-[#7b746b]">
+            {typing
+              ? `${otherUserName} is typing...`
+              : isLastOwnMessageSeen
+              ? 'Your latest message was seen.'
+              : 'Realtime chat is active.'}
+          </p>
+        </div>
+      </aside>
 
-            return (
-              <div
-                key={message.id}
-                className={`max-w-2xl rounded-[28px] p-4 ${
-                  isMine
-                    ? 'ml-auto bg-gradient-to-br from-[#d1ac35] to-[#a88414] text-white'
-                    : 'bg-[#f8f4eb] text-[#1f1a14]'
-                }`}
-              >
-                <p
-                  className={`mb-2 text-xs font-semibold ${
-                    isMine ? 'text-white/80' : 'text-[#7b746b]'
-                  }`}
+      <section className="space-y-4">
+        <div
+          ref={scrollRef}
+          className="modern-scroll max-h-[62vh] overflow-y-auto rounded-[32px] border border-[#ece5d8] bg-white p-5 shadow-sm sm:p-6"
+        >
+          <div className="space-y-4">
+            {messages.map((message) => {
+              const isMine = message.sender_id === currentUserId
+              const senderName = senderNames[message.sender_id] ?? 'User'
+              const senderAvatar = senderAvatars[message.sender_id] ?? null
+
+              return (
+                <div
+                  key={message.id}
+                  className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
                 >
-                  {isMine ? 'You' : senderName}
-                </p>
-
-                {message.content && (
-                  <p className="whitespace-pre-wrap leading-7">{message.content}</p>
-                )}
-
-                {message.attachment_url && (
-                  <a
-                    href={message.attachment_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`mt-3 block text-sm underline ${
-                      isMine ? 'text-white' : 'text-[#a88414]'
+                  <div
+                    className={`flex max-w-[88%] items-end gap-3 sm:max-w-[75%] ${
+                      isMine ? 'flex-row-reverse' : 'flex-row'
                     }`}
                   >
-                    Open attached file
-                  </a>
-                )}
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-sm font-black text-[#a88414]">
+                      {senderAvatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={senderAvatar}
+                          alt={senderName}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        (senderName?.[0] ?? 'U').toUpperCase()
+                      )}
+                    </div>
 
-                <p
-                  className={`mt-3 text-xs ${
-                    isMine ? 'text-white/80' : 'text-[#7b746b]'
-                  }`}
-                >
-                  {new Date(message.created_at).toLocaleString('en-GB')}
-                </p>
-              </div>
-            )
-          })}
+                    <div
+                      className={`rounded-[24px] px-4 py-3 shadow-sm ${
+                        isMine
+                          ? 'bg-gradient-to-br from-[#d1ac35] to-[#a88414] text-white'
+                          : 'border border-[#efe6d4] bg-[#f8f4eb] text-[#1f1a14]'
+                      }`}
+                    >
+                      <p
+                        className={`mb-2 text-[11px] font-semibold ${
+                          isMine ? 'text-white/80' : 'text-[#7b746b]'
+                        }`}
+                      >
+                        {isMine ? 'You' : senderName}
+                      </p>
 
-          <div ref={bottomRef} />
+                      {message.content && (
+                        <p className="whitespace-pre-wrap break-words leading-7">
+                          {message.content}
+                        </p>
+                      )}
+
+                      {message.attachment_url && (
+                        <a
+                          href={message.attachment_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={`mt-3 block text-sm font-semibold underline ${
+                            isMine ? 'text-white' : 'text-[#a88414]'
+                          }`}
+                        >
+                          Open attached file
+                        </a>
+                      )}
+
+                      <p
+                        className={`mt-3 text-[11px] ${
+                          isMine ? 'text-white/80' : 'text-[#7b746b]'
+                        }`}
+                      >
+                        {formatMessageTime(message.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+
+            <div ref={bottomRef} />
+          </div>
         </div>
-      </div>
 
-      <div className="flex justify-end">
-        {lastOwnMessage && (
-          <p className="text-sm text-[#7b746b]">
-            {isLastOwnMessageSeen ? 'Seen' : 'Sent'}
-          </p>
-        )}
-      </div>
-
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm"
-      >
-        <h2 className="mb-4 text-2xl font-black tracking-tight text-[#1f1a14]">
-          New message
-        </h2>
-
-        <div className="grid gap-4">
-          <textarea
-            value={content}
-            onChange={(e) => {
-              void handleTyping(e.target.value)
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="Write a message... (Enter = send, Shift+Enter = new line)"
-            className="min-h-28 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
-          />
-
-          <input
-            type="file"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3"
-          />
-        </div>
-
-        <div className="mt-5 flex items-center gap-4">
-          <button
-            type="submit"
-            disabled={isSending}
-            className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
-          >
-            {isSending ? 'Sending...' : 'Send'}
-          </button>
-
-          {messageError && (
-            <p className="text-sm text-[#7b746b]">{messageError}</p>
+        <div className="flex justify-end px-1">
+          {lastOwnMessage && (
+            <p className="text-sm text-[#7b746b]">
+              {isLastOwnMessageSeen ? 'Seen' : 'Sent'}
+            </p>
           )}
         </div>
-      </form>
+
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-[32px] border border-[#ece5d8] bg-white p-5 shadow-sm sm:p-6"
+        >
+          <h2 className="mb-4 text-2xl font-black tracking-tight text-[#1f1a14]">
+            New message
+          </h2>
+
+          <div className="grid gap-4">
+            <textarea
+              value={content}
+              onChange={(e) => {
+                void handleTyping(e.target.value)
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Write a message... (Enter = send, Shift+Enter = new line)"
+              className="min-h-28 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
+            />
+
+            <input
+              type="file"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3"
+            />
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-4">
+            <button
+              type="submit"
+              disabled={isSending}
+              className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
+            >
+              {isSending ? 'Sending...' : 'Send'}
+            </button>
+
+            {typing && (
+              <span className="text-sm font-medium text-[#a88414]">
+                {otherUserName} is typing...
+              </span>
+            )}
+
+            {messageError && (
+              <p className="text-sm text-[#7b746b]">{messageError}</p>
+            )}
+          </div>
+        </form>
+      </section>
     </div>
   )
 }
