@@ -12,6 +12,7 @@ interface Message {
   sender_id: string
   chat_id: string
   attachment_url?: string | null
+  reply_to_message_id?: string | null
 }
 
 export default async function ChatDetailsPage({
@@ -57,7 +58,9 @@ export default async function ChatDetailsPage({
 
   const { data: messages } = await supabase
     .from('messages')
-    .select('id, content, created_at, sender_id, chat_id, attachment_url')
+    .select(
+      'id, content, created_at, sender_id, chat_id, attachment_url, reply_to_message_id'
+    )
     .eq('chat_id', chatId)
     .order('created_at', { ascending: true })
 
@@ -94,7 +97,7 @@ export default async function ChatDetailsPage({
   const otherUserJobTitle = otherProfile.data?.job_title ?? null
 
   return (
-    <main className="space-y-8">
+    <main className="space-y-5 sm:space-y-8">
       <PageHeader
         title="Chat"
         subtitle="Professional direct conversation."

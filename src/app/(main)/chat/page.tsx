@@ -40,6 +40,10 @@ interface PresenceRow {
   last_seen_at: string | null
 }
 
+interface ChatPinRow {
+  chat_id: string
+}
+
 interface DirectoryUser {
   id: string
   full_name: string
@@ -51,6 +55,7 @@ interface DirectoryUser {
   last_message: string
   last_message_at: string | null
   is_online: boolean
+  is_pinned: boolean
 }
 
 export default async function ChatPage() {
@@ -85,6 +90,7 @@ export default async function ChatPage() {
 
   let messages: MessageRow[] = []
   let reads: ChatReadRow[] = []
+  let pins: ChatPinRow[] = []
 
   if (chatIds.length) {
     const { data: messagesData } = await supabase
@@ -99,8 +105,15 @@ export default async function ChatPage() {
       .eq('user_id', user.id)
       .in('chat_id', chatIds)
 
+    const { data: pinsData } = await supabase
+      .from('chat_pins')
+      .select('chat_id')
+      .eq('user_id', user.id)
+      .in('chat_id', chatIds)
+
     messages = (messagesData ?? []) as MessageRow[]
     reads = (readsData ?? []) as ChatReadRow[]
+    pins = (pinsData ?? []) as ChatPinRow[]
   }
 
   const otherUserIds = myChats
@@ -124,6 +137,7 @@ export default async function ChatPage() {
 
   const presenceMap = new Map(presences.map((row) => [row.user_id, row.last_seen_at]))
   const readMap = new Map(reads.map((row) => [row.chat_id, row.last_read_at]))
+  const pinnedSet = new Set(pins.map((row) => row.chat_id))
 
   const existingChatMap = new Map<string, string>()
   const unreadMap = new Map<string, number>()
@@ -150,8 +164,7 @@ export default async function ChatPage() {
         (latest.attachment_url ? 'Attached file' : 'New message')
 
       lastMessageMap.set(otherUserId, {
-        text:
-          latest.sender_id === user.id ? `You: ${text}` : text,
+        text: latest.sender_id === user.id ? `You: ${text}` : text,
         created_at: latest.created_at,
       })
     }
@@ -177,20 +190,24 @@ export default async function ChatPage() {
         ? Date.now() - new Date(lastSeenAt).getTime() < 35000
         : false
 
+      const chatId = existingChatMap.get(person.id) ?? null
+
       return {
         id: person.id,
         full_name: person.full_name ?? 'User',
         avatar_url: person.avatar_url ?? null,
         job_title: person.job_title ?? null,
         department: person.department ?? null,
-        existing_chat_id: existingChatMap.get(person.id) ?? null,
+        existing_chat_id: chatId,
         unread_count: unreadMap.get(person.id) ?? 0,
         last_message: lastMessageMap.get(person.id)?.text ?? 'No messages yet',
         last_message_at: lastMessageMap.get(person.id)?.created_at ?? null,
         is_online: isOnline,
+        is_pinned: chatId ? pinnedSet.has(chatId) : false,
       }
     })
     .sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1
       if ((b.unread_count ?? 0) !== (a.unread_count ?? 0)) {
         return b.unread_count - a.unread_count
       }
@@ -210,7 +227,7 @@ export default async function ChatPage() {
         subtitle="Direct messages with anyone in the company."
       />
 
-      <ChatDirectory users={directoryUsers} />
+      <ChatDirectory currentUserId={user.id} users={directoryUsers} />
     </main>
   )
 }
