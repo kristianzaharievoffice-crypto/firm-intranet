@@ -61,7 +61,6 @@ export default function ChatRoomLive({
   const supabase = useMemo(() => createClient(), [])
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [reactions, setReactions] = useState<ReactionRow[]>([])
-  const [isNearBottom, setIsNearBottom] = useState(true)
   const [typing, setTyping] = useState(false)
   const [otherOnline, setOtherOnline] = useState(false)
   const [otherLastReadAt, setOtherLastReadAt] = useState<string | null>(null)
@@ -72,7 +71,6 @@ export default function ChatRoomLive({
   const [replyTo, setReplyTo] = useState<Message | null>(null)
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
-  const bottomRef = useRef<HTMLDivElement | null>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const typingClearRef = useRef<NodeJS.Timeout | null>(null)
   const uiChannelRef = useRef<any>(null)
@@ -89,16 +87,25 @@ export default function ChatRoomLive({
     setMessages((data ?? []) as Message[])
   }
 
-  const loadReactions = async () => {
+  const loadReactions = async (messageIds?: string[]) => {
+    const ids = messageIds ?? messages.map((m) => m.id)
+    if (!ids.length) {
+      setReactions([])
+      return
+    }
+
     const { data } = await supabase
       .from('message_reactions')
       .select('id, message_id, user_id, emoji')
-      .in(
-        'message_id',
-        messages.length ? messages.map((m) => m.id) : ['00000000-0000-0000-0000-000000000000']
-      )
+      .in('message_id', ids)
 
     setReactions((data ?? []) as ReactionRow[])
+  }
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior })
   }
 
   useEffect(() => {
@@ -106,34 +113,9 @@ export default function ChatRoomLive({
   }, [initialMessages])
 
   useEffect(() => {
-    if (!messages.length) {
-      setReactions([])
-      return
-    }
-    void loadReactions()
-  }, [messages.length])
-
-  useEffect(() => {
-    const container = scrollRef.current
-    if (!container) return
-
-    const handleScroll = () => {
-      const threshold = 120
-      const distanceFromBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight
-
-      setIsNearBottom(distanceFromBottom < threshold)
-    }
-
-    container.addEventListener('scroll', handleScroll)
-    return () => container.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  useEffect(() => {
-    if (isNearBottom) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [messages, typing, isNearBottom])
+    void loadReactions(initialMessages.map((m) => m.id))
+    setTimeout(() => scrollToBottom('auto'), 50)
+  }, [initialMessages.length])
 
   const markReadNow = async () => {
     await supabase
@@ -228,6 +210,7 @@ export default function ChatRoomLive({
         async () => {
           await loadMessages()
           await markReadNow()
+          setTimeout(() => scrollToBottom('smooth'), 80)
         }
       )
       .subscribe()
@@ -243,6 +226,21 @@ export default function ChatRoomLive({
         },
         async () => {
           await loadReactions()
+        }
+      )
+      .subscribe()
+
+    const presenceChannel = supabase
+      .channel(`chat-room-presence-${chatId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_presence',
+        },
+        async () => {
+          await loadOtherState()
         }
       )
       .subscribe()
@@ -269,6 +267,7 @@ export default function ChatRoomLive({
     return () => {
       supabase.removeChannel(messagesChannel)
       supabase.removeChannel(reactionsChannel)
+      supabase.removeChannel(presenceChannel)
       supabase.removeChannel(uiChannel)
     }
   }, [chatId, currentUserId, otherUserId, supabase])
@@ -380,6 +379,7 @@ export default function ChatRoomLive({
     await broadcastTyping(false)
     await updateOwnPresence()
     await loadMessages()
+    setTimeout(() => scrollToBottom('smooth'), 80)
   }
 
   const toggleReaction = async (messageId: string, emoji: string) => {
@@ -406,6 +406,7 @@ export default function ChatRoomLive({
     }
   }
 
+
   const getMessageReactions = (messageId: string) =>
     reactions.filter((reaction) => reaction.message_id === messageId)
 
@@ -416,8 +417,8 @@ export default function ChatRoomLive({
     : ''
 
   return (
-    <div className="space-y-4">
-      <div className="sticky top-[56px] z-20 rounded-[26px] border border-[#ece5d8] bg-white/95 p-4 shadow-sm backdrop-blur sm:top-0">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="mb-3 shrink-0 rounded-[26px] border border-[#ece5d8] bg-white/95 p-4 shadow-sm backdrop-blur">
         <div className="flex items-center gap-4">
           <div className="relative h-14 w-14 shrink-0">
             <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-lg font-black text-[#a88414]">
@@ -464,7 +465,7 @@ export default function ChatRoomLive({
 
       <div
         ref={scrollRef}
-        className="modern-scroll max-h-[58vh] overflow-y-auto rounded-[28px] border border-[#ece5d8] bg-white p-4 shadow-sm sm:max-h-[62vh] sm:p-6"
+        className="modern-scroll min-h-0 flex-1 overflow-y-auto rounded-[28px] border border-[#ece5d8] bg-white p-4 shadow-sm sm:p-6"
       >
         <div className="space-y-4">
           {messages.map((message) => {
@@ -591,7 +592,7 @@ export default function ChatRoomLive({
                                 ? 'bg-[#c9a227] text-white'
                                 : item
                                 ? 'bg-[#f4efe4] text-[#1f1a14]'
-                                : 'bg-white text-[#9b948a] border border-[#ece5d8]'
+                                : 'border border-[#ece5d8] bg-white text-[#9b948a]'
                             }`}
                           >
                             {emoji}{item ? ` ${item.count}` : ''}
@@ -604,12 +605,10 @@ export default function ChatRoomLive({
               </div>
             )
           })}
-
-          <div ref={bottomRef} />
         </div>
       </div>
 
-      <div className="flex justify-end px-1">
+      <div className="mt-2 flex shrink-0 justify-end px-1">
         {lastOwnMessage && (
           <p className="text-sm text-[#7b746b]">
             {isLastOwnMessageSeen ? 'Seen' : 'Sent'}
@@ -619,7 +618,7 @@ export default function ChatRoomLive({
 
       <form
         onSubmit={handleSubmit}
-        className="sticky bottom-3 rounded-[28px] border border-[#ece5d8] bg-white p-4 shadow-sm sm:p-5"
+        className="mt-3 shrink-0 rounded-[28px] border border-[#ece5d8] bg-white p-4 shadow-sm sm:p-5"
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-xl font-black tracking-tight text-[#1f1a14] sm:text-2xl">

@@ -97,23 +97,25 @@ export default async function ChatDetailsPage({
   const otherUserJobTitle = otherProfile.data?.job_title ?? null
 
   return (
-    <main className="space-y-5 sm:space-y-8">
+    <main className="h-[calc(100dvh-72px)] overflow-hidden space-y-4 sm:h-[calc(100dvh-96px)] sm:space-y-5">
       <PageHeader
         title="Chat"
         subtitle="Professional direct conversation."
       />
 
-      <ChatRoomLive
-        initialMessages={(messages ?? []) as Message[]}
-        currentUserId={user.id}
-        chatId={chatId}
-        senderNames={senderNames}
-        senderAvatars={senderAvatars}
-        otherUserId={otherUserId}
-        otherUserName={otherUserName}
-        otherUserAvatar={otherUserAvatar}
-        otherUserJobTitle={otherUserJobTitle}
-      />
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <ChatRoomLive
+          initialMessages={(messages ?? []) as Message[]}
+          currentUserId={user.id}
+          chatId={chatId}
+          senderNames={senderNames}
+          senderAvatars={senderAvatars}
+          otherUserId={otherUserId}
+          otherUserName={otherUserName}
+          otherUserAvatar={otherUserAvatar}
+          otherUserJobTitle={otherUserJobTitle}
+        />
+      </div>
     </main>
   )
 }

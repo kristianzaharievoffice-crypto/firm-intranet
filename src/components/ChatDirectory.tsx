@@ -1,8 +1,47 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+
+interface ProfileRow {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  job_title: string | null
+  department: string | null
+}
+
+interface ChatRow {
+  id: string
+  user1_id: string | null
+  user2_id: string | null
+  admin_id: string | null
+  employee_id: string | null
+}
+
+interface MessageRow {
+  id: string
+  chat_id: string
+  sender_id: string
+  content: string | null
+  created_at: string
+  attachment_url: string | null
+}
+
+interface ChatReadRow {
+  chat_id: string
+  last_read_at: string | null
+}
+
+interface PresenceRow {
+  user_id: string
+  last_seen_at: string | null
+}
+
+interface ChatPinRow {
+  chat_id: string
+}
 
 interface UserItem {
   id: string
@@ -39,21 +78,245 @@ function formatTime(value: string | null) {
 
 export default function ChatDirectory({
   currentUserId,
-  users,
 }: {
   currentUserId: string
-  users: UserItem[]
 }) {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [localPins, setLocalPins] = useState<Record<string, boolean>>(
-    Object.fromEntries(users.map((u) => [u.id, u.is_pinned]))
-  )
-  const [localChatIds, setLocalChatIds] = useState<Record<string, string | null>>(
-    Object.fromEntries(users.map((u) => [u.id, u.existing_chat_id]))
-  )
+  const [users, setUsers] = useState<UserItem[]>([])
+
+  const loadDirectory = async () => {
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url, job_title, department')
+      .neq('id', currentUserId)
+      .order('full_name', { ascending: true })
+
+    const { data: chatsData } = await supabase
+      .from('chats')
+      .select('id, user1_id, user2_id, admin_id, employee_id')
+
+    const people = (profilesData ?? []) as ProfileRow[]
+    const chats = (chatsData ?? []) as ChatRow[]
+
+    const myChats = chats.filter((chat) => {
+      const a = chat.user1_id ?? chat.admin_id
+      const b = chat.user2_id ?? chat.employee_id
+      return a === currentUserId || b === currentUserId
+    })
+
+    const chatIds = myChats.map((chat) => chat.id)
+
+    let messages: MessageRow[] = []
+    let reads: ChatReadRow[] = []
+    let pins: ChatPinRow[] = []
+
+    if (chatIds.length) {
+      const { data: messagesData } = await supabase
+        .from('messages')
+        .select('id, chat_id, sender_id, content, created_at, attachment_url')
+        .in('chat_id', chatIds)
+        .order('created_at', { ascending: false })
+
+      const { data: readsData } = await supabase
+        .from('chat_reads')
+        .select('chat_id, last_read_at')
+        .eq('user_id', currentUserId)
+        .in('chat_id', chatIds)
+
+      const { data: pinsData } = await supabase
+        .from('chat_pins')
+        .select('chat_id')
+        .eq('user_id', currentUserId)
+        .in('chat_id', chatIds)
+
+      messages = (messagesData ?? []) as MessageRow[]
+      reads = (readsData ?? []) as ChatReadRow[]
+      pins = (pinsData ?? []) as ChatPinRow[]
+    }
+
+    const otherUserIds = myChats
+      .map((chat) => {
+        const a = chat.user1_id ?? chat.admin_id
+        const b = chat.user2_id ?? chat.employee_id
+        if (!a || !b) return null
+        return a === currentUserId ? b : a
+      })
+      .filter(Boolean) as string[]
+
+    let presences: PresenceRow[] = []
+    if (otherUserIds.length) {
+      const { data: presenceData } = await supabase
+        .from('user_presence')
+        .select('user_id, last_seen_at')
+        .in('user_id', otherUserIds)
+
+      presences = (presenceData ?? []) as PresenceRow[]
+    }
+
+    const presenceMap = new Map(
+      presences.map((row) => [row.user_id, row.last_seen_at])
+    )
+    const readMap = new Map(reads.map((row) => [row.chat_id, row.last_read_at]))
+    const pinnedSet = new Set(pins.map((row) => row.chat_id))
+
+    const existingChatMap = new Map<string, string>()
+    const unreadMap = new Map<string, number>()
+    const lastMessageMap = new Map<
+      string,
+      { text: string; created_at: string | null }
+    >()
+
+    for (const chat of myChats) {
+      const a = chat.user1_id ?? chat.admin_id
+      const b = chat.user2_id ?? chat.employee_id
+
+      if (!a || !b) continue
+
+      const otherUserId = a === currentUserId ? b : a
+      existingChatMap.set(otherUserId, chat.id)
+
+      const chatMessages = messages.filter((message) => message.chat_id === chat.id)
+      const latest = chatMessages[0]
+
+      if (latest) {
+        const text =
+          latest.content?.trim() ||
+          (latest.attachment_url ? 'Attached file' : 'New message')
+
+        lastMessageMap.set(otherUserId, {
+          text: latest.sender_id === currentUserId ? `You: ${text}` : text,
+          created_at: latest.created_at,
+        })
+      }
+
+      const lastReadAt = readMap.get(chat.id)
+      const unreadCount = chatMessages.filter((message) => {
+        if (message.sender_id === currentUserId) return false
+        if (!lastReadAt) return true
+
+        return (
+          new Date(message.created_at).getTime() >
+          new Date(lastReadAt).getTime()
+        )
+      }).length
+
+      unreadMap.set(otherUserId, unreadCount)
+    }
+
+    const mapped: UserItem[] = people
+      .map((person) => {
+        const lastSeenAt = presenceMap.get(person.id)
+        const isOnline = lastSeenAt
+          ? Date.now() - new Date(lastSeenAt).getTime() < 35000
+          : false
+
+        const chatId = existingChatMap.get(person.id) ?? null
+
+        return {
+          id: person.id,
+          full_name: person.full_name ?? 'User',
+          avatar_url: person.avatar_url ?? null,
+          job_title: person.job_title ?? null,
+          department: person.department ?? null,
+          existing_chat_id: chatId,
+          unread_count: unreadMap.get(person.id) ?? 0,
+          last_message: lastMessageMap.get(person.id)?.text ?? 'No messages yet',
+          last_message_at: lastMessageMap.get(person.id)?.created_at ?? null,
+          is_online: isOnline,
+          is_pinned: chatId ? pinnedSet.has(chatId) : false,
+        }
+      })
+      .sort((a, b) => {
+        if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1
+        if ((b.unread_count ?? 0) !== (a.unread_count ?? 0)) {
+          return b.unread_count - a.unread_count
+        }
+
+        const aTime = a.last_message_at ? new Date(a.last_message_at).getTime() : 0
+        const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : 0
+
+        if (bTime !== aTime) return bTime - aTime
+
+        return a.full_name.localeCompare(b.full_name)
+      })
+
+    setUsers(mapped)
+  }
+
+  useEffect(() => {
+    void loadDirectory()
+
+    const poll = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void loadDirectory()
+      }
+    }, 3000)
+
+    const channels = [
+      supabase
+        .channel(`chat-list-messages-${currentUserId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'messages' },
+          () => void loadDirectory()
+        )
+        .subscribe(),
+
+      supabase
+        .channel(`chat-list-reads-${currentUserId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'chat_reads',
+            filter: `user_id=eq.${currentUserId}`,
+          },
+          () => void loadDirectory()
+        )
+        .subscribe(),
+
+      supabase
+        .channel(`chat-list-presence-${currentUserId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'user_presence' },
+          () => void loadDirectory()
+        )
+        .subscribe(),
+
+      supabase
+        .channel(`chat-list-pins-${currentUserId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'chat_pins',
+            filter: `user_id=eq.${currentUserId}`,
+          },
+          () => void loadDirectory()
+        )
+        .subscribe(),
+
+      supabase
+        .channel(`chat-list-chats-${currentUserId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'chats' },
+          () => void loadDirectory()
+        )
+        .subscribe(),
+    ]
+
+    return () => {
+      clearInterval(poll)
+      channels.forEach((channel) => supabase.removeChannel(channel))
+    }
+  }, [currentUserId, supabase])
 
   const filtered = users.filter((user) => {
     const q = query.trim().toLowerCase()
@@ -67,8 +330,8 @@ export default function ChatDirectory({
     )
   })
 
-  const pinned = filtered.filter((u) => localPins[u.id])
-  const regular = filtered.filter((u) => !localPins[u.id])
+  const pinned = filtered.filter((u) => u.is_pinned)
+  const regular = filtered.filter((u) => !u.is_pinned)
 
   const ensureChat = async (userId: string, existingChatId: string | null) => {
     if (existingChatId) return existingChatId
@@ -78,14 +341,11 @@ export default function ChatDirectory({
     })
 
     if (error || !data) return null
-
-    const createdChatId = data as string
-    setLocalChatIds((current) => ({ ...current, [userId]: createdChatId }))
-    return createdChatId
+    return data as string
   }
 
   const openChat = async (userId: string, existingChatId: string | null) => {
-    const chatId = await ensureChat(userId, localChatIds[userId] ?? existingChatId)
+    const chatId = await ensureChat(userId, existingChatId)
     if (!chatId) return
     router.push(`/chat/${chatId}`)
   }
@@ -98,11 +358,17 @@ export default function ChatDirectory({
     e.stopPropagation()
     e.preventDefault()
 
-    const chatId = await ensureChat(userId, localChatIds[userId] ?? existingChatId)
+    const chatId = await ensureChat(userId, existingChatId)
     if (!chatId) return
 
-    const nextPinned = !localPins[userId]
-    setLocalPins((current) => ({ ...current, [userId]: nextPinned }))
+    const target = users.find((u) => u.id === userId)
+    const nextPinned = !(target?.is_pinned ?? false)
+
+    setUsers((current) =>
+      current.map((u) =>
+        u.id === userId ? { ...u, existing_chat_id: chatId, is_pinned: nextPinned } : u
+      )
+    )
 
     if (nextPinned) {
       await supabase.from('chat_pins').insert({
@@ -116,13 +382,15 @@ export default function ChatDirectory({
         .eq('user_id', currentUserId)
         .eq('chat_id', chatId)
     }
+
+    await loadDirectory()
   }
 
   const renderRow = (user: UserItem) => (
     <button
       key={user.id}
       type="button"
-      onClick={() => void openChat(user.id, localChatIds[user.id] ?? user.existing_chat_id)}
+      onClick={() => void openChat(user.id, user.existing_chat_id)}
       disabled={loadingId === user.id}
       className="w-full rounded-[24px] border border-[#ece5d8] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60"
     >
@@ -191,14 +459,12 @@ export default function ChatDirectory({
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={(e) =>
-                  void togglePin(e, user.id, localChatIds[user.id] ?? user.existing_chat_id)
-                }
+                onClick={(e) => void togglePin(e, user.id, user.existing_chat_id)}
                 className={`text-xs font-semibold ${
-                  localPins[user.id] ? 'text-[#a88414]' : 'text-[#9b948a]'
+                  user.is_pinned ? 'text-[#a88414]' : 'text-[#9b948a]'
                 }`}
               >
-                {localPins[user.id] ? 'Pinned' : 'Pin'}
+                {user.is_pinned ? 'Pinned' : 'Pin'}
               </button>
 
               <span className="text-sm font-semibold text-[#a88414]">
