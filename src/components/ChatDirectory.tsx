@@ -91,9 +91,9 @@ export default function ChatDirectory({
     const chats = (chatsData ?? []) as ChatRow[]
 
     const myChats = chats.filter((chat) => {
-      const a = chat.user1_id ?? chat.admin_id
-      const b = chat.user2_id ?? chat.employee_id
-      return a === currentUserId || b === currentUserId
+      const first = chat.user1_id ?? chat.admin_id
+      const second = chat.user2_id ?? chat.employee_id
+      return first === currentUserId || second === currentUserId
     })
 
     const chatIds = myChats.map((chat) => chat.id)
@@ -127,12 +127,12 @@ export default function ChatDirectory({
     >()
 
     for (const chat of myChats) {
-      const a = chat.user1_id ?? chat.admin_id
-      const b = chat.user2_id ?? chat.employee_id
+      const first = chat.user1_id ?? chat.admin_id
+      const second = chat.user2_id ?? chat.employee_id
 
-      if (!a || !b) continue
+      if (!first || !second) continue
 
-      const otherUserId = a === currentUserId ? b : a
+      const otherUserId = first === currentUserId ? second : first
       existingChatMap.set(otherUserId, chat.id)
 
       const chatMessages = messages.filter((message) => message.chat_id === chat.id)
@@ -176,9 +176,7 @@ export default function ChatDirectory({
     }))
 
     mapped.sort((a, b) => {
-      if ((b.unread_count ?? 0) !== (a.unread_count ?? 0)) {
-        return b.unread_count - a.unread_count
-      }
+      if (b.unread_count !== a.unread_count) return b.unread_count - a.unread_count
 
       const aTime = a.last_message_at ? new Date(a.last_message_at).getTime() : 0
       const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : 0
@@ -245,6 +243,7 @@ export default function ChatDirectory({
       })
 
       if (error || !data) {
+        console.error('get_or_create_direct_chat error:', error)
         setLoadingId(null)
         return
       }
