@@ -5,11 +5,19 @@ import { createClient } from '@/lib/supabase/client'
 
 interface Message {
   id: string
-  content: string
+  content: string | null
   created_at: string
   sender_id: string
   chat_id: string
   attachment_url?: string | null
+  reply_to_message_id?: string | null
+}
+
+interface ReactionRow {
+  id: string
+  message_id: string
+  user_id: string
+  emoji: string
 }
 
 interface SenderMap {
@@ -26,6 +34,8 @@ function formatMessageTime(value: string) {
     minute: '2-digit',
   })
 }
+
+const REACTION_SET = ['👍', '❤️', '🔥', '😂', '👏']
 
 export default function ChatRoomLive({
   initialMessages,
@@ -50,6 +60,7 @@ export default function ChatRoomLive({
 }) {
   const supabase = useMemo(() => createClient(), [])
   const [messages, setMessages] = useState<Message[]>(initialMessages)
+  const [reactions, setReactions] = useState<ReactionRow[]>([])
   const [isNearBottom, setIsNearBottom] = useState(true)
   const [typing, setTyping] = useState(false)
   const [otherOnline, setOtherOnline] = useState(false)
@@ -58,6 +69,7 @@ export default function ChatRoomLive({
   const [file, setFile] = useState<File | null>(null)
   const [messageError, setMessageError] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const [replyTo, setReplyTo] = useState<Message | null>(null)
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const bottomRef = useRef<HTMLDivElement | null>(null)
@@ -65,9 +77,41 @@ export default function ChatRoomLive({
   const typingClearRef = useRef<NodeJS.Timeout | null>(null)
   const uiChannelRef = useRef<any>(null)
 
+  const loadMessages = async () => {
+    const { data } = await supabase
+      .from('messages')
+      .select(
+        'id, content, created_at, sender_id, chat_id, attachment_url, reply_to_message_id'
+      )
+      .eq('chat_id', chatId)
+      .order('created_at', { ascending: true })
+
+    setMessages((data ?? []) as Message[])
+  }
+
+  const loadReactions = async () => {
+    const { data } = await supabase
+      .from('message_reactions')
+      .select('id, message_id, user_id, emoji')
+      .in(
+        'message_id',
+        messages.length ? messages.map((m) => m.id) : ['00000000-0000-0000-0000-000000000000']
+      )
+
+    setReactions((data ?? []) as ReactionRow[])
+  }
+
   useEffect(() => {
     setMessages(initialMessages)
   }, [initialMessages])
+
+  useEffect(() => {
+    if (!messages.length) {
+      setReactions([])
+      return
+    }
+    void loadReactions()
+  }, [messages.length])
 
   useEffect(() => {
     const container = scrollRef.current
@@ -144,6 +188,7 @@ export default function ChatRoomLive({
     void markReadNow()
     void updateOwnPresence()
     void loadOtherState()
+    void loadMessages()
 
     const heartbeat = setInterval(() => {
       void updateOwnPresence()
@@ -175,23 +220,29 @@ export default function ChatRoomLive({
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'messages',
           filter: `chat_id=eq.${chatId}`,
         },
-        async (payload) => {
-          const newMessage = payload.new as Message
+        async () => {
+          await loadMessages()
+          await markReadNow()
+        }
+      )
+      .subscribe()
 
-          setMessages((current) => {
-            const exists = current.some((m) => m.id === newMessage.id)
-            if (exists) return current
-            return [...current, newMessage]
-          })
-
-          if (newMessage.sender_id !== currentUserId) {
-            await markReadNow()
-          }
+    const reactionsChannel = supabase
+      .channel(`chat-room-reactions-${chatId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'message_reactions',
+        },
+        async () => {
+          await loadReactions()
         }
       )
       .subscribe()
@@ -217,6 +268,7 @@ export default function ChatRoomLive({
 
     return () => {
       supabase.removeChannel(messagesChannel)
+      supabase.removeChannel(reactionsChannel)
       supabase.removeChannel(uiChannel)
     }
   }, [chatId, currentUserId, otherUserId, supabase])
@@ -308,10 +360,11 @@ export default function ChatRoomLive({
       attachmentUrl = publicUrlData.publicUrl
     }
 
-    const { data, error } = await supabase.rpc('send_message', {
+    const { error } = await supabase.rpc('send_message_v2', {
       target_chat_id: chatId,
       message_content: trimmedContent || 'Attached file',
       message_attachment_url: attachmentUrl,
+      reply_to: replyTo?.id ?? null,
     })
 
     if (error) {
@@ -320,21 +373,21 @@ export default function ChatRoomLive({
       return
     }
 
-    if (data) {
-      const inserted = data as Message
-
-      setMessages((current) => {
-        const exists = current.some((m) => m.id === inserted.id)
-        if (exists) return current
-        return [...current, inserted]
-      })
-    }
-
     setContent('')
     setFile(null)
+    setReplyTo(null)
     setIsSending(false)
     await broadcastTyping(false)
     await updateOwnPresence()
+    await loadMessages()
+  }
+
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    await supabase.rpc('toggle_message_reaction', {
+      target_message_id: messageId,
+      target_emoji: emoji,
+    })
+    await loadReactions()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -353,80 +406,97 @@ export default function ChatRoomLive({
     }
   }
 
+  const getMessageReactions = (messageId: string) =>
+    reactions.filter((reaction) => reaction.message_id === messageId)
+
+  const replyPreviewText = replyTo?.content?.trim()
+    ? replyTo.content
+    : replyTo?.attachment_url
+    ? 'Attached file'
+    : ''
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="rounded-[30px] border border-[#ece5d8] bg-white p-5 shadow-sm">
+    <div className="space-y-4">
+      <div className="sticky top-[56px] z-20 rounded-[26px] border border-[#ece5d8] bg-white/95 p-4 shadow-sm backdrop-blur sm:top-0">
         <div className="flex items-center gap-4">
-          <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-xl font-black text-[#a88414]">
-            {otherUserAvatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={otherUserAvatar}
-                alt={otherUserName}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              (otherUserName?.[0] ?? 'U').toUpperCase()
-            )}
+          <div className="relative h-14 w-14 shrink-0">
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-lg font-black text-[#a88414]">
+              {otherUserAvatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={otherUserAvatar}
+                  alt={otherUserName}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                (otherUserName?.[0] ?? 'U').toUpperCase()
+              )}
+            </div>
 
             <span
-              className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white ${
+              className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white shadow ${
                 otherOnline ? 'bg-emerald-500' : 'bg-gray-300'
               }`}
             />
           </div>
 
-          <div className="min-w-0">
-            <p className="truncate text-xl font-black tracking-tight text-[#1f1a14]">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-lg font-black tracking-tight text-[#1f1a14]">
               {otherUserName}
             </p>
             <p className="mt-1 text-sm text-[#7b746b]">
               {otherUserJobTitle || 'Team member'}
             </p>
             <p
-              className={`mt-2 text-xs font-semibold ${
-                otherOnline ? 'text-emerald-600' : 'text-[#9b948a]'
+              className={`mt-1 text-xs font-semibold ${
+                typing
+                  ? 'text-[#a88414]'
+                  : otherOnline
+                  ? 'text-emerald-600'
+                  : 'text-[#9b948a]'
               }`}
             >
-              {otherOnline ? 'Online now' : 'Offline'}
+              {typing ? `${otherUserName} is typing...` : otherOnline ? 'Online now' : 'Offline'}
             </p>
           </div>
         </div>
+      </div>
 
-        <div className="mt-6 rounded-[22px] bg-[#fcfbf8] p-4">
-          <p className="text-sm font-semibold text-[#1f1a14]">Conversation status</p>
-          <p className="mt-2 text-sm text-[#7b746b]">
-            {typing
-              ? `${otherUserName} is typing...`
-              : isLastOwnMessageSeen
-              ? 'Your latest message was seen.'
-              : 'Realtime chat is active.'}
-          </p>
-        </div>
-      </aside>
+      <div
+        ref={scrollRef}
+        className="modern-scroll max-h-[58vh] overflow-y-auto rounded-[28px] border border-[#ece5d8] bg-white p-4 shadow-sm sm:max-h-[62vh] sm:p-6"
+      >
+        <div className="space-y-4">
+          {messages.map((message) => {
+            const isMine = message.sender_id === currentUserId
+            const senderName = senderNames[message.sender_id] ?? 'User'
+            const senderAvatar = senderAvatars[message.sender_id] ?? null
+            const repliedMessage = message.reply_to_message_id
+              ? messages.find((m) => m.id === message.reply_to_message_id)
+              : null
 
-      <section className="space-y-4">
-        <div
-          ref={scrollRef}
-          className="modern-scroll max-h-[62vh] overflow-y-auto rounded-[32px] border border-[#ece5d8] bg-white p-5 shadow-sm sm:p-6"
-        >
-          <div className="space-y-4">
-            {messages.map((message) => {
-              const isMine = message.sender_id === currentUserId
-              const senderName = senderNames[message.sender_id] ?? 'User'
-              const senderAvatar = senderAvatars[message.sender_id] ?? null
+            const messageReactions = getMessageReactions(message.id)
+            const grouped = REACTION_SET.map((emoji) => {
+              const rows = messageReactions.filter((r) => r.emoji === emoji)
+              return {
+                emoji,
+                count: rows.length,
+                active: rows.some((r) => r.user_id === currentUserId),
+              }
+            }).filter((item) => item.count > 0)
 
-              return (
+            return (
+              <div
+                key={message.id}
+                className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
+              >
                 <div
-                  key={message.id}
-                  className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
+                  className={`flex max-w-[94%] items-end gap-2 sm:max-w-[76%] ${
+                    isMine ? 'flex-row-reverse' : 'flex-row'
+                  }`}
                 >
-                  <div
-                    className={`flex max-w-[88%] items-end gap-3 sm:max-w-[75%] ${
-                      isMine ? 'flex-row-reverse' : 'flex-row'
-                    }`}
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-sm font-black text-[#a88414]">
+                  <div className="relative h-9 w-9 shrink-0 sm:h-10 sm:w-10">
+                    <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-xs font-black text-[#a88414] sm:h-10 sm:w-10 sm:text-sm">
                       {senderAvatar ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -438,21 +508,47 @@ export default function ChatRoomLive({
                         (senderName?.[0] ?? 'U').toUpperCase()
                       )}
                     </div>
+                  </div>
 
+                  <div className="space-y-1">
                     <div
-                      className={`rounded-[24px] px-4 py-3 shadow-sm ${
+                      className={`rounded-[22px] px-4 py-3 shadow-sm ${
                         isMine
                           ? 'bg-gradient-to-br from-[#d1ac35] to-[#a88414] text-white'
                           : 'border border-[#efe6d4] bg-[#f8f4eb] text-[#1f1a14]'
                       }`}
                     >
-                      <p
-                        className={`mb-2 text-[11px] font-semibold ${
-                          isMine ? 'text-white/80' : 'text-[#7b746b]'
-                        }`}
-                      >
-                        {isMine ? 'You' : senderName}
-                      </p>
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <p
+                          className={`text-[11px] font-semibold ${
+                            isMine ? 'text-white/80' : 'text-[#7b746b]'
+                          }`}
+                        >
+                          {isMine ? 'You' : senderName}
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={() => setReplyTo(message)}
+                          className={`text-[11px] font-semibold ${
+                            isMine ? 'text-white/80' : 'text-[#a88414]'
+                          }`}
+                        >
+                          Reply
+                        </button>
+                      </div>
+
+                      {repliedMessage && (
+                        <div
+                          className={`mb-3 rounded-[14px] px-3 py-2 text-xs ${
+                            isMine ? 'bg-white/15 text-white/85' : 'bg-white text-[#7b746b]'
+                          }`}
+                        >
+                          {senderNames[repliedMessage.sender_id] ?? 'User'}:{' '}
+                          {repliedMessage.content?.trim() ||
+                            (repliedMessage.attachment_url ? 'Attached file' : 'Message')}
+                        </div>
+                      )}
 
                       {message.content && (
                         <p className="whitespace-pre-wrap break-words leading-7">
@@ -481,70 +577,115 @@ export default function ChatRoomLive({
                         {formatMessageTime(message.created_at)}
                       </p>
                     </div>
+
+                    <div className="flex flex-wrap gap-2 px-1">
+                      {REACTION_SET.map((emoji) => {
+                        const item = grouped.find((g) => g.emoji === emoji)
+                        return (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => void toggleReaction(message.id, emoji)}
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                              item?.active
+                                ? 'bg-[#c9a227] text-white'
+                                : item
+                                ? 'bg-[#f4efe4] text-[#1f1a14]'
+                                : 'bg-white text-[#9b948a] border border-[#ece5d8]'
+                            }`}
+                          >
+                            {emoji}{item ? ` ${item.count}` : ''}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
-              )
-            })}
+              </div>
+            )
+          })}
 
-            <div ref={bottomRef} />
-          </div>
+          <div ref={bottomRef} />
         </div>
+      </div>
 
-        <div className="flex justify-end px-1">
-          {lastOwnMessage && (
-            <p className="text-sm text-[#7b746b]">
-              {isLastOwnMessageSeen ? 'Seen' : 'Sent'}
-            </p>
-          )}
-        </div>
+      <div className="flex justify-end px-1">
+        {lastOwnMessage && (
+          <p className="text-sm text-[#7b746b]">
+            {isLastOwnMessageSeen ? 'Seen' : 'Sent'}
+          </p>
+        )}
+      </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-[32px] border border-[#ece5d8] bg-white p-5 shadow-sm sm:p-6"
-        >
-          <h2 className="mb-4 text-2xl font-black tracking-tight text-[#1f1a14]">
+      <form
+        onSubmit={handleSubmit}
+        className="sticky bottom-3 rounded-[28px] border border-[#ece5d8] bg-white p-4 shadow-sm sm:p-5"
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-xl font-black tracking-tight text-[#1f1a14] sm:text-2xl">
             New message
           </h2>
 
-          <div className="grid gap-4">
-            <textarea
-              value={content}
-              onChange={(e) => {
-                void handleTyping(e.target.value)
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder="Write a message... (Enter = send, Shift+Enter = new line)"
-              className="min-h-28 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227]"
-            />
+          {typing && (
+            <span className="text-xs font-medium text-[#a88414] sm:text-sm">
+              {otherUserName} is typing...
+            </span>
+          )}
+        </div>
 
-            <input
-              type="file"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3"
-            />
-          </div>
+        {replyTo && (
+          <div className="mb-4 flex items-start justify-between gap-3 rounded-[18px] border border-[#eadfbe] bg-[#fcfbf8] px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-[#a88414]">
+                Replying to {senderNames[replyTo.sender_id] ?? 'User'}
+              </p>
+              <p className="mt-1 truncate text-sm text-[#5d554c]">
+                {replyPreviewText}
+              </p>
+            </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-4">
             <button
-              type="submit"
-              disabled={isSending}
-              className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60"
+              type="button"
+              onClick={() => setReplyTo(null)}
+              className="text-sm font-semibold text-[#7b746b]"
             >
-              {isSending ? 'Sending...' : 'Send'}
+              Remove
             </button>
-
-            {typing && (
-              <span className="text-sm font-medium text-[#a88414]">
-                {otherUserName} is typing...
-              </span>
-            )}
-
-            {messageError && (
-              <p className="text-sm text-[#7b746b]">{messageError}</p>
-            )}
           </div>
-        </form>
-      </section>
+        )}
+
+        <div className="grid gap-4">
+          <textarea
+            value={content}
+            onChange={(e) => {
+              void handleTyping(e.target.value)
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="Write a message... (Enter = send, Shift+Enter = new line)"
+            className="min-h-24 w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 outline-none focus:border-[#c9a227] sm:min-h-28"
+          />
+
+          <input
+            type="file"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3"
+          />
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-4">
+          <button
+            type="submit"
+            disabled={isSending}
+            className="w-full rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414] disabled:opacity-60 sm:w-auto"
+          >
+            {isSending ? 'Sending...' : 'Send'}
+          </button>
+
+          {messageError && (
+            <p className="text-sm text-[#7b746b]">{messageError}</p>
+          )}
+        </div>
+      </form>
     </div>
   )
 }

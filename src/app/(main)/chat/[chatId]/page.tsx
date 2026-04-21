@@ -7,7 +7,7 @@ import ChatRoomLive from '@/components/ChatRoomLive'
 
 interface Message {
   id: string
-  content: string
+  content: string | null
   created_at: string
   sender_id: string
   chat_id: string
