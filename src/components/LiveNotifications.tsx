@@ -1,15 +1,17 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { uiText } from '@/lib/ui-text'
 
-interface LiveNotificationItem {
+type NotificationRow = {
   id: string
-  title: string
+  user_id: string
+  type: string
+  title: string | null
   body: string | null
   link: string | null
+  is_read: boolean
   created_at: string
 }
 
@@ -19,71 +21,33 @@ export default function LiveNotifications({
   currentUserId: string
 }) {
   const supabase = useMemo(() => createClient(), [])
-  const [items, setItems] = useState<LiveNotificationItem[]>([])
-  const latestSeenIdRef = useRef<string | null>(null)
-  const initializedRef = useRef(false)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const pathname = usePathname()
+  const router = useRouter()
+  const [toast, setToast] = useState<NotificationRow | null>(null)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const seenIdsRef = useRef<Set<string>>(new Set())
 
-  useEffect(() => {
-    audioRef.current = new Audio('/notification.mp3')
-    audioRef.current.preload = 'auto'
-  }, [])
+  const isSameOpenChatNotification = (notification: NotificationRow) => {
+    if (!notification.link) return false
+    if (!pathname) return false
 
-  const playSound = async () => {
-    try {
-      if (!audioRef.current) return
-      audioRef.current.currentTime = 0
-      await audioRef.current.play()
-    } catch {}
+    return (
+      notification.type === 'chat' &&
+      notification.link.startsWith('/chat/') &&
+      pathname.startsWith('/chat/') &&
+      notification.link === pathname
+    )
   }
 
-  const pushNotification = async (newItem: LiveNotificationItem) => {
-    setItems((current) => {
-      const exists = current.some((item) => item.id === newItem.id)
-      if (exists) return current
-      return [newItem, ...current].slice(0, 4)
-    })
-
-    await playSound()
-
-    setTimeout(() => {
-      setItems((current) => current.filter((item) => item.id !== newItem.id))
-    }, 7000)
-  }
-
-  const checkLatestNotification = async () => {
-    const { data } = await supabase
-      .from('notifications')
-      .select('id, title, body, link, created_at')
-      .eq('user_id', currentUserId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    const latest = (data as LiveNotificationItem | null) ?? null
-    if (!latest) return
-
-    if (!initializedRef.current) {
-      latestSeenIdRef.current = latest.id
-      initializedRef.current = true
-      return
-    }
-
-    if (latestSeenIdRef.current !== latest.id) {
-      latestSeenIdRef.current = latest.id
-      await pushNotification(latest)
+  const dismissToast = () => {
+    setToast(null)
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
     }
   }
 
   useEffect(() => {
-    void checkLatestNotification()
-
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        void checkLatestNotification()
-      }
-    }, 2000)
-
     const channel = supabase
       .channel(`live-notifications-${currentUserId}`)
       .on(
@@ -95,68 +59,64 @@ export default function LiveNotifications({
           filter: `user_id=eq.${currentUserId}`,
         },
         async (payload) => {
-          const newItem = payload.new as LiveNotificationItem
-          latestSeenIdRef.current = newItem.id
-          await pushNotification(newItem)
+          const notification = payload.new as NotificationRow
+
+          if (!notification || seenIdsRef.current.has(notification.id)) return
+          seenIdsRef.current.add(notification.id)
+
+          if (isSameOpenChatNotification(notification)) {
+            await supabase
+              .from('notifications')
+              .update({ is_read: true })
+              .eq('id', notification.id)
+            return
+          }
+
+          setToast(notification)
+
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current)
+          }
+
+          timeoutRef.current = setTimeout(() => {
+            setToast(null)
+          }, 4500)
         }
       )
       .subscribe()
 
     return () => {
-      clearInterval(interval)
       supabase.removeChannel(channel)
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
-  }, [currentUserId, supabase])
+  }, [currentUserId, pathname, supabase])
 
-  const dismiss = (id: string) => {
-    setItems((current) => current.filter((item) => item.id !== id))
-  }
+  if (!toast) return null
 
   return (
-    <div className="pointer-events-none fixed right-6 top-6 z-[100] flex w-[360px] flex-col gap-3">
-      {items.map((item) => (
-        <div
-          key={item.id}
-          className="pointer-events-auto rounded-[24px] border border-[#eadfbe] bg-white p-4 shadow-[0_18px_50px_rgba(31,26,20,0.15)]"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a88414]">
-                {uiText.popup.newNotification}
-              </p>
+    <button
+      type="button"
+      onClick={async () => {
+        const targetLink = toast.link
+        dismissToast()
 
-              <h3 className="mt-1 text-base font-black tracking-tight text-[#1f1a14]">
-                {item.title}
-              </h3>
+        await supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .eq('id', toast.id)
 
-              {item.body && (
-                <p className="mt-2 text-sm leading-6 text-[#5a5147]">
-                  {item.body}
-                </p>
-              )}
-
-              <div className="mt-3 flex items-center gap-3">
-                {item.link && (
-                  <Link
-                    href={item.link}
-                    className="rounded-[14px] bg-[#c9a227] px-3 py-2 text-sm font-semibold text-white hover:bg-[#a88414]"
-                  >
-                    {uiText.popup.open}
-                  </Link>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => dismiss(item.id)}
-                  className="text-sm font-medium text-[#7b746b] hover:text-[#1f1a14]"
-                >
-                  {uiText.popup.close}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
+        if (targetLink) {
+          router.push(targetLink)
+        }
+      }}
+      className="fixed right-4 top-4 z-[120] w-[340px] max-w-[calc(100vw-2rem)] rounded-[22px] border border-[#eadfbe] bg-white p-4 text-left shadow-2xl transition hover:shadow-xl"
+    >
+      <p className="text-sm font-black text-[#1f1a14]">
+        {toast.title || 'New notification'}
+      </p>
+      {toast.body ? (
+        <p className="mt-1 text-sm leading-6 text-[#6f675d]">{toast.body}</p>
+      ) : null}
+    </button>
   )
 }

@@ -256,7 +256,14 @@ export default function ChatDirectory({
       )
       .subscribe()
 
+    const poll = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void loadDirectory()
+      }
+    }, 2500)
+
     return () => {
+      clearInterval(poll)
       supabase.removeChannel(channel)
     }
   }, [currentUserId, supabase])
