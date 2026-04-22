@@ -144,6 +144,7 @@ export default function PersonalWhiteboardLauncher({
 
   const svgRef = useRef<SVGSVGElement | null>(null)
   const draftElementRef = useRef<WhiteboardElement | null>(null)
+  const drawStartPointRef = useRef<Point | null>(null)
   const isDrawingRef = useRef(false)
   const saveTimerRef = useRef<number | null>(null)
 
@@ -301,6 +302,7 @@ export default function PersonalWhiteboardLauncher({
 
     pushHistory(elements)
     isDrawingRef.current = true
+    drawStartPointRef.current = point
 
     if (tool === 'pen' || tool === 'eraser') {
       const stroke: StrokeElement = {
@@ -345,11 +347,7 @@ export default function PersonalWhiteboardLauncher({
         size: strokeSize,
       }
 
-      draftElementRef.current = {
-        ...rect,
-        x: point.x,
-        y: point.y,
-      }
+      draftElementRef.current = rect
       setElements((prev) => [...prev, rect])
       return
     }
@@ -376,6 +374,7 @@ export default function PersonalWhiteboardLauncher({
 
     const point = pointToSvgPoint(event, svgRef.current)
     const draft = draftElementRef.current
+    const start = drawStartPointRef.current
 
     setElements((prev) => {
       const next = [...prev]
@@ -403,35 +402,25 @@ export default function PersonalWhiteboardLauncher({
         return next
       }
 
-      if (current.type === 'rectangle') {
-        const startX = draft.x
-        const startY = draft.y
-        const normalized = normalizeRect(startX, startY, point.x, point.y)
+      if (current.type === 'rectangle' && start) {
+        const normalized = normalizeRect(start.x, start.y, point.x, point.y)
 
         next[index] = {
           ...current,
           ...normalized,
         }
-        draftElementRef.current = {
-          ...draft,
-          ...normalized,
-        }
+        draftElementRef.current = next[index]
         return next
       }
 
-      if (current.type === 'circle') {
-        const startX = draft.cx
-        const startY = draft.cy
-        const normalized = normalizeCircle(startX, startY, point.x, point.y)
+      if (current.type === 'circle' && start) {
+        const normalized = normalizeCircle(start.x, start.y, point.x, point.y)
 
         next[index] = {
           ...current,
           ...normalized,
         }
-        draftElementRef.current = {
-          ...draft,
-          ...normalized,
-        }
+        draftElementRef.current = next[index]
         return next
       }
 
@@ -443,6 +432,7 @@ export default function PersonalWhiteboardLauncher({
     if (!isDrawingRef.current) return
     isDrawingRef.current = false
     draftElementRef.current = null
+    drawStartPointRef.current = null
     setIsDirty(true)
   }
 
