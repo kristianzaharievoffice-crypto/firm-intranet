@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-type MarketInstrumentType = 'forex' | 'commodity'
+type MarketInstrumentType = 'forex'
 
 interface MarketQuote {
   key: string
@@ -20,7 +20,7 @@ interface MarketApiResponse {
 }
 
 function formatPrice(value: number | null) {
-  if (value === null) return '—'
+  if (value === null) return ''
 
   if (value >= 1000) {
     return value.toLocaleString('en-US', {
@@ -43,16 +43,18 @@ function formatPrice(value: number | null) {
 }
 
 const FALLBACK_QUOTES: MarketQuote[] = [
-  { key: 'gold', label: 'Gold', type: 'commodity', price: null },
-  { key: 'wti', label: 'WTI Oil', type: 'commodity', price: null },
   { key: 'usd-jpy', label: 'USD/JPY', type: 'forex', price: null },
   { key: 'eur-usd', label: 'EUR/USD', type: 'forex', price: null },
   { key: 'gbp-usd', label: 'GBP/USD', type: 'forex', price: null },
   { key: 'nzd-usd', label: 'NZD/USD', type: 'forex', price: null },
+  { key: 'aud-usd', label: 'AUD/USD', type: 'forex', price: null },
+  { key: 'usd-chf', label: 'USD/CHF', type: 'forex', price: null },
 ]
 
 function buildTickerText(quotes: MarketQuote[]) {
-  return quotes
+  const visible = quotes.filter((item) => item.price !== null)
+
+  return visible
     .map((item) => `${item.label} ${formatPrice(item.price)}`)
     .join('   •   ')
 }
@@ -98,7 +100,7 @@ export default function MarketTickerBar() {
       if (document.visibilityState === 'visible') {
         void loadQuotes()
       }
-    }, 15 * 60 * 1000)
+    }, 60 * 60 * 1000)
 
     return () => window.clearInterval(interval)
   }, [loadQuotes])
@@ -162,12 +164,12 @@ export default function MarketTickerBar() {
               } as React.CSSProperties
             }
           >
-            {tickerText}
+            {tickerText || 'USD/JPY • EUR/USD • GBP/USD • NZD/USD • AUD/USD • USD/CHF'}
           </div>
         </div>
 
         <div className="hidden shrink-0 text-xs text-neutral-500 sm:block">
-          {updatedAt ? `Updated ${new Date(updatedAt).toLocaleTimeString('en-GB')}` : 'Live ribbon'}
+          {updatedAt ? `Updated ${new Date(updatedAt).toLocaleTimeString('en-GB')}` : 'FX ribbon'}
         </div>
       </div>
 
