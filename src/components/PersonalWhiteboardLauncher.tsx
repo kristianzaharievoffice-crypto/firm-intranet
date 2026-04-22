@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-type Tool = 'pen' | 'eraser' | 'line' | 'rectangle' | 'circle' | 'text'
+type Tool =
+  | 'select'
+  | 'pen'
+  | 'eraser'
+  | 'line'
+  | 'rectangle'
+  | 'circle'
+  | 'text'
+  | 'sticky'
 
 type Point = {
   x: number
@@ -56,12 +64,23 @@ type TextElement = BaseElement & {
   size: number
 }
 
+type StickyNoteElement = BaseElement & {
+  type: 'sticky'
+  x: number
+  y: number
+  width: number
+  height: number
+  text: string
+  textColor: string
+}
+
 type WhiteboardElement =
   | StrokeElement
   | LineElement
   | RectangleElement
   | CircleElement
   | TextElement
+  | StickyNoteElement
 
 type BoardState = {
   elements: WhiteboardElement[]
@@ -82,7 +101,7 @@ function clampSize(value: number) {
 }
 
 function pointToSvgPoint(
-  event: React.PointerEvent<SVGSVGElement>,
+  event: React.PointerEvent<SVGSVGElement> | React.PointerEvent<SVGGElement>,
   svg: SVGSVGElement
 ) {
   const rect = svg.getBoundingClientRect()
@@ -123,6 +142,124 @@ function normalizeCircle(x1: number, y1: number, x2: number, y2: number) {
   }
 }
 
+function getElementBounds(element: WhiteboardElement) {
+  if (element.type === 'stroke') {
+    const xs = element.points.map((p) => p.x)
+    const ys = element.points.map((p) => p.y)
+    const minX = Math.min(...xs)
+    const maxX = Math.max(...xs)
+    const minY = Math.min(...ys)
+    const maxY = Math.max(...ys)
+
+    return {
+      x: minX - element.size,
+      y: minY - element.size,
+      width: maxX - minX + element.size * 2,
+      height: maxY - minY + element.size * 2,
+    }
+  }
+
+  if (element.type === 'line') {
+    const minX = Math.min(element.x1, element.x2)
+    const maxX = Math.max(element.x1, element.x2)
+    const minY = Math.min(element.y1, element.y2)
+    const maxY = Math.max(element.y1, element.y2)
+
+    return {
+      x: minX - element.size,
+      y: minY - element.size,
+      width: maxX - minX + element.size * 2,
+      height: maxY - minY + element.size * 2,
+    }
+  }
+
+  if (element.type === 'rectangle') {
+    return {
+      x: element.x - element.size,
+      y: element.y - element.size,
+      width: element.width + element.size * 2,
+      height: element.height + element.size * 2,
+    }
+  }
+
+  if (element.type === 'circle') {
+    return {
+      x: element.cx - element.rx - element.size,
+      y: element.cy - element.ry - element.size,
+      width: element.rx * 2 + element.size * 2,
+      height: element.ry * 2 + element.size * 2,
+    }
+  }
+
+  if (element.type === 'text') {
+    return {
+      x: element.x - 6,
+      y: element.y - element.size,
+      width: Math.max(60, element.text.length * (element.size * 0.6)),
+      height: element.size + 10,
+    }
+  }
+
+  return {
+    x: element.x - 6,
+    y: element.y - 6,
+    width: element.width + 12,
+    height: element.height + 12,
+  }
+}
+
+function moveElement(element: WhiteboardElement, dx: number, dy: number): WhiteboardElement {
+  if (element.type === 'stroke') {
+    return {
+      ...element,
+      points: element.points.map((p) => ({
+        x: p.x + dx,
+        y: p.y + dy,
+      })),
+    }
+  }
+
+  if (element.type === 'line') {
+    return {
+      ...element,
+      x1: element.x1 + dx,
+      y1: element.y1 + dy,
+      x2: element.x2 + dx,
+      y2: element.y2 + dy,
+    }
+  }
+
+  if (element.type === 'rectangle') {
+    return {
+      ...element,
+      x: element.x + dx,
+      y: element.y + dy,
+    }
+  }
+
+  if (element.type === 'circle') {
+    return {
+      ...element,
+      cx: element.cx + dx,
+      cy: element.cy + dy,
+    }
+  }
+
+  if (element.type === 'text') {
+    return {
+      ...element,
+      x: element.x + dx,
+      y: element.y + dy,
+    }
+  }
+
+  return {
+    ...element,
+    x: element.x + dx,
+    y: element.y + dy,
+  }
+}
+
 export default function PersonalWhiteboardLauncher({
   userId,
 }: {
@@ -132,12 +269,13 @@ export default function PersonalWhiteboardLauncher({
 
   const [isOpen, setIsOpen] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
-  const [tool, setTool] = useState<Tool>('pen')
+  const [tool, setTool] = useState<Tool>('select')
   const [color, setColor] = useState('#111827')
   const [strokeSize, setStrokeSize] = useState(3)
   const [elements, setElements] = useState<WhiteboardElement[]>([])
   const [history, setHistory] = useState<WhiteboardElement[][]>([])
   const [future, setFuture] = useState<WhiteboardElement[][]>([])
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [statusText, setStatusText] = useState('')
@@ -146,6 +284,10 @@ export default function PersonalWhiteboardLauncher({
   const draftElementRef = useRef<WhiteboardElement | null>(null)
   const drawStartPointRef = useRef<Point | null>(null)
   const isDrawingRef = useRef(false)
+  const isMovingRef = useRef(false)
+  const moveStartPointRef = useRef<Point | null>(null)
+  const movingElementIdRef = useRef<string | null>(null)
+  const movingOriginalElementRef = useRef<WhiteboardElement | null>(null)
   const saveTimerRef = useRef<number | null>(null)
 
   const pushHistory = useCallback((snapshot: WhiteboardElement[]) => {
@@ -175,6 +317,7 @@ export default function PersonalWhiteboardLauncher({
     setElements(loadedElements)
     setHistory([])
     setFuture([])
+    setSelectedElementId(null)
     setIsDirty(false)
     setStatusText(data?.updated_at ? 'Board loaded' : 'New board ready')
     setIsLoaded(true)
@@ -233,6 +376,38 @@ export default function PersonalWhiteboardLauncher({
     }
   }, [elements, isDirty, isLoaded, isOpen, saveBoard])
 
+  const undo = useCallback(() => {
+    setHistory((prev) => {
+      if (!prev.length) return prev
+      const previous = prev[prev.length - 1]
+      setFuture((current) => [elements, ...current])
+      setElements(previous)
+      setSelectedElementId(null)
+      setIsDirty(true)
+      return prev.slice(0, -1)
+    })
+  }, [elements])
+
+  const redo = useCallback(() => {
+    setFuture((prev) => {
+      if (!prev.length) return prev
+      const next = prev[0]
+      setHistory((current) => [...current, elements])
+      setElements(next)
+      setSelectedElementId(null)
+      setIsDirty(true)
+      return prev.slice(1)
+    })
+  }, [elements])
+
+  const deleteSelected = useCallback(() => {
+    if (!selectedElementId) return
+    pushHistory(elements)
+    setElements((prev) => prev.filter((el) => el.id !== selectedElementId))
+    setSelectedElementId(null)
+    setIsDirty(true)
+  }, [elements, pushHistory, selectedElementId])
+
   useEffect(() => {
     if (!isOpen) return
 
@@ -241,16 +416,14 @@ export default function PersonalWhiteboardLauncher({
         setIsOpen(false)
       }
 
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        void saveBoard()
+      }
+
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault()
-        setHistory((prev) => {
-          if (!prev.length) return prev
-          const previous = prev[prev.length - 1]
-          setFuture((current) => [elements, ...current])
-          setElements(previous)
-          setIsDirty(true)
-          return prev.slice(0, -1)
-        })
+        undo()
       }
 
       if (
@@ -259,23 +432,83 @@ export default function PersonalWhiteboardLauncher({
           (event.shiftKey && event.key.toLowerCase() === 'z'))
       ) {
         event.preventDefault()
-        setFuture((prev) => {
-          if (!prev.length) return prev
-          const next = prev[0]
-          setHistory((current) => [...current, elements])
-          setElements(next)
-          setIsDirty(true)
-          return prev.slice(1)
-        })
+        redo()
       }
+
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (selectedElementId) {
+          event.preventDefault()
+          deleteSelected()
+        }
+      }
+
+      if (event.key.toLowerCase() === 'v') setTool('select')
+      if (event.key.toLowerCase() === 'p') setTool('pen')
+      if (event.key.toLowerCase() === 'e') setTool('eraser')
+      if (event.key.toLowerCase() === 'l') setTool('line')
+      if (event.key.toLowerCase() === 'r') setTool('rectangle')
+      if (event.key.toLowerCase() === 'c') setTool('circle')
+      if (event.key.toLowerCase() === 't') setTool('text')
+      if (event.key.toLowerCase() === 'n') setTool('sticky')
     }
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [elements, isOpen])
+  }, [deleteSelected, isOpen, redo, saveBoard, selectedElementId, undo])
+
+  const beginMoveElement = (
+    event: React.PointerEvent<SVGGElement>,
+    element: WhiteboardElement
+  ) => {
+    if (tool !== 'select' || !svgRef.current) return
+
+    event.stopPropagation()
+
+    const point = pointToSvgPoint(event, svgRef.current)
+
+    pushHistory(elements)
+    setSelectedElementId(element.id)
+
+    isMovingRef.current = true
+    moveStartPointRef.current = point
+    movingElementIdRef.current = element.id
+    movingOriginalElementRef.current = element
+  }
+
+  const editElementText = (element: WhiteboardElement) => {
+    if (element.type !== 'text' && element.type !== 'sticky') return
+
+    const nextText = window.prompt(
+      element.type === 'sticky' ? 'Edit sticky note text' : 'Edit text',
+      element.text
+    )
+
+    if (nextText === null) return
+
+    pushHistory(elements)
+
+    setElements((prev) =>
+      prev.map((item) =>
+        item.id === element.id
+          ? {
+              ...item,
+              text: nextText.trim(),
+            }
+          : item
+      )
+    )
+
+    setSelectedElementId(element.id)
+    setIsDirty(true)
+  }
 
   const beginDraw = (event: React.PointerEvent<SVGSVGElement>) => {
     if (!svgRef.current) return
+
+    if (tool === 'select') {
+      setSelectedElementId(null)
+      return
+    }
 
     const point = pointToSvgPoint(event, svgRef.current)
 
@@ -296,6 +529,31 @@ export default function PersonalWhiteboardLauncher({
       }
 
       setElements((prev) => [...prev, textElement])
+      setSelectedElementId(textElement.id)
+      setIsDirty(true)
+      return
+    }
+
+    if (tool === 'sticky') {
+      const text = window.prompt('Enter sticky note text')
+      if (!text || !text.trim()) return
+
+      pushHistory(elements)
+
+      const sticky: StickyNoteElement = {
+        id: uid(),
+        type: 'sticky',
+        x: point.x,
+        y: point.y,
+        width: 220,
+        height: 140,
+        text: text.trim(),
+        color: '#FDE68A',
+        textColor: '#111827',
+      }
+
+      setElements((prev) => [...prev, sticky])
+      setSelectedElementId(sticky.id)
       setIsDirty(true)
       return
     }
@@ -315,6 +573,7 @@ export default function PersonalWhiteboardLauncher({
 
       draftElementRef.current = stroke
       setElements((prev) => [...prev, stroke])
+      setSelectedElementId(stroke.id)
       return
     }
 
@@ -332,6 +591,7 @@ export default function PersonalWhiteboardLauncher({
 
       draftElementRef.current = line
       setElements((prev) => [...prev, line])
+      setSelectedElementId(line.id)
       return
     }
 
@@ -349,6 +609,7 @@ export default function PersonalWhiteboardLauncher({
 
       draftElementRef.current = rect
       setElements((prev) => [...prev, rect])
+      setSelectedElementId(rect.id)
       return
     }
 
@@ -366,13 +627,32 @@ export default function PersonalWhiteboardLauncher({
 
       draftElementRef.current = circle
       setElements((prev) => [...prev, circle])
+      setSelectedElementId(circle.id)
     }
   }
 
-  const moveDraw = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (!svgRef.current || !isDrawingRef.current || !draftElementRef.current) return
+  const movePointer = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (!svgRef.current) return
 
     const point = pointToSvgPoint(event, svgRef.current)
+
+    if (isMovingRef.current && movingElementIdRef.current && moveStartPointRef.current && movingOriginalElementRef.current) {
+      const start = moveStartPointRef.current
+      const original = movingOriginalElementRef.current
+      const dx = point.x - start.x
+      const dy = point.y - start.y
+
+      setElements((prev) =>
+        prev.map((item) =>
+          item.id === movingElementIdRef.current ? moveElement(original, dx, dy) : item
+        )
+      )
+
+      return
+    }
+
+    if (!isDrawingRef.current || !draftElementRef.current) return
+
     const draft = draftElementRef.current
     const start = drawStartPointRef.current
 
@@ -404,7 +684,6 @@ export default function PersonalWhiteboardLauncher({
 
       if (current.type === 'rectangle' && start) {
         const normalized = normalizeRect(start.x, start.y, point.x, point.y)
-
         next[index] = {
           ...current,
           ...normalized,
@@ -415,7 +694,6 @@ export default function PersonalWhiteboardLauncher({
 
       if (current.type === 'circle' && start) {
         const normalized = normalizeCircle(start.x, start.y, point.x, point.y)
-
         next[index] = {
           ...current,
           ...normalized,
@@ -428,34 +706,22 @@ export default function PersonalWhiteboardLauncher({
     })
   }
 
-  const endDraw = () => {
-    if (!isDrawingRef.current) return
+  const endPointer = () => {
+    const wasDrawing = isDrawingRef.current
+    const wasMoving = isMovingRef.current
+
     isDrawingRef.current = false
     draftElementRef.current = null
     drawStartPointRef.current = null
-    setIsDirty(true)
-  }
 
-  const undo = () => {
-    setHistory((prev) => {
-      if (!prev.length) return prev
-      const previous = prev[prev.length - 1]
-      setFuture((current) => [elements, ...current])
-      setElements(previous)
-      setIsDirty(true)
-      return prev.slice(0, -1)
-    })
-  }
+    isMovingRef.current = false
+    moveStartPointRef.current = null
+    movingElementIdRef.current = null
+    movingOriginalElementRef.current = null
 
-  const redo = () => {
-    setFuture((prev) => {
-      if (!prev.length) return prev
-      const next = prev[0]
-      setHistory((current) => [...current, elements])
-      setElements(next)
+    if (wasDrawing || wasMoving) {
       setIsDirty(true)
-      return prev.slice(1)
-    })
+    }
   }
 
   const clearBoard = () => {
@@ -463,81 +729,133 @@ export default function PersonalWhiteboardLauncher({
     if (!ok) return
     pushHistory(elements)
     setElements([])
+    setSelectedElementId(null)
     setIsDirty(true)
   }
 
   const renderElement = (element: WhiteboardElement) => {
-    if (element.type === 'stroke') {
-      return (
-        <path
-          key={element.id}
-          d={strokePath(element.points)}
-          fill="none"
-          stroke={element.color}
-          strokeWidth={element.size}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      )
-    }
-
-    if (element.type === 'line') {
-      return (
-        <line
-          key={element.id}
-          x1={element.x1}
-          y1={element.y1}
-          x2={element.x2}
-          y2={element.y2}
-          stroke={element.color}
-          strokeWidth={element.size}
-          strokeLinecap="round"
-        />
-      )
-    }
-
-    if (element.type === 'rectangle') {
-      return (
-        <rect
-          key={element.id}
-          x={element.x}
-          y={element.y}
-          width={element.width}
-          height={element.height}
-          fill="none"
-          stroke={element.color}
-          strokeWidth={element.size}
-          rx={8}
-        />
-      )
-    }
-
-    if (element.type === 'circle') {
-      return (
-        <ellipse
-          key={element.id}
-          cx={element.cx}
-          cy={element.cy}
-          rx={element.rx}
-          ry={element.ry}
-          fill="none"
-          stroke={element.color}
-          strokeWidth={element.size}
-        />
-      )
-    }
+    const isSelected = selectedElementId === element.id
+    const bounds = isSelected ? getElementBounds(element) : null
 
     return (
-      <text
+      <g
         key={element.id}
-        x={element.x}
-        y={element.y}
-        fill={element.color}
-        fontSize={element.size}
-        fontFamily="Arial, sans-serif"
+        onPointerDown={(event) => beginMoveElement(event, element)}
+        onDoubleClick={() => editElementText(element)}
+        style={{ cursor: tool === 'select' ? 'move' : 'default' }}
       >
-        {element.text}
-      </text>
+        {element.type === 'stroke' ? (
+          <path
+            d={strokePath(element.points)}
+            fill="none"
+            stroke={element.color}
+            strokeWidth={element.size}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : null}
+
+        {element.type === 'line' ? (
+          <line
+            x1={element.x1}
+            y1={element.y1}
+            x2={element.x2}
+            y2={element.y2}
+            stroke={element.color}
+            strokeWidth={element.size}
+            strokeLinecap="round"
+          />
+        ) : null}
+
+        {element.type === 'rectangle' ? (
+          <rect
+            x={element.x}
+            y={element.y}
+            width={element.width}
+            height={element.height}
+            fill="none"
+            stroke={element.color}
+            strokeWidth={element.size}
+            rx={8}
+          />
+        ) : null}
+
+        {element.type === 'circle' ? (
+          <ellipse
+            cx={element.cx}
+            cy={element.cy}
+            rx={element.rx}
+            ry={element.ry}
+            fill="none"
+            stroke={element.color}
+            strokeWidth={element.size}
+          />
+        ) : null}
+
+        {element.type === 'text' ? (
+          <text
+            x={element.x}
+            y={element.y}
+            fill={element.color}
+            fontSize={element.size}
+            fontFamily="Arial, sans-serif"
+          >
+            {element.text}
+          </text>
+        ) : null}
+
+        {element.type === 'sticky' ? (
+          <>
+            <rect
+              x={element.x}
+              y={element.y}
+              width={element.width}
+              height={element.height}
+              rx={14}
+              fill={element.color}
+              stroke="#F59E0B"
+              strokeWidth={2}
+            />
+            <foreignObject
+              x={element.x + 12}
+              y={element.y + 12}
+              width={element.width - 24}
+              height={element.height - 24}
+            >
+              <div
+                xmlns="http://www.w3.org/1999/xhtml"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  fontSize: '14px',
+                  lineHeight: '1.35',
+                  color: element.textColor,
+                  fontFamily: 'Arial, sans-serif',
+                  overflow: 'hidden',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {element.text}
+              </div>
+            </foreignObject>
+          </>
+        ) : null}
+
+        {bounds ? (
+          <rect
+            x={bounds.x}
+            y={bounds.y}
+            width={Math.max(bounds.width, 8)}
+            height={Math.max(bounds.height, 8)}
+            fill="none"
+            stroke="#EAB308"
+            strokeWidth={2}
+            strokeDasharray="6 4"
+            rx={10}
+            pointerEvents="none"
+          />
+        ) : null}
+      </g>
     )
   }
 
@@ -558,7 +876,7 @@ export default function PersonalWhiteboardLauncher({
             <div className="flex flex-wrap items-center gap-3 border-b border-yellow-100 px-4 py-3">
               <div>
                 <div className="text-lg font-semibold text-neutral-900">
-                  Personal Whiteboard
+                  Personal Whiteboard v2
                 </div>
                 <div className="text-xs text-neutral-500">
                   Private board saved only for your profile
@@ -566,6 +884,18 @@ export default function PersonalWhiteboardLauncher({
               </div>
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTool('select')}
+                  className={`rounded-full px-3 py-2 text-sm font-medium ${
+                    tool === 'select'
+                      ? 'bg-yellow-400 text-neutral-900'
+                      : 'bg-neutral-100 text-neutral-700'
+                  }`}
+                >
+                  Select
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setTool('pen')}
@@ -638,6 +968,18 @@ export default function PersonalWhiteboardLauncher({
                   Text
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => setTool('sticky')}
+                  className={`rounded-full px-3 py-2 text-sm font-medium ${
+                    tool === 'sticky'
+                      ? 'bg-yellow-400 text-neutral-900'
+                      : 'bg-neutral-100 text-neutral-700'
+                  }`}
+                >
+                  Sticky
+                </button>
+
                 <input
                   type="color"
                   value={color}
@@ -674,6 +1016,14 @@ export default function PersonalWhiteboardLauncher({
 
                 <button
                   type="button"
+                  onClick={deleteSelected}
+                  className="rounded-full bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700"
+                >
+                  Delete
+                </button>
+
+                <button
+                  type="button"
                   onClick={clearBoard}
                   className="rounded-full bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700"
                 >
@@ -699,8 +1049,16 @@ export default function PersonalWhiteboardLauncher({
             </div>
 
             <div className="flex items-center justify-between border-b border-yellow-100 px-4 py-2 text-xs text-neutral-500">
-              <div>
-                Tool: <span className="font-medium text-neutral-700">{tool}</span>
+              <div className="flex flex-wrap items-center gap-4">
+                <div>
+                  Tool: <span className="font-medium text-neutral-700">{tool}</span>
+                </div>
+                <div>
+                  Shortcuts:
+                  <span className="ml-1 text-neutral-700">
+                    V select, P pen, E eraser, L line, R rectangle, C circle, T text, N sticky
+                  </span>
+                </div>
               </div>
               <div>{statusText}</div>
             </div>
@@ -710,9 +1068,9 @@ export default function PersonalWhiteboardLauncher({
                 ref={svgRef}
                 className="h-full w-full touch-none bg-white"
                 onPointerDown={beginDraw}
-                onPointerMove={moveDraw}
-                onPointerUp={endDraw}
-                onPointerLeave={endDraw}
+                onPointerMove={movePointer}
+                onPointerUp={endPointer}
+                onPointerLeave={endPointer}
               >
                 {elements.map(renderElement)}
               </svg>
