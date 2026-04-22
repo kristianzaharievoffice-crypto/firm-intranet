@@ -118,7 +118,7 @@ export default function MobileNavLive({
   const refreshNotificationCount = async () => {
     const { data } = await supabase
       .from('notifications')
-      .select('id, type, link, is_read')
+      .select('id, type, link')
       .eq('user_id', currentUserId)
       .eq('is_read', false)
 
@@ -158,7 +158,7 @@ export default function MobileNavLive({
       if (document.visibilityState === 'visible') {
         void refreshCounts()
       }
-    }, 2500)
+    }, 2000)
 
     const notificationChannel = supabase
       .channel(`mobile-notifications-${currentUserId}`)
@@ -243,18 +243,9 @@ export default function MobileNavLive({
       <NavItem href="/calendar" label="Calendar" onClick={onNavigate} />
       <NavItem href="/events" label="Events" onClick={onNavigate} />
       <NavItem href="/employees" label="Employees" onClick={onNavigate} />
-      <NavItem
-        href="/notifications"
-        label="Notifications"
-        count={notificationsCount}
-        onClick={onNavigate}
-      />
-      {role === 'admin' && (
-        <NavItem href="/dashboard" label="Dashboard" onClick={onNavigate} />
-      )}
-      {role === 'admin' && (
-        <NavItem href="/admin" label="Admin Panel" onClick={onNavigate} />
-      )}
+      <NavItem href="/notifications" label="Notifications" count={notificationsCount} onClick={onNavigate} />
+      {role === 'admin' && <NavItem href="/dashboard" label="Dashboard" onClick={onNavigate} />}
+      {role === 'admin' && <NavItem href="/admin" label="Admin Panel" onClick={onNavigate} />}
     </nav>
   )
 }

@@ -113,7 +113,7 @@ export default function SidebarNavLive({
   const refreshNotificationCount = async () => {
     const { data } = await supabase
       .from('notifications')
-      .select('id, type, link, is_read')
+      .select('id, type, link')
       .eq('user_id', currentUserId)
       .eq('is_read', false)
 
@@ -153,7 +153,7 @@ export default function SidebarNavLive({
       if (document.visibilityState === 'visible') {
         void refreshCounts()
       }
-    }, 2500)
+    }, 2000)
 
     const notificationChannel = supabase
       .channel(`sidebar-notifications-${currentUserId}`)
@@ -238,11 +238,7 @@ export default function SidebarNavLive({
       <NavItem href="/calendar" label="Calendar" />
       <NavItem href="/events" label="Events" />
       <NavItem href="/employees" label="Employees" />
-      <NavItem
-        href="/notifications"
-        label="Notifications"
-        count={notificationsCount}
-      />
+      <NavItem href="/notifications" label="Notifications" count={notificationsCount} />
       {role === 'admin' && <NavItem href="/dashboard" label="Dashboard" />}
       {role === 'admin' && <NavItem href="/admin" label="Admin Panel" />}
     </nav>

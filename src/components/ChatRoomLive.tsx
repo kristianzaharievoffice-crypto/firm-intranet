@@ -66,6 +66,9 @@ export default function ChatRoomLive({
   const uiChannelRef = useRef<any>(null)
   const shouldStickBottomRef = useRef(true)
   const markingReadRef = useRef(false)
+  const clearingNotificationsRef = useRef(false)
+
+  const currentChatLink = `/chat/${chatId}`
 
   const loadMessages = async () => {
     const { data } = await supabase
@@ -85,6 +88,23 @@ export default function ChatRoomLive({
     el.scrollTo({ top: el.scrollHeight, behavior })
   }
 
+  const clearCurrentChatNotifications = async () => {
+    if (clearingNotificationsRef.current) return
+    clearingNotificationsRef.current = true
+
+    try {
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', currentUserId)
+        .eq('type', 'chat')
+        .eq('link', currentChatLink)
+        .eq('is_read', false)
+    } finally {
+      clearingNotificationsRef.current = false
+    }
+  }
+
   const markReadNow = async () => {
     if (markingReadRef.current) return
     markingReadRef.current = true
@@ -93,6 +113,7 @@ export default function ChatRoomLive({
       await supabase.rpc('mark_chat_read', {
         target_chat_id: chatId,
       })
+      await clearCurrentChatNotifications()
     } finally {
       markingReadRef.current = false
     }
@@ -144,10 +165,12 @@ export default function ChatRoomLive({
     void markReadNow()
     void updateOwnPresence(chatId)
     void loadOtherState()
+    void clearCurrentChatNotifications()
 
     const heartbeat = setInterval(() => {
       void updateOwnPresence(chatId)
-    }, 5000)
+      void clearCurrentChatNotifications()
+    }, 4000)
 
     const otherStatePoll = setInterval(() => {
       void loadOtherState()
@@ -157,12 +180,14 @@ export default function ChatRoomLive({
       if (document.visibilityState === 'visible') {
         void updateOwnPresence(chatId)
         void markReadNow()
+        void clearCurrentChatNotifications()
       }
     }
 
     const onFocus = () => {
       void updateOwnPresence(chatId)
       void markReadNow()
+      void clearCurrentChatNotifications()
     }
 
     document.addEventListener('visibilitychange', onVisibilityChange)
@@ -205,10 +230,27 @@ export default function ChatRoomLive({
           await loadMessages()
           await markReadNow()
           await updateOwnPresence(chatId)
+          await clearCurrentChatNotifications()
 
           if (shouldStickBottomRef.current) {
             setTimeout(() => scrollToBottom('smooth'), 60)
           }
+        }
+      )
+      .subscribe()
+
+    const notificationChannel = supabase
+      .channel(`chat-room-notifications-${chatId}-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${currentUserId}`,
+        },
+        async () => {
+          await clearCurrentChatNotifications()
         }
       )
       .subscribe()
@@ -249,10 +291,11 @@ export default function ChatRoomLive({
 
     return () => {
       supabase.removeChannel(messagesChannel)
+      supabase.removeChannel(notificationChannel)
       supabase.removeChannel(presenceChannel)
       supabase.removeChannel(uiChannel)
     }
-  }, [chatId, otherUserId])
+  }, [chatId, currentUserId, otherUserId])
 
   const lastOwnMessage = [...messages]
     .reverse()
@@ -361,6 +404,7 @@ export default function ChatRoomLive({
     await broadcastTyping(false)
     await updateOwnPresence(chatId)
     await loadMessages()
+    await clearCurrentChatNotifications()
 
     shouldStickBottomRef.current = true
     setTimeout(() => scrollToBottom('smooth'), 60)
@@ -395,7 +439,6 @@ export default function ChatRoomLive({
           <div className="relative h-12 w-12 shrink-0">
             <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-base font-black text-[#a88414]">
               {otherUserAvatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={otherUserAvatar}
                   alt={otherUserName}
@@ -461,7 +504,6 @@ export default function ChatRoomLive({
                   <div className="relative h-8 w-8 shrink-0 sm:h-9 sm:w-9">
                     <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#fbf3dc] text-[11px] font-black text-[#a88414] sm:h-9 sm:w-9 sm:text-xs">
                       {senderAvatar ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={senderAvatar}
                           alt={senderName}
