@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-type MarketInstrumentType = 'stock' | 'forex' | 'crypto'
+type MarketInstrumentType = 'forex'
 
 interface MarketQuote {
   symbol: string
@@ -52,12 +52,6 @@ function formatPercent(value: number | null) {
   return `${sign}${value.toFixed(2)}%`
 }
 
-function typeDotClass(type: MarketInstrumentType) {
-  if (type === 'forex') return 'bg-blue-500'
-  if (type === 'crypto') return 'bg-violet-500'
-  return 'bg-amber-500'
-}
-
 function changeClass(value: number | null) {
   if (value === null) return 'text-neutral-500'
   if (value > 0) return 'text-emerald-600'
@@ -65,17 +59,15 @@ function changeClass(value: number | null) {
   return 'text-neutral-500'
 }
 
-function TickerRow({ quotes }: { quotes: MarketQuote[] }) {
+function TickerSequence({ quotes }: { quotes: MarketQuote[] }) {
   return (
-    <>
-      {quotes.map((item, index) => (
+    <div className="flex shrink-0 items-center">
+      {quotes.map((item) => (
         <div
-          key={`${item.symbol}-${index}`}
-          className="flex shrink-0 items-center gap-2 whitespace-nowrap pr-8 text-sm"
+          key={item.symbol}
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap px-5 text-sm"
         >
-          <span
-            className={`inline-block h-2.5 w-2.5 rounded-full ${typeDotClass(item.type)}`}
-          />
+          <span className="h-2 w-2 rounded-full bg-amber-500" />
 
           <span className="font-semibold text-neutral-900">
             {item.label}
@@ -90,7 +82,7 @@ function TickerRow({ quotes }: { quotes: MarketQuote[] }) {
           </span>
         </div>
       ))}
-    </>
+    </div>
   )
 }
 
@@ -124,7 +116,6 @@ export default function MarketTickerBar() {
         setError(null)
       } else if (!hasLoadedOnce) {
         setQuotes([])
-        setUpdatedAt(data.updatedAt ?? null)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load market data')
@@ -147,14 +138,11 @@ export default function MarketTickerBar() {
 
   const hasQuotes = quotes.length > 0
 
-  const loopQuotes = useMemo(() => {
-    if (!hasQuotes) return []
-    return [...quotes, ...quotes, ...quotes]
-  }, [quotes, hasQuotes])
+  const stableQuotes = useMemo(() => quotes, [quotes])
 
   return (
     <div className="sticky top-0 z-40 border-b border-yellow-200/70 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
-      <div className="relative flex items-center gap-3 border-b border-yellow-100/80 px-3 py-2 sm:px-4 xl:px-6">
+      <div className="relative flex items-center gap-3 px-3 py-2 sm:px-4 xl:px-6">
         <div className="shrink-0 rounded-full border border-yellow-300 bg-gradient-to-r from-yellow-400 to-amber-300 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-900">
           Live Markets
         </div>
@@ -165,8 +153,9 @@ export default function MarketTickerBar() {
               <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-white/95 to-transparent" />
               <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-white/95 to-transparent" />
 
-              <div className="market-ticker-track flex min-w-max items-center">
-                <TickerRow quotes={loopQuotes} />
+              <div className="market-marquee flex w-max items-center">
+                <TickerSequence quotes={stableQuotes} />
+                <TickerSequence quotes={stableQuotes} />
               </div>
             </>
           ) : (
@@ -184,22 +173,21 @@ export default function MarketTickerBar() {
       </div>
 
       <style jsx>{`
-        .market-ticker-track {
-          animation: marketTickerScroll 55s linear infinite;
-          width: max-content;
+        .market-marquee {
           will-change: transform;
+          animation: market-marquee-scroll 30s linear infinite;
         }
 
-        .market-ticker-track:hover {
+        .market-marquee:hover {
           animation-play-state: paused;
         }
 
-        @keyframes marketTickerScroll {
-          0% {
-            transform: translate3d(0, 0, 0);
+        @keyframes market-marquee-scroll {
+          from {
+            transform: translateX(0);
           }
-          100% {
-            transform: translate3d(-33.3333%, 0, 0);
+          to {
+            transform: translateX(-50%);
           }
         }
       `}</style>

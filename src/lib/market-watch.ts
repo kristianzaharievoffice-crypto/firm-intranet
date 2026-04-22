@@ -1,4 +1,4 @@
-export type MarketInstrumentType = 'stock' | 'forex' | 'crypto'
+export type MarketInstrumentType = 'forex'
 
 export interface MarketInstrument {
   symbol: string
@@ -21,30 +21,34 @@ export interface MarketQuote {
 }
 
 export const DEFAULT_MARKET_WATCHLIST: MarketInstrument[] = [
+  { symbol: 'XAU/USD', label: 'Gold', type: 'forex' },
+  { symbol: 'WTI/USD', label: 'WTI Oil', type: 'forex' },
+  { symbol: 'USD/JPY', label: 'USD/JPY', type: 'forex' },
   { symbol: 'EUR/USD', label: 'EUR/USD', type: 'forex' },
   { symbol: 'GBP/USD', label: 'GBP/USD', type: 'forex' },
-  { symbol: 'XAU/USD', label: 'Gold', type: 'forex' },
-  { symbol: 'AAPL', label: 'Apple', type: 'stock' },
-  { symbol: 'MSFT', label: 'Microsoft', type: 'stock' },
-  { symbol: 'TSLA', label: 'Tesla', type: 'stock' },
-  { symbol: 'BTC/USD', label: 'Bitcoin', type: 'crypto' },
+  { symbol: 'NZD/USD', label: 'NZD/USD', type: 'forex' },
 ]
 
 function toNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value
+
   if (typeof value === 'string') {
     const parsed = Number(value)
     return Number.isFinite(parsed) ? parsed : null
   }
+
   return null
 }
 
 function toBoolean(value: unknown): boolean | null {
   if (typeof value === 'boolean') return value
+
   if (typeof value === 'string') {
-    if (value.toLowerCase() === 'true') return true
-    if (value.toLowerCase() === 'false') return false
+    const normalized = value.toLowerCase()
+    if (normalized === 'true') return true
+    if (normalized === 'false') return false
   }
+
   return null
 }
 
@@ -156,8 +160,7 @@ export async function fetchMarketQuotes(
           currency: null,
           exchange: null,
           timestamp: null,
-          error:
-            error instanceof Error ? error.message : 'Unknown fetch error',
+          error: error instanceof Error ? error.message : 'Unknown fetch error',
           isMarketOpen: null,
         }
       }
