@@ -91,7 +91,7 @@ type FxResponse = {
   }
   Note?: string
   Information?: string
-  Error Message?: string
+  'Error Message'?: string
 }
 
 type GoldSpotResponse = {
