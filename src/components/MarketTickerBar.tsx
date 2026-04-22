@@ -65,9 +65,39 @@ function changeClass(value: number | null) {
   return 'text-neutral-500'
 }
 
+function TickerRow({ quotes }: { quotes: MarketQuote[] }) {
+  return (
+    <>
+      {quotes.map((item, index) => (
+        <div
+          key={`${item.symbol}-${index}`}
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap pr-8 text-sm"
+        >
+          <span
+            className={`inline-block h-2.5 w-2.5 rounded-full ${typeDotClass(item.type)}`}
+          />
+
+          <span className="font-semibold text-neutral-900">
+            {item.label}
+          </span>
+
+          <span className="text-neutral-700">
+            {formatPrice(item.price)}
+          </span>
+
+          <span className={changeClass(item.percentChange)}>
+            {formatPercent(item.percentChange)}
+          </span>
+        </div>
+      ))}
+    </>
+  )
+}
+
 export default function MarketTickerBar() {
   const [quotes, setQuotes] = useState<MarketQuote[]>([])
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadQuotes = useCallback(async () => {
@@ -82,13 +112,24 @@ export default function MarketTickerBar() {
       }
 
       const data = (await response.json()) as MarketApiResponse
-      setQuotes(Array.isArray(data.quotes) ? data.quotes.filter((q) => !q.error) : [])
-      setUpdatedAt(data.updatedAt ?? null)
-      setError(null)
+
+      const validQuotes = Array.isArray(data.quotes)
+        ? data.quotes.filter((q) => !q.error)
+        : []
+
+      if (validQuotes.length > 0) {
+        setQuotes(validQuotes)
+        setUpdatedAt(data.updatedAt ?? null)
+        setHasLoadedOnce(true)
+        setError(null)
+      } else if (!hasLoadedOnce) {
+        setQuotes([])
+        setUpdatedAt(data.updatedAt ?? null)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load market data')
     }
-  }, [])
+  }, [hasLoadedOnce])
 
   useEffect(() => {
     void loadQuotes()
@@ -104,47 +145,35 @@ export default function MarketTickerBar() {
     }
   }, [loadQuotes])
 
-  const items = useMemo(() => {
-    if (!quotes.length) return []
-    return [...quotes, ...quotes]
-  }, [quotes])
+  const hasQuotes = quotes.length > 0
+
+  const loopQuotes = useMemo(() => {
+    if (!hasQuotes) return []
+    return [...quotes, ...quotes, ...quotes]
+  }, [quotes, hasQuotes])
 
   return (
     <div className="sticky top-0 z-40 border-b border-yellow-200/70 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
-      <div className="flex items-center gap-3 border-b border-yellow-100/80 px-3 py-2 sm:px-4 xl:px-6">
+      <div className="relative flex items-center gap-3 border-b border-yellow-100/80 px-3 py-2 sm:px-4 xl:px-6">
         <div className="shrink-0 rounded-full border border-yellow-300 bg-gradient-to-r from-yellow-400 to-amber-300 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-900">
           Live Markets
         </div>
 
-        <div className="min-w-0 flex-1 overflow-hidden">
-          {items.length ? (
-            <div className="market-ticker-track flex min-w-max items-center gap-8">
-              {items.map((item, index) => (
-                <div
-                  key={`${item.symbol}-${index}`}
-                  className="flex items-center gap-2 whitespace-nowrap text-sm"
-                >
-                  <span
-                    className={`inline-block h-2.5 w-2.5 rounded-full ${typeDotClass(item.type)}`}
-                  />
+        <div className="relative min-w-0 flex-1 overflow-hidden">
+          {hasQuotes ? (
+            <>
+              <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-white/95 to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-white/95 to-transparent" />
 
-                  <span className="font-semibold text-neutral-900">
-                    {item.label}
-                  </span>
-
-                  <span className="text-neutral-700">
-                    {formatPrice(item.price)}
-                  </span>
-
-                  <span className={changeClass(item.percentChange)}>
-                    {formatPercent(item.percentChange)}
-                  </span>
-                </div>
-              ))}
-            </div>
+              <div className="market-ticker-track flex min-w-max items-center">
+                <TickerRow quotes={loopQuotes} />
+              </div>
+            </>
           ) : (
             <div className="text-sm text-neutral-500">
-              {error ? 'Market data is temporarily unavailable' : 'Loading market data...'}
+              {error && !hasLoadedOnce
+                ? 'Market data is temporarily unavailable'
+                : 'Loading market data...'}
             </div>
           )}
         </div>
@@ -156,7 +185,9 @@ export default function MarketTickerBar() {
 
       <style jsx>{`
         .market-ticker-track {
-          animation: marketTickerScroll 38s linear infinite;
+          animation: marketTickerScroll 55s linear infinite;
+          width: max-content;
+          will-change: transform;
         }
 
         .market-ticker-track:hover {
@@ -165,10 +196,10 @@ export default function MarketTickerBar() {
 
         @keyframes marketTickerScroll {
           0% {
-            transform: translateX(0);
+            transform: translate3d(0, 0, 0);
           }
           100% {
-            transform: translateX(-50%);
+            transform: translate3d(-33.3333%, 0, 0);
           }
         }
       `}</style>
