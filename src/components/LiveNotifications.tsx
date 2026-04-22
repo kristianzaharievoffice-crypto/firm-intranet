@@ -50,6 +50,22 @@ export default function LiveNotifications({
     }
   }
 
+  const clearOpenChatNotifications = async () => {
+    if (!currentChatId) return
+
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', currentUserId)
+      .eq('type', 'chat')
+      .eq('link', `/chat/${currentChatId}`)
+      .eq('is_read', false)
+  }
+
+  useEffect(() => {
+    void clearOpenChatNotifications()
+  }, [currentChatId])
+
   useEffect(() => {
     const channel = supabase
       .channel(`live-notifications-${currentUserId}`)
@@ -77,7 +93,10 @@ export default function LiveNotifications({
 
           setToast(notification)
 
-          if (timeoutRef.current) clearTimeout(timeoutRef.current)
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current)
+          }
+
           timeoutRef.current = setTimeout(() => {
             setToast(null)
           }, 4500)
@@ -85,9 +104,28 @@ export default function LiveNotifications({
       )
       .subscribe()
 
+    const updateChannel = supabase
+      .channel(`live-notifications-update-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${currentUserId}`,
+        },
+        async () => {
+          await clearOpenChatNotifications()
+        }
+      )
+      .subscribe()
+
     return () => {
       supabase.removeChannel(channel)
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      supabase.removeChannel(updateChannel)
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
     }
   }, [currentUserId, currentChatId, supabase])
 
