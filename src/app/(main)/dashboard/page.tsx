@@ -84,7 +84,7 @@ export default async function DashboardPage() {
       <PageHeader
         title="Dashboard"
         subtitle="Premium internal company overview"
-        action={<ClientDateTime />}
+        action={<ClientDateTime value={new Date().toISOString()} mode="datetime" />}
       />
 
       <MarketWidget />
