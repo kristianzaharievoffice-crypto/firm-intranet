@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 function Badge({ count }: { count: number }) {
@@ -38,6 +39,12 @@ function NavItem({
   )
 }
 
+function extractChatId(path: string | null | undefined) {
+  if (!path) return null
+  const match = path.match(/^\/chat\/([a-z0-9-]+)$/i)
+  return match ? match[1] : null
+}
+
 export default function MobileNavLive({
   currentUserId,
   role,
@@ -56,6 +63,8 @@ export default function MobileNavLive({
   onNavigate: () => void
 }) {
   const supabase = useMemo(() => createClient(), [])
+  const pathname = usePathname()
+  const currentOpenChatId = extractChatId(pathname)
 
   const [notificationsCount, setNotificationsCount] = useState(
     initialNotificationsCount
@@ -69,6 +78,15 @@ export default function MobileNavLive({
       return
     }
 
+    const effectiveChatIds = currentOpenChatId
+      ? chatIds.filter((id) => id !== currentOpenChatId)
+      : chatIds
+
+    if (!effectiveChatIds.length) {
+      setUnreadChatCount(0)
+      return
+    }
+
     const { data: readRows } = await supabase
       .from('chat_reads')
       .select('chat_id, last_read_at')
@@ -77,7 +95,7 @@ export default function MobileNavLive({
     const { data: messages } = await supabase
       .from('messages')
       .select('chat_id, created_at, sender_id')
-      .in('chat_id', chatIds)
+      .in('chat_id', effectiveChatIds)
 
     const readMap = new Map(
       (readRows ?? []).map((row) => [row.chat_id, row.last_read_at])
@@ -85,7 +103,6 @@ export default function MobileNavLive({
 
     const unreadCount = (messages ?? []).filter((message) => {
       if (message.sender_id === currentUserId) return false
-
       const lastReadAt = readMap.get(message.chat_id)
       if (!lastReadAt) return true
 
@@ -98,15 +115,29 @@ export default function MobileNavLive({
     setUnreadChatCount(unreadCount)
   }
 
-  const refreshCounts = async () => {
-    const { count: notifCount } = await supabase
+  const refreshNotificationCount = async () => {
+    const { data } = await supabase
       .from('notifications')
-      .select('*', { count: 'exact', head: true })
+      .select('id, type, link, is_read')
       .eq('user_id', currentUserId)
       .eq('is_read', false)
 
-    setNotificationsCount(notifCount ?? 0)
+    const count = (data ?? []).filter((notification) => {
+      if (notification.type !== 'chat') return true
+      const notificationChatId =
+        typeof notification.link === 'string'
+          ? extractChatId(notification.link)
+          : null
 
+      if (!notificationChatId || !currentOpenChatId) return true
+      return notificationChatId !== currentOpenChatId
+    }).length
+
+    setNotificationsCount(count)
+  }
+
+  const refreshCounts = async () => {
+    await refreshNotificationCount()
     await refreshChatUnreadCount()
 
     const taskColumn = role === 'admin' ? 'created_by' : 'assigned_to'
@@ -127,7 +158,7 @@ export default function MobileNavLive({
       if (document.visibilityState === 'visible') {
         void refreshCounts()
       }
-    }, 3000)
+    }, 2500)
 
     const notificationChannel = supabase
       .channel(`mobile-notifications-${currentUserId}`)
@@ -198,7 +229,7 @@ export default function MobileNavLive({
       supabase.removeChannel(readChannel)
       supabase.removeChannel(tasksChannel)
     }
-  }, [currentUserId, role, supabase, chatIds.join(',')])
+  }, [currentUserId, role, supabase, currentOpenChatId, chatIds.join(',')])
 
   return (
     <nav className="space-y-1">

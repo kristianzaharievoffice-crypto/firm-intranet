@@ -15,6 +15,12 @@ type NotificationRow = {
   created_at: string
 }
 
+function extractChatId(path: string | null | undefined) {
+  if (!path) return null
+  const match = path.match(/^\/chat\/([a-z0-9-]+)$/i)
+  return match ? match[1] : null
+}
+
 export default function LiveNotifications({
   currentUserId,
 }: {
@@ -27,16 +33,13 @@ export default function LiveNotifications({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const seenIdsRef = useRef<Set<string>>(new Set())
 
-  const isSameOpenChatNotification = (notification: NotificationRow) => {
-    if (!notification.link) return false
-    if (!pathname) return false
+  const currentChatId = extractChatId(pathname)
 
-    return (
-      notification.type === 'chat' &&
-      notification.link.startsWith('/chat/') &&
-      pathname.startsWith('/chat/') &&
-      notification.link === pathname
-    )
+  const belongsToOpenChat = (notification: NotificationRow) => {
+    if (notification.type !== 'chat') return false
+    const notificationChatId = extractChatId(notification.link)
+    if (!notificationChatId || !currentChatId) return false
+    return notificationChatId === currentChatId
   }
 
   const dismissToast = () => {
@@ -60,11 +63,11 @@ export default function LiveNotifications({
         },
         async (payload) => {
           const notification = payload.new as NotificationRow
-
-          if (!notification || seenIdsRef.current.has(notification.id)) return
+          if (!notification) return
+          if (seenIdsRef.current.has(notification.id)) return
           seenIdsRef.current.add(notification.id)
 
-          if (isSameOpenChatNotification(notification)) {
+          if (belongsToOpenChat(notification)) {
             await supabase
               .from('notifications')
               .update({ is_read: true })
@@ -74,10 +77,7 @@ export default function LiveNotifications({
 
           setToast(notification)
 
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current)
-          }
-
+          if (timeoutRef.current) clearTimeout(timeoutRef.current)
           timeoutRef.current = setTimeout(() => {
             setToast(null)
           }, 4500)
@@ -89,7 +89,7 @@ export default function LiveNotifications({
       supabase.removeChannel(channel)
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
-  }, [currentUserId, pathname, supabase])
+  }, [currentUserId, currentChatId, supabase])
 
   if (!toast) return null
 
