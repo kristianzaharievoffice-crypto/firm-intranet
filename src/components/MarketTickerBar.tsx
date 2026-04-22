@@ -9,6 +9,9 @@ interface MarketQuote {
   label: string
   type: MarketInstrumentType
   price: number | null
+  previousPrice: number | null
+  change: number | null
+  percentChange: number | null
   currency?: string | null
   updatedAt?: string | null
   error?: string | null
@@ -20,44 +23,101 @@ interface MarketApiResponse {
 }
 
 function formatPrice(value: number | null) {
-  if (value === null) return ''
+  if (value === null) return '—'
 
-  if (value >= 1000) {
+  if (value >= 100) {
     return value.toLocaleString('en-US', {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 3,
     })
   }
 
   if (value >= 1) {
     return value.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
+      minimumFractionDigits: 4,
       maximumFractionDigits: 4,
     })
   }
 
   return value.toLocaleString('en-US', {
     minimumFractionDigits: 4,
-    maximumFractionDigits: 6,
+    maximumFractionDigits: 5,
   })
 }
 
-const FALLBACK_QUOTES: MarketQuote[] = [
-  { key: 'usd-jpy', label: 'USD/JPY', type: 'forex', price: null },
-  { key: 'eur-usd', label: 'EUR/USD', type: 'forex', price: null },
-  { key: 'gbp-usd', label: 'GBP/USD', type: 'forex', price: null },
-  { key: 'nzd-usd', label: 'NZD/USD', type: 'forex', price: null },
-  { key: 'aud-usd', label: 'AUD/USD', type: 'forex', price: null },
-  { key: 'usd-chf', label: 'USD/CHF', type: 'forex', price: null },
-]
-
-function buildTickerText(quotes: MarketQuote[]) {
-  const visible = quotes.filter((item) => item.price !== null)
-
-  return visible
-    .map((item) => `${item.label} ${formatPrice(item.price)}`)
-    .join('   •   ')
+function formatPercent(value: number | null) {
+  if (value === null) return ''
+  const sign = value > 0 ? '+' : ''
+  return `${sign}${value.toFixed(2)}%`
 }
+
+function changeColor(value: number | null) {
+  if (value === null) return 'text-neutral-500'
+  if (value > 0) return 'text-emerald-600'
+  if (value < 0) return 'text-red-600'
+  return 'text-neutral-500'
+}
+
+function isRenderable(item: MarketQuote) {
+  return item.price !== null
+}
+
+const FALLBACK_QUOTES: MarketQuote[] = [
+  {
+    key: 'usd-jpy',
+    label: 'USD/JPY',
+    type: 'forex',
+    price: null,
+    previousPrice: null,
+    change: null,
+    percentChange: null,
+  },
+  {
+    key: 'eur-usd',
+    label: 'EUR/USD',
+    type: 'forex',
+    price: null,
+    previousPrice: null,
+    change: null,
+    percentChange: null,
+  },
+  {
+    key: 'gbp-usd',
+    label: 'GBP/USD',
+    type: 'forex',
+    price: null,
+    previousPrice: null,
+    change: null,
+    percentChange: null,
+  },
+  {
+    key: 'nzd-usd',
+    label: 'NZD/USD',
+    type: 'forex',
+    price: null,
+    previousPrice: null,
+    change: null,
+    percentChange: null,
+  },
+  {
+    key: 'aud-usd',
+    label: 'AUD/USD',
+    type: 'forex',
+    price: null,
+    previousPrice: null,
+    change: null,
+    percentChange: null,
+  },
+  {
+    key: 'usd-chf',
+    label: 'USD/CHF',
+    type: 'forex',
+    price: null,
+    previousPrice: null,
+    change: null,
+    percentChange: null,
+  },
+]
 
 export default function MarketTickerBar() {
   const [quotes, setQuotes] = useState<MarketQuote[]>(FALLBACK_QUOTES)
@@ -80,16 +140,11 @@ export default function MarketTickerBar() {
       const data = (await response.json()) as MarketApiResponse
 
       if (Array.isArray(data.quotes) && data.quotes.length > 0) {
-        setQuotes(
-          data.quotes.map((item) => ({
-            ...item,
-            price: item.price ?? null,
-          }))
-        )
+        setQuotes(data.quotes)
         setUpdatedAt(data.updatedAt ?? null)
       }
     } catch {
-      // keep last good data / fallback data
+      // keep last successful data
     }
   }, [])
 
@@ -105,7 +160,10 @@ export default function MarketTickerBar() {
     return () => window.clearInterval(interval)
   }, [loadQuotes])
 
-  const tickerText = useMemo(() => buildTickerText(quotes), [quotes])
+  const visibleQuotes = useMemo(
+    () => quotes.filter(isRenderable),
+    [quotes]
+  )
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -132,7 +190,7 @@ export default function MarketTickerBar() {
       observer.disconnect()
       window.removeEventListener('resize', updateSizes)
     }
-  }, [tickerText])
+  }, [visibleQuotes])
 
   const startX = containerWidth
   const endX = -contentWidth
@@ -155,7 +213,7 @@ export default function MarketTickerBar() {
 
           <div
             ref={contentRef}
-            className="ticker-text absolute left-0 top-0 flex h-8 items-center whitespace-nowrap text-sm font-medium leading-none text-neutral-800"
+            className="ticker-strip absolute left-0 top-0 flex h-8 items-center gap-5 whitespace-nowrap"
             style={
               {
                 ['--ticker-start' as string]: `${startX}px`,
@@ -164,7 +222,26 @@ export default function MarketTickerBar() {
               } as React.CSSProperties
             }
           >
-            {tickerText || 'USD/JPY • EUR/USD • GBP/USD • NZD/USD • AUD/USD • USD/CHF'}
+            {(visibleQuotes.length ? visibleQuotes : FALLBACK_QUOTES).map((item) => (
+              <div
+                key={item.key}
+                className="flex shrink-0 items-center gap-2 text-sm leading-none"
+              >
+                <span className="font-semibold text-neutral-900">
+                  {item.label}
+                </span>
+
+                <span className="text-neutral-800">
+                  {formatPrice(item.price)}
+                </span>
+
+                {item.percentChange !== null ? (
+                  <span className={changeColor(item.percentChange)}>
+                    {formatPercent(item.percentChange)}
+                  </span>
+                ) : null}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -174,7 +251,7 @@ export default function MarketTickerBar() {
       </div>
 
       <style jsx>{`
-        .ticker-text {
+        .ticker-strip {
           width: max-content;
           will-change: transform;
           animation-name: ticker-slide;
@@ -182,7 +259,7 @@ export default function MarketTickerBar() {
           animation-iteration-count: infinite;
         }
 
-        .ticker-text:hover {
+        .ticker-strip:hover {
           animation-play-state: paused;
         }
 
