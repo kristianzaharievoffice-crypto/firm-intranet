@@ -22,7 +22,7 @@ export interface MarketQuote {
 
 export const DEFAULT_MARKET_WATCHLIST: MarketInstrument[] = [
   { symbol: 'XAU/USD', label: 'Gold', type: 'forex' },
-  { symbol: 'WTI/USD', label: 'WTI Oil', type: 'forex' },
+  { symbol: 'WTI', label: 'WTI Oil', type: 'forex' },
   { symbol: 'USD/JPY', label: 'USD/JPY', type: 'forex' },
   { symbol: 'EUR/USD', label: 'EUR/USD', type: 'forex' },
   { symbol: 'GBP/USD', label: 'GBP/USD', type: 'forex' },

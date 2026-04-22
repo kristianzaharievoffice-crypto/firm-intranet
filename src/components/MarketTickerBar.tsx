@@ -59,30 +59,23 @@ function changeClass(value: number | null) {
   return 'text-neutral-500'
 }
 
-function TickerItems({ quotes }: { quotes: MarketQuote[] }) {
+function TickerSequence({ quotes }: { quotes: MarketQuote[] }) {
   return (
-    <>
-      {quotes.map((item, index) => (
+    <div className="flex w-max items-center">
+      {quotes.map((item) => (
         <div
-          key={`${item.symbol}-${index}`}
+          key={item.symbol}
           className="flex shrink-0 items-center gap-2 whitespace-nowrap px-5 text-sm"
         >
           <span className="h-2 w-2 rounded-full bg-amber-500" />
-
-          <span className="font-semibold text-neutral-900">
-            {item.label}
-          </span>
-
-          <span className="text-neutral-700">
-            {formatPrice(item.price)}
-          </span>
-
+          <span className="font-semibold text-neutral-900">{item.label}</span>
+          <span className="text-neutral-700">{formatPrice(item.price)}</span>
           <span className={changeClass(item.percentChange)}>
             {formatPercent(item.percentChange)}
           </span>
         </div>
       ))}
-    </>
+    </div>
   )
 }
 
@@ -131,17 +124,11 @@ export default function MarketTickerBar() {
       }
     }, 30000)
 
-    return () => {
-      window.clearInterval(interval)
-    }
+    return () => window.clearInterval(interval)
   }, [loadQuotes])
 
   const hasQuotes = quotes.length > 0
-
-  const repeatedQuotes = useMemo(() => {
-    if (!hasQuotes) return []
-    return [...quotes, ...quotes, ...quotes]
-  }, [quotes, hasQuotes])
+  const stableQuotes = useMemo(() => quotes, [quotes])
 
   return (
     <div className="sticky top-0 z-40 border-b border-yellow-200/70 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
@@ -153,12 +140,15 @@ export default function MarketTickerBar() {
         <div className="relative min-w-0 flex-1 overflow-hidden">
           {hasQuotes ? (
             <>
-              <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-white/95 to-transparent" />
-              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-white/95 to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-12 bg-gradient-to-r from-white/95 to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-12 bg-gradient-to-l from-white/95 to-transparent" />
 
-              <div className="ticker-shell">
-                <div className="ticker-track">
-                  <TickerItems quotes={repeatedQuotes} />
+              <div className="ticker-lane">
+                <div className="ticker-seq ticker-seq-1">
+                  <TickerSequence quotes={stableQuotes} />
+                </div>
+                <div className="ticker-seq ticker-seq-2">
+                  <TickerSequence quotes={stableQuotes} />
                 </div>
               </div>
             </>
@@ -177,30 +167,35 @@ export default function MarketTickerBar() {
       </div>
 
       <style jsx>{`
-        .ticker-shell {
-          width: 100%;
-          overflow: hidden;
+        .ticker-lane {
           position: relative;
+          height: 24px;
+          overflow: hidden;
         }
 
-        .ticker-track {
-          display: flex;
-          align-items: center;
+        .ticker-seq {
+          position: absolute;
+          top: 0;
+          left: 0;
           width: max-content;
           will-change: transform;
-          animation: ticker-scroll 42s linear infinite;
+          animation: tickerMove 32s linear infinite;
         }
 
-        .ticker-track:hover {
+        .ticker-seq-2 {
+          animation-delay: 16s;
+        }
+
+        .ticker-seq:hover {
           animation-play-state: paused;
         }
 
-        @keyframes ticker-scroll {
+        @keyframes tickerMove {
           0% {
-            transform: translate3d(0, 0, 0);
+            transform: translateX(100%);
           }
           100% {
-            transform: translate3d(-33.333333%, 0, 0);
+            transform: translateX(-100%);
           }
         }
       `}</style>
