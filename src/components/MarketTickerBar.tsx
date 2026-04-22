@@ -59,12 +59,12 @@ function changeClass(value: number | null) {
   return 'text-neutral-500'
 }
 
-function TickerSequence({ quotes }: { quotes: MarketQuote[] }) {
+function TickerItems({ quotes }: { quotes: MarketQuote[] }) {
   return (
-    <div className="flex shrink-0 items-center">
-      {quotes.map((item) => (
+    <>
+      {quotes.map((item, index) => (
         <div
-          key={item.symbol}
+          key={`${item.symbol}-${index}`}
           className="flex shrink-0 items-center gap-2 whitespace-nowrap px-5 text-sm"
         >
           <span className="h-2 w-2 rounded-full bg-amber-500" />
@@ -82,7 +82,7 @@ function TickerSequence({ quotes }: { quotes: MarketQuote[] }) {
           </span>
         </div>
       ))}
-    </div>
+    </>
   )
 }
 
@@ -138,7 +138,10 @@ export default function MarketTickerBar() {
 
   const hasQuotes = quotes.length > 0
 
-  const stableQuotes = useMemo(() => quotes, [quotes])
+  const repeatedQuotes = useMemo(() => {
+    if (!hasQuotes) return []
+    return [...quotes, ...quotes, ...quotes]
+  }, [quotes, hasQuotes])
 
   return (
     <div className="sticky top-0 z-40 border-b border-yellow-200/70 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
@@ -150,12 +153,13 @@ export default function MarketTickerBar() {
         <div className="relative min-w-0 flex-1 overflow-hidden">
           {hasQuotes ? (
             <>
-              <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-white/95 to-transparent" />
-              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-white/95 to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-white/95 to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-white/95 to-transparent" />
 
-              <div className="market-marquee flex w-max items-center">
-                <TickerSequence quotes={stableQuotes} />
-                <TickerSequence quotes={stableQuotes} />
+              <div className="ticker-shell">
+                <div className="ticker-track">
+                  <TickerItems quotes={repeatedQuotes} />
+                </div>
               </div>
             </>
           ) : (
@@ -173,21 +177,30 @@ export default function MarketTickerBar() {
       </div>
 
       <style jsx>{`
-        .market-marquee {
-          will-change: transform;
-          animation: market-marquee-scroll 30s linear infinite;
+        .ticker-shell {
+          width: 100%;
+          overflow: hidden;
+          position: relative;
         }
 
-        .market-marquee:hover {
+        .ticker-track {
+          display: flex;
+          align-items: center;
+          width: max-content;
+          will-change: transform;
+          animation: ticker-scroll 42s linear infinite;
+        }
+
+        .ticker-track:hover {
           animation-play-state: paused;
         }
 
-        @keyframes market-marquee-scroll {
-          from {
-            transform: translateX(0);
+        @keyframes ticker-scroll {
+          0% {
+            transform: translate3d(0, 0, 0);
           }
-          to {
-            transform: translateX(-50%);
+          100% {
+            transform: translate3d(-33.333333%, 0, 0);
           }
         }
       `}</style>
