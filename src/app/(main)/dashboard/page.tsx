@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import StatCard from '@/components/StatCard'
 import ClientDateTime from '@/components/ClientDateTime'
-import MarketWidget from '@/components/MarketWidget'
 
 interface WallPostRow {
   id: string
@@ -86,8 +85,6 @@ export default async function DashboardPage() {
         subtitle="Premium internal company overview"
         action={<ClientDateTime value={new Date().toISOString()} mode="datetime" />}
       />
-
-      <MarketWidget />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
