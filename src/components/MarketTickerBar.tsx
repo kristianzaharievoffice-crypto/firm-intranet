@@ -73,23 +73,21 @@ export default function MarketTickerBar() {
         cache: 'no-store',
       })
 
-      if (!response.ok) {
-        return
-      }
+      if (!response.ok) return
 
       const data = (await response.json()) as MarketApiResponse
 
       if (Array.isArray(data.quotes) && data.quotes.length > 0) {
-        const safeQuotes = data.quotes.map((item) => ({
-          ...item,
-          price: item.price ?? null,
-        }))
-
-        setQuotes(safeQuotes)
+        setQuotes(
+          data.quotes.map((item) => ({
+            ...item,
+            price: item.price ?? null,
+          }))
+        )
         setUpdatedAt(data.updatedAt ?? null)
       }
     } catch {
-      // keep fallback / last good data
+      // keep last good data / fallback data
     }
   }, [])
 
@@ -141,21 +139,21 @@ export default function MarketTickerBar() {
 
   return (
     <div className="sticky top-0 z-40 border-b border-yellow-200/70 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
-      <div className="relative flex items-center gap-3 px-3 py-2 sm:px-4 xl:px-6">
+      <div className="relative flex items-center gap-3 px-3 py-2.5 sm:px-4 xl:px-6">
         <div className="shrink-0 rounded-full border border-yellow-300 bg-gradient-to-r from-yellow-400 to-amber-300 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-900">
           Live Markets
         </div>
 
         <div
           ref={viewportRef}
-          className="relative h-6 min-w-0 flex-1 overflow-hidden"
+          className="relative h-8 min-w-0 flex-1 overflow-hidden"
         >
           <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-white/95 to-transparent" />
           <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-white/95 to-transparent" />
 
           <div
             ref={contentRef}
-            className="ticker-text absolute left-0 top-1/2 w-max -translate-y-1/2 whitespace-nowrap text-sm font-medium text-neutral-800"
+            className="ticker-text absolute left-0 top-0 flex h-8 items-center whitespace-nowrap text-sm font-medium leading-none text-neutral-800"
             style={
               {
                 ['--ticker-start' as string]: `${startX}px`,
@@ -175,6 +173,7 @@ export default function MarketTickerBar() {
 
       <style jsx>{`
         .ticker-text {
+          width: max-content;
           will-change: transform;
           animation-name: ticker-slide;
           animation-timing-function: linear;
@@ -187,10 +186,10 @@ export default function MarketTickerBar() {
 
         @keyframes ticker-slide {
           0% {
-            transform: translate3d(var(--ticker-start), -50%, 0);
+            transform: translate3d(var(--ticker-start), 0, 0);
           }
           100% {
-            transform: translate3d(var(--ticker-end), -50%, 0);
+            transform: translate3d(var(--ticker-end), 0, 0);
           }
         }
       `}</style>
