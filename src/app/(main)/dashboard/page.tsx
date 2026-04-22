@@ -91,24 +91,21 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          title="Employees"
+          label="Employees"
           value={employeesCount ?? 0}
-          subtitle="Total registered profiles"
+          tone="gold"
         />
         <StatCard
-          title="Wall Posts"
+          label="Wall Posts"
           value={postsCount ?? 0}
-          subtitle="Total company wall posts"
         />
         <StatCard
-          title="Open Tasks"
+          label="Open Tasks"
           value={openTasksCount ?? 0}
-          subtitle="Tasks not marked as done"
         />
         <StatCard
-          title="Upcoming Events"
+          label="Upcoming Events"
           value={upcomingEventsCount ?? 0}
-          subtitle="Scheduled from today onward"
         />
       </div>
 
