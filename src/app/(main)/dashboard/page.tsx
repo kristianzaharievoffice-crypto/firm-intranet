@@ -1,221 +1,152 @@
-'use client'
+export const dynamic = 'force-dynamic'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import PageHeader from '@/components/PageHeader'
+import StatCard from '@/components/StatCard'
+import ClientDateTime from '@/components/ClientDateTime'
+import MarketWidget from '@/components/MarketWidget'
 
-type MarketInstrumentType = 'stock' | 'forex' | 'crypto'
-
-interface MarketQuote {
-  symbol: string
-  label: string
-  type: MarketInstrumentType
-  price: number | null
-  change: number | null
-  percentChange: number | null
-  currency?: string | null
-  exchange?: string | null
-  timestamp?: string | null
-  isMarketOpen?: boolean | null
-  error?: string | null
+interface WallPostRow {
+  id: string
+  content: string
+  created_at: string
+  employee_id: string | null
 }
 
-interface MarketApiResponse {
-  quotes: MarketQuote[]
-  updatedAt: string
+interface ProfileRow {
+  id: string
+  full_name: string | null
 }
 
-function formatPrice(value: number | null) {
-  if (value === null) return '—'
+export default async function DashboardPage() {
+  const supabase = await createClient()
 
-  if (value >= 1000) {
-    return value.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
-  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (value >= 1) {
-    return value.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 4,
-    })
-  }
+  if (!user) redirect('/login')
 
-  return value.toLocaleString('en-US', {
-    minimumFractionDigits: 4,
-    maximumFractionDigits: 6,
-  })
-}
+  const { data: me } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
 
-function formatChange(value: number | null) {
-  if (value === null) return '—'
-  const sign = value > 0 ? '+' : ''
-  return `${sign}${value.toFixed(2)}`
-}
+  if (!me || me.role !== 'admin') redirect('/feed')
 
-function formatPercent(value: number | null) {
-  if (value === null) return '—'
-  const sign = value > 0 ? '+' : ''
-  return `${sign}${value.toFixed(2)}%`
-}
+  const { count: employeesCount } = await supabase
+    .from('profiles')
+    .select('*', { count: 'exact', head: true })
 
-function typeLabel(type: MarketInstrumentType) {
-  if (type === 'forex') return 'Forex'
-  if (type === 'crypto') return 'Crypto'
-  return 'Stock'
-}
+  const { count: postsCount } = await supabase
+    .from('wall_posts')
+    .select('*', { count: 'exact', head: true })
 
-export default function MarketWidget() {
-  const [quotes, setQuotes] = useState<MarketQuote[]>([])
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { count: openTasksCount } = await supabase
+    .from('tasks')
+    .select('*', { count: 'exact', head: true })
+    .neq('status', 'done')
 
-  const loadQuotes = useCallback(async (initial = false) => {
-    try {
-      if (initial) {
-        setLoading(true)
-      } else {
-        setRefreshing(true)
-      }
+  const today = new Date().toISOString().slice(0, 10)
 
-      const response = await fetch('/api/market', {
-        method: 'GET',
-        cache: 'no-store',
-      })
+  const { count: upcomingEventsCount } = await supabase
+    .from('events')
+    .select('*', { count: 'exact', head: true })
+    .gte('date', today)
 
-      if (!response.ok) {
-        throw new Error(`Failed to load market data (${response.status})`)
-      }
+  const { data: recentPosts } = await supabase
+    .from('wall_posts')
+    .select('id, content, created_at, employee_id')
+    .order('created_at', { ascending: false })
+    .limit(5)
 
-      const data = (await response.json()) as MarketApiResponse
-      setQuotes(Array.isArray(data.quotes) ? data.quotes : [])
-      setUpdatedAt(data.updatedAt ?? null)
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load market data')
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [])
+  const posts = (recentPosts ?? []) as WallPostRow[]
 
-  useEffect(() => {
-    void loadQuotes(true)
+  const employeeIds = [...new Set(posts.map((p) => p.employee_id).filter(Boolean))] as string[]
 
-    const interval = window.setInterval(() => {
-      void loadQuotes(false)
-    }, 30000)
+  const safeIds = employeeIds.length
+    ? employeeIds
+    : ['00000000-0000-0000-0000-000000000000']
 
-    return () => {
-      window.clearInterval(interval)
-    }
-  }, [loadQuotes])
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('id', safeIds)
 
-  const hasAnyData = useMemo(
-    () => quotes.some((item) => item.price !== null),
-    [quotes]
+  const nameMap = new Map(
+    ((profiles ?? []) as ProfileRow[]).map((p) => [p.id, p.full_name ?? 'User'])
   )
 
   return (
-    <section className="rounded-2xl border border-yellow-200/60 bg-white/95 shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-yellow-100 px-5 py-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-neutral-900">
-            Live Market Watch
-          </h2>
-          <p className="text-sm text-neutral-600">
-            Real-time watchlist for forex, stocks and crypto
-          </p>
-        </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Dashboard"
+        subtitle="Premium internal company overview"
+        action={<ClientDateTime />}
+      />
 
-        <div className="flex items-center gap-3">
-          {updatedAt ? (
-            <span className="text-xs text-neutral-500">
-              Updated: {new Date(updatedAt).toLocaleTimeString('en-GB')}
-            </span>
-          ) : null}
+      <MarketWidget />
 
-          <button
-            type="button"
-            onClick={() => void loadQuotes(false)}
-            className="inline-flex items-center rounded-full border border-yellow-300 bg-gradient-to-r from-yellow-400 to-amber-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:brightness-105"
-          >
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Employees"
+          value={employeesCount ?? 0}
+          subtitle="Total registered profiles"
+        />
+        <StatCard
+          title="Wall Posts"
+          value={postsCount ?? 0}
+          subtitle="Total company wall posts"
+        />
+        <StatCard
+          title="Open Tasks"
+          value={openTasksCount ?? 0}
+          subtitle="Tasks not marked as done"
+        />
+        <StatCard
+          title="Upcoming Events"
+          value={upcomingEventsCount ?? 0}
+          subtitle="Scheduled from today onward"
+        />
       </div>
 
-      {loading ? (
-        <div className="px-5 py-8 text-sm text-neutral-500">
-          Loading market data...
-        </div>
-      ) : error && !hasAnyData ? (
-        <div className="px-5 py-8 text-sm text-red-600">{error}</div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-          {quotes.map((item) => {
-            const positive = (item.percentChange ?? 0) > 0
-            const negative = (item.percentChange ?? 0) < 0
+      <section className="rounded-2xl border border-yellow-200/60 bg-white/95 p-5 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold text-neutral-900">
+          Recent activity
+        </h2>
 
-            return (
+        {posts.length ? (
+          <div className="space-y-3">
+            {posts.map((post) => (
               <article
-                key={item.symbol}
-                className="rounded-2xl border border-yellow-100 bg-gradient-to-br from-white to-yellow-50/70 p-4 shadow-sm"
+                key={post.id}
+                className="rounded-2xl border border-yellow-100 bg-gradient-to-br from-white to-yellow-50/60 p-4"
               >
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-base font-semibold text-neutral-900">
-                      {item.label}
-                    </div>
-                    <div className="text-xs text-neutral-500">
-                      {item.symbol}
-                      {item.exchange ? ` • ${item.exchange}` : ''}
-                    </div>
-                  </div>
-
-                  <span className="rounded-full border border-yellow-200 bg-white px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-neutral-700">
-                    {typeLabel(item.type)}
+                <div className="mb-2 text-xs uppercase tracking-wide text-neutral-500">
+                  Uploaded by{' '}
+                  <span className="font-medium text-neutral-700">
+                    {post.employee_id
+                      ? nameMap.get(post.employee_id) ?? 'User'
+                      : 'User'}
                   </span>
                 </div>
 
-                <div className="mb-2 text-2xl font-bold text-neutral-950">
-                  {formatPrice(item.price)}
+                <div className="whitespace-pre-wrap text-sm leading-6 text-neutral-800">
+                  {post.content}
                 </div>
 
-                <div
-                  className={[
-                    'text-sm font-medium',
-                    positive ? 'text-emerald-600' : '',
-                    negative ? 'text-red-600' : '',
-                    !positive && !negative ? 'text-neutral-500' : '',
-                  ].join(' ')}
-                >
-                  {formatChange(item.change)} ({formatPercent(item.percentChange)})
+                <div className="mt-3 text-xs text-neutral-500">
+                  {new Date(post.created_at).toLocaleString('en-GB')}
                 </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
-                  {item.currency ? (
-                    <span className="rounded-full bg-white px-2 py-1 ring-1 ring-yellow-100">
-                      {item.currency}
-                    </span>
-                  ) : null}
-
-                  {item.isMarketOpen !== null ? (
-                    <span className="rounded-full bg-white px-2 py-1 ring-1 ring-yellow-100">
-                      {item.isMarketOpen ? 'Market open' : 'Market closed'}
-                    </span>
-                  ) : null}
-                </div>
-
-                {item.error ? (
-                  <div className="mt-3 text-xs text-red-600">{item.error}</div>
-                ) : null}
               </article>
-            )
-          })}
-        </div>
-      )}
-    </section>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-neutral-500">No recent activity yet.</div>
+        )}
+      </section>
+    </div>
   )
 }
