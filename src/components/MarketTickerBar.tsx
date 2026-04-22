@@ -42,6 +42,15 @@ function formatPrice(value: number | null) {
   })
 }
 
+const FALLBACK_QUOTES: MarketQuote[] = [
+  { key: 'gold', label: 'Gold', type: 'commodity', price: null },
+  { key: 'wti', label: 'WTI Oil', type: 'commodity', price: null },
+  { key: 'usd-jpy', label: 'USD/JPY', type: 'forex', price: null },
+  { key: 'eur-usd', label: 'EUR/USD', type: 'forex', price: null },
+  { key: 'gbp-usd', label: 'GBP/USD', type: 'forex', price: null },
+  { key: 'nzd-usd', label: 'NZD/USD', type: 'forex', price: null },
+]
+
 function buildTickerText(quotes: MarketQuote[]) {
   return quotes
     .map((item) => `${item.label} ${formatPrice(item.price)}`)
@@ -49,10 +58,8 @@ function buildTickerText(quotes: MarketQuote[]) {
 }
 
 export default function MarketTickerBar() {
-  const [quotes, setQuotes] = useState<MarketQuote[]>([])
+  const [quotes, setQuotes] = useState<MarketQuote[]>(FALLBACK_QUOTES)
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [containerWidth, setContainerWidth] = useState(0)
   const [contentWidth, setContentWidth] = useState(0)
 
@@ -67,23 +74,24 @@ export default function MarketTickerBar() {
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to load market data (${response.status})`)
+        return
       }
 
       const data = (await response.json()) as MarketApiResponse
 
       if (Array.isArray(data.quotes) && data.quotes.length > 0) {
-        setQuotes(data.quotes)
+        const safeQuotes = data.quotes.map((item) => ({
+          ...item,
+          price: item.price ?? null,
+        }))
+
+        setQuotes(safeQuotes)
         setUpdatedAt(data.updatedAt ?? null)
-        setHasLoadedOnce(true)
-        setError(null)
-      } else if (!hasLoadedOnce) {
-        setQuotes([])
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load market data')
+    } catch {
+      // keep fallback / last good data
     }
-  }, [hasLoadedOnce])
+  }, [])
 
   useEffect(() => {
     void loadQuotes()
@@ -96,6 +104,8 @@ export default function MarketTickerBar() {
 
     return () => window.clearInterval(interval)
   }, [loadQuotes])
+
+  const tickerText = useMemo(() => buildTickerText(quotes), [quotes])
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -116,21 +126,18 @@ export default function MarketTickerBar() {
 
     observer.observe(viewport)
     observer.observe(content)
-
     window.addEventListener('resize', updateSizes)
 
     return () => {
       observer.disconnect()
       window.removeEventListener('resize', updateSizes)
     }
-  }, [quotes])
-
-  const tickerText = useMemo(() => buildTickerText(quotes), [quotes])
+  }, [tickerText])
 
   const startX = containerWidth
   const endX = -contentWidth
-  const distance = Math.max(0, startX + contentWidth)
-  const durationSeconds = Math.max(18, distance / 55)
+  const distance = Math.max(0, containerWidth + contentWidth)
+  const durationSeconds = Math.max(18, distance / 70)
 
   return (
     <div className="sticky top-0 z-40 border-b border-yellow-200/70 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
@@ -141,36 +148,28 @@ export default function MarketTickerBar() {
 
         <div
           ref={viewportRef}
-          className="relative min-w-0 flex-1 overflow-hidden"
+          className="relative h-6 min-w-0 flex-1 overflow-hidden"
         >
           <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-white/95 to-transparent" />
           <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-white/95 to-transparent" />
 
-          {tickerText ? (
-            <div
-              ref={contentRef}
-              className="ticker-text absolute left-0 top-1/2 w-max -translate-y-1/2 whitespace-nowrap text-sm font-medium text-neutral-800"
-              style={
-                {
-                  ['--ticker-start' as string]: `${startX}px`,
-                  ['--ticker-end' as string]: `${endX}px`,
-                  animationDuration: `${durationSeconds}s`,
-                } as React.CSSProperties
-              }
-            >
-              {tickerText}
-            </div>
-          ) : (
-            <div className="text-sm text-neutral-500">
-              {error && !hasLoadedOnce
-                ? 'Market data is temporarily unavailable'
-                : 'Loading market data...'}
-            </div>
-          )}
+          <div
+            ref={contentRef}
+            className="ticker-text absolute left-0 top-1/2 w-max -translate-y-1/2 whitespace-nowrap text-sm font-medium text-neutral-800"
+            style={
+              {
+                ['--ticker-start' as string]: `${startX}px`,
+                ['--ticker-end' as string]: `${endX}px`,
+                animationDuration: `${durationSeconds}s`,
+              } as React.CSSProperties
+            }
+          >
+            {tickerText}
+          </div>
         </div>
 
         <div className="hidden shrink-0 text-xs text-neutral-500 sm:block">
-          {updatedAt ? `Updated ${new Date(updatedAt).toLocaleTimeString('en-GB')}` : ''}
+          {updatedAt ? `Updated ${new Date(updatedAt).toLocaleTimeString('en-GB')}` : 'Live ribbon'}
         </div>
       </div>
 
