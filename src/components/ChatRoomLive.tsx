@@ -147,15 +147,32 @@ export default function ChatRoomLive({
 
     const heartbeat = setInterval(() => {
       void updateOwnPresence(chatId)
-    }, 10000)
+    }, 5000)
 
     const otherStatePoll = setInterval(() => {
       void loadOtherState()
     }, 3000)
 
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void updateOwnPresence(chatId)
+        void markReadNow()
+      }
+    }
+
+    const onFocus = () => {
+      void updateOwnPresence(chatId)
+      void markReadNow()
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('focus', onFocus)
+
     return () => {
       clearInterval(heartbeat)
       clearInterval(otherStatePoll)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('focus', onFocus)
       void updateOwnPresence(null)
     }
   }, [chatId, currentUserId, otherUserId])
@@ -187,6 +204,7 @@ export default function ChatRoomLive({
         async () => {
           await loadMessages()
           await markReadNow()
+          await updateOwnPresence(chatId)
 
           if (shouldStickBottomRef.current) {
             setTimeout(() => scrollToBottom('smooth'), 60)
