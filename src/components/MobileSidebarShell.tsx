@@ -38,14 +38,7 @@ export default function MobileSidebarShell({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[#eadfbe] bg-white text-[#1f1a14] shadow-sm"
-        aria-label="Open menu"
-      >
-        ☰
-      </button>
+      {/* Махнахме hamburger бутона */}
 
       {open && (
         <div className="fixed inset-0 z-[80] xl:hidden">
