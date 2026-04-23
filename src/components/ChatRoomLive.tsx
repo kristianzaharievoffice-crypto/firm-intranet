@@ -658,3 +658,61 @@ export default function ChatRoomLive({
             )
           })}
     
+            </div>
+      </div>
+
+      <form
+        onSubmit={handleSubmit}
+        className="border-t border-[#ece5d8] bg-white px-4 py-4"
+      >
+        {replyTo ? (
+          <div className="mb-3 flex items-center justify-between rounded-xl bg-[#f8f4ea] px-3 py-2 text-sm text-[#6f624e]">
+            <div className="truncate">
+              Replying to:{' '}
+              <span className="font-semibold">
+                {senderNames[replyTo.sender_id] ?? 'User'}
+              </span>{' '}
+              – {replyPreviewText}
+            </div>
+            <button
+              type="button"
+              onClick={() => setReplyTo(null)}
+              className="ml-3 text-xs font-semibold text-[#a88414]"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : null}
+
+        <div className="flex items-end gap-3">
+          <textarea
+            value={content}
+            onChange={(e) => handleTyping(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Write a message..."
+            className="flex-1 resize-none rounded-2xl border border-[#ece5d8] px-4 py-3 text-sm outline-none focus:border-[#d4af37]"
+            rows={2}
+          />
+
+          <input
+            type="file"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="text-sm"
+          />
+
+          <button
+            type="submit"
+            disabled={isSending}
+            className="rounded-2xl bg-gradient-to-r from-[#d4af37] to-[#f2d27a] px-5 py-3 text-sm font-semibold text-[#1f1f1f] disabled:opacity-60"
+          >
+            {isSending ? 'Sending...' : 'Send'}
+          </button>
+        </div>
+
+        {messageError ? (
+          <div className="mt-2 text-sm text-red-600">{messageError}</div>
+        ) : null}
+      </form>
+    </div>
+  )
+}
