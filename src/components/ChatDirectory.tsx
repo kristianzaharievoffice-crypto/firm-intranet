@@ -366,7 +366,6 @@ export default function ChatDirectory({
       )
     }
 
-
     return (
       item.full_name.toLowerCase().includes(q) ||
       (item.job_title ?? '').toLowerCase().includes(q) ||
@@ -374,6 +373,7 @@ export default function ChatDirectory({
       item.last_message.toLowerCase().includes(q)
     )
   })
+
 
   const openDirectChat = async (userId: string, existingChatId: string | null) => {
     setLoadingId(userId)
@@ -415,13 +415,15 @@ export default function ChatDirectory({
 
     setCreatingGroup(true)
 
-    const { data, error } = await supabase.rpc('create_group_chat', {
+    const memberIds = [...selectedMemberIds]
+
+    const { data, error } = await supabase.rpc('create_group_chat_v2', {
       group_name: trimmedName,
-      member_ids: selectedMemberIds,
+      member_ids: memberIds,
     })
 
     if (error || !data) {
-      console.error('create_group_chat error:', error)
+      console.error('create_group_chat_v2 error:', error)
       setCreatingGroup(false)
       return
     }
