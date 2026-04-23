@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 type NotificationRow = {
@@ -21,22 +21,22 @@ function extractChatId(path: string | null | undefined) {
   return match ? match[1] : null
 }
 
-function getCurrentBrowserChatId() {
-  if (typeof window === 'undefined') return null
-  return extractChatId(window.location.pathname)
-}
-
 export default function LiveNotifications({
   currentUserId,
 }: {
   currentUserId: string
 }) {
   const supabase = useMemo(() => createClient(), [])
+  const pathname = usePathname()
   const router = useRouter()
 
   const [toast, setToast] = useState<NotificationRow | null>(null)
+
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const seenIdsRef = useRef<Set<string>>(new Set())
+  const lastShownToastIdRef = useRef<string | null>(null)
+  const syncInFlightRef = useRef(false)
+
+  const currentChatId = extractChatId(pathname)
 
   const dismissToast = () => {
     setToast(null)
@@ -47,6 +47,15 @@ export default function LiveNotifications({
     }
   }
 
+  const notificationBelongsToOpenChat = (notification: NotificationRow) => {
+    if (notification.type !== 'chat') return false
+
+    const notificationChatId = extractChatId(notification.link)
+    if (!notificationChatId || !currentChatId) return false
+
+    return notificationChatId === currentChatId
+  }
+
   const markNotificationRead = async (notificationId: string) => {
     await supabase
       .from('notifications')
@@ -55,7 +64,6 @@ export default function LiveNotifications({
   }
 
   const clearOpenChatNotifications = async () => {
-    const currentChatId = getCurrentBrowserChatId()
     if (!currentChatId) return
 
     await supabase
@@ -67,57 +75,63 @@ export default function LiveNotifications({
       .eq('is_read', false)
   }
 
-  const notificationBelongsToOpenChat = (notification: NotificationRow) => {
-    if (notification.type !== 'chat') return false
+  const syncToast = async () => {
+    if (syncInFlightRef.current) return
+    syncInFlightRef.current = true
 
-    const openChatId = getCurrentBrowserChatId()
-    const notificationChatId = extractChatId(notification.link)
+    try {
+      await clearOpenChatNotifications()
 
-    if (!openChatId || !notificationChatId) return false
-    return openChatId === notificationChatId
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id, user_id, type, title, body, link, is_read, created_at')
+        .eq('user_id', currentUserId)
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (error) {
+        console.error('live notifications sync error:', error)
+        return
+      }
+
+      const unread = (data ?? []) as NotificationRow[]
+
+      const candidate = unread.find(
+        (notification) => !notificationBelongsToOpenChat(notification)
+      )
+
+      if (!candidate) {
+        dismissToast()
+        return
+      }
+
+      if (lastShownToastIdRef.current === candidate.id) {
+        return
+      }
+
+      lastShownToastIdRef.current = candidate.id
+      setToast(candidate)
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+
+      timeoutRef.current = setTimeout(() => {
+        setToast(null)
+      }, 4500)
+    } finally {
+      syncInFlightRef.current = false
+    }
   }
 
   useEffect(() => {
-    void clearOpenChatNotifications()
+    void syncToast()
 
-    const onFocus = () => {
-      void clearOpenChatNotifications()
-      if (toast && notificationBelongsToOpenChat(toast)) {
-        dismissToast()
-      }
+    if (toast && notificationBelongsToOpenChat(toast)) {
+      dismissToast()
     }
-
-    const onPopState = () => {
-      void clearOpenChatNotifications()
-      if (toast && notificationBelongsToOpenChat(toast)) {
-        dismissToast()
-      }
-    }
-
-    window.addEventListener('focus', onFocus)
-    window.addEventListener('popstate', onPopState)
-
-    const interval = window.setInterval(() => {
-      void clearOpenChatNotifications()
-
-      setToast((currentToast) => {
-        if (currentToast && notificationBelongsToOpenChat(currentToast)) {
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current)
-            timeoutRef.current = null
-          }
-          return null
-        }
-        return currentToast
-      })
-    }, 1000)
-
-    return () => {
-      window.removeEventListener('focus', onFocus)
-      window.removeEventListener('popstate', onPopState)
-      window.clearInterval(interval)
-    }
-  }, [currentUserId, toast, supabase])
+  }, [pathname, currentChatId])
 
   useEffect(() => {
     const channel = supabase
@@ -125,32 +139,13 @@ export default function LiveNotifications({
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'notifications',
           filter: `user_id=eq.${currentUserId}`,
         },
-        async (payload) => {
-          const notification = payload.new as NotificationRow
-          if (!notification) return
-
-          if (seenIdsRef.current.has(notification.id)) return
-          seenIdsRef.current.add(notification.id)
-
-          if (notificationBelongsToOpenChat(notification)) {
-            await markNotificationRead(notification.id)
-            return
-          }
-
-          setToast(notification)
-
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current)
-          }
-
-          timeoutRef.current = setTimeout(() => {
-            setToast(null)
-          }, 4500)
+        async () => {
+          await syncToast()
         }
       )
       .subscribe()
@@ -162,7 +157,7 @@ export default function LiveNotifications({
         clearTimeout(timeoutRef.current)
       }
     }
-  }, [currentUserId, supabase])
+  }, [currentUserId, supabase, currentChatId])
 
   if (!toast) return null
 
@@ -187,9 +182,7 @@ export default function LiveNotifications({
       </p>
 
       {toast.body ? (
-        <p className="mt-1 text-sm leading-6 text-[#6f675d]">
-          {toast.body}
-        </p>
+        <p className="mt-1 text-sm leading-6 text-[#6f675d]">{toast.body}</p>
       ) : null}
     </button>
   )

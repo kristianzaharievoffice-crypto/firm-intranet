@@ -151,6 +151,8 @@ export default function SidebarNavLive({
   }
 
   const refreshNotificationCount = async () => {
+    await clearOpenChatNotifications()
+
     const { data, error } = await supabase
       .from('notifications')
       .select('id, type, link')
@@ -195,7 +197,6 @@ export default function SidebarNavLive({
   }
 
   const refreshCounts = async () => {
-    await clearOpenChatNotifications()
     await refreshNotificationCount()
     await refreshChatUnreadCount()
     await refreshTasksCount()
@@ -223,7 +224,7 @@ export default function SidebarNavLive({
           filter: `user_id=eq.${currentUserId}`,
         },
         () => {
-          void refreshCounts()
+          void refreshNotificationCount()
         }
       )
       .subscribe()
