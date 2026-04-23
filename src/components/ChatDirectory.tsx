@@ -110,21 +110,36 @@ export default function ChatDirectory({
   const [creatingGroup, setCreatingGroup] = useState(false)
 
   const loadDirectory = async () => {
-    const { data: profilesData } = await supabase
+    const { data: profilesData, error: profilesError } = await supabase
       .from('profiles')
       .select('id, full_name, avatar_url, job_title, department')
       .neq('id', currentUserId)
       .order('full_name', { ascending: true })
 
-    const { data: chatsData } = await supabase
+    if (profilesError) {
+      console.error('profiles load error:', profilesError)
+      return
+    }
+
+    const { data: chatsData, error: chatsError } = await supabase
       .from('chats')
       .select(
         'id, chat_type, name, created_by, user1_id, user2_id, admin_id, employee_id'
       )
 
-    const { data: membersData } = await supabase
+    if (chatsError) {
+      console.error('chats load error:', chatsError)
+      return
+    }
+
+    const { data: membersData, error: membersError } = await supabase
       .from('chat_members')
       .select('chat_id, user_id')
+
+    if (membersError) {
+      console.error('chat_members load error:', membersError)
+      return
+    }
 
     const people = (profilesData ?? []) as ProfileRow[]
     const chats = (chatsData ?? []) as ChatRow[]
@@ -296,6 +311,7 @@ export default function ChatDirectory({
       }
     })
 
+
     const combined: ListItem[] = [...mappedGroups, ...mappedDirects]
 
     combined.sort((a, b) => {
@@ -374,7 +390,6 @@ export default function ChatDirectory({
     )
   })
 
-
   const openDirectChat = async (userId: string, existingChatId: string | null) => {
     setLoadingId(userId)
 
@@ -415,15 +430,30 @@ export default function ChatDirectory({
 
     setCreatingGroup(true)
 
-    const memberIds = [...selectedMemberIds]
+    const { data: createdChat, error: createChatError } = await supabase
+      .from('chats')
+      .insert({
+        chat_type: 'group',
+        name: trimmedName,
+        created_by: currentUserId,
+      })
+      .select('id')
+      .single()
 
-    const { data, error } = await supabase.rpc('create_group_chat_v2', {
-      group_name: trimmedName,
-      member_ids: memberIds,
-    })
+    if (createChatError || !createdChat) {
+      console.error('create group chat insert error:', createChatError)
+      setCreatingGroup(false)
+      return
+    }
 
-    if (error || !data) {
-      console.error('create_group_chat_v2 error:', error)
+    const allMembers = Array.from(new Set([currentUserId, ...selectedMemberIds]))
+
+    const { error: membersInsertError } = await supabase
+      .from('chat_members')
+      .insert(allMembers.map((userId) => ({ chat_id: createdChat.id, user_id: userId })))
+
+    if (membersInsertError) {
+      console.error('chat_members insert error:', membersInsertError)
       setCreatingGroup(false)
       return
     }
@@ -433,7 +463,7 @@ export default function ChatDirectory({
     setSelectedMemberIds([])
     setShowGroupModal(false)
     await loadDirectory()
-    router.push(`/chat/${data as string}`)
+    router.push(`/chat/${createdChat.id}`)
   }
 
   return (
