@@ -92,6 +92,14 @@ function formatTime(value: string | null) {
   })
 }
 
+function createClientUuid() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
 export default function ChatDirectory({
   currentUserId,
 }: {
@@ -311,7 +319,6 @@ export default function ChatDirectory({
       }
     })
 
-
     const combined: ListItem[] = [...mappedGroups, ...mappedDirects]
 
     combined.sort((a, b) => {
@@ -325,6 +332,7 @@ export default function ChatDirectory({
       const bName = b.kind === 'group' ? b.name : b.full_name
       return aName.localeCompare(bName)
     })
+
 
     setItems(combined)
   }
@@ -430,18 +438,17 @@ export default function ChatDirectory({
 
     setCreatingGroup(true)
 
-    const { data: createdChat, error: createChatError } = await supabase
-      .from('chats')
-      .insert({
-        chat_type: 'group',
-        name: trimmedName,
-        created_by: currentUserId,
-      })
-      .select('id')
-      .single()
+    const chatId = createClientUuid()
 
-    if (createChatError || !createdChat) {
-      console.error('create group chat insert error:', createChatError)
+    const { error: createChatError } = await supabase.from('chats').insert({
+      id: chatId,
+      chat_type: 'group',
+      name: trimmedName,
+      created_by: currentUserId,
+    })
+
+    if (createChatError) {
+      console.error('create group chat insert error full:', createChatError)
       setCreatingGroup(false)
       return
     }
@@ -450,10 +457,10 @@ export default function ChatDirectory({
 
     const { error: membersInsertError } = await supabase
       .from('chat_members')
-      .insert(allMembers.map((userId) => ({ chat_id: createdChat.id, user_id: userId })))
+      .insert(allMembers.map((userId) => ({ chat_id: chatId, user_id: userId })))
 
     if (membersInsertError) {
-      console.error('chat_members insert error:', membersInsertError)
+      console.error('chat_members insert error full:', membersInsertError)
       setCreatingGroup(false)
       return
     }
@@ -463,7 +470,7 @@ export default function ChatDirectory({
     setSelectedMemberIds([])
     setShowGroupModal(false)
     await loadDirectory()
-    router.push(`/chat/${createdChat.id}`)
+    router.push(`/chat/${chatId}`)
   }
 
   return (
