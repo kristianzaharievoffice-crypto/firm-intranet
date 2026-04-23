@@ -9,7 +9,7 @@ function Badge({ count }: { count: number }) {
   if (!count) return null
 
   return (
-    <span className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-[#c9a227] px-2 py-1 text-xs font-semibold text-white">
+    <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-[#1f1a14] px-2 py-0.5 text-xs font-semibold text-white">
       {count}
     </span>
   )
@@ -24,12 +24,18 @@ function NavItem({
   label: string
   count?: number
 }) {
+  const pathname = usePathname()
+  const isActive = pathname === href || pathname.startsWith(`${href}/`)
+
   return (
     <Link
       href={href}
-      className="group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-[#433b32] transition hover:bg-[#f7f1e2] hover:text-[#1f1a14]"
+      className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium transition ${
+        isActive
+          ? 'bg-[#1f1a14] text-white'
+          : 'text-[#1f1a14] hover:bg-white/70'
+      }`}
     >
-      <span className="h-2 w-2 rounded-full bg-[#d9c9a0] transition group-hover:bg-[#c9a227]" />
       <span>{label}</span>
       <Badge count={count} />
     </Link>
@@ -102,8 +108,7 @@ export default function SidebarNavLive({
       if (!lastReadAt) return true
 
       return (
-        new Date(message.created_at).getTime() >
-        new Date(lastReadAt).getTime()
+        new Date(message.created_at).getTime() > new Date(lastReadAt).getTime()
       )
     }).length
 
@@ -119,12 +124,14 @@ export default function SidebarNavLive({
 
     const count = (data ?? []).filter((notification) => {
       if (notification.type !== 'chat') return true
+
       const notificationChatId =
         typeof notification.link === 'string'
           ? extractChatId(notification.link)
           : null
 
       if (!notificationChatId || !currentOpenChatId) return true
+
       return notificationChatId !== currentOpenChatId
     }).length
 
@@ -227,20 +234,21 @@ export default function SidebarNavLive({
   }, [currentUserId, role, supabase, currentOpenChatId, chatIds.join(',')])
 
   return (
-    <nav className="space-y-1">
+    <nav className="mt-6 space-y-2">
       <NavItem href="/feed" label="Feed" />
       <NavItem href="/wall" label="Wall" />
-      <NavItem href="/chat" label="Chat" count={unreadChatCount} />
-      <NavItem href="/tasks" label="Tasks" count={tasksCount} />
-      <NavItem href="/projects" label="Projects" />
-      <NavItem href="/pamm" label="PAMM" />
+      <NavItem href="/employees" label="Employees" />
       <NavItem href="/documents" label="Documents" />
+      <NavItem href="/projects" label="Projects" />
+      <NavItem href="/tasks" label="Tasks" count={tasksCount} />
       <NavItem href="/calendar" label="Calendar" />
       <NavItem href="/events" label="Events" />
-      <NavItem href="/employees" label="Employees" />
+      <NavItem href="/chat" label="Chat" count={unreadChatCount} />
       <NavItem href="/notifications" label="Notifications" count={notificationsCount} />
+      <NavItem href="/calls" label="Calls" />
+
       {role === 'admin' && <NavItem href="/dashboard" label="Dashboard" />}
-      {role === 'admin' && <NavItem href="/admin" label="Admin Panel" />}
+      {role === 'admin' && <NavItem href="/admin" label="Admin" />}
     </nav>
   )
 }
