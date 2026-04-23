@@ -1,20 +1,20 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import CurrencyConverterWidget from '@/components/CurrencyConverterWidget'
 
-type MarketInstrumentType = 'stock' | 'forex' | 'crypto'
+type MarketInstrumentType = 'forex'
 
 interface MarketQuote {
-  symbol: string
+  key: string
   label: string
   type: MarketInstrumentType
   price: number | null
+  previousPrice: number | null
   change: number | null
   percentChange: number | null
   currency?: string | null
-  exchange?: string | null
-  timestamp?: string | null
-  isMarketOpen?: boolean | null
+  updatedAt?: string | null
   error?: string | null
 }
 
@@ -27,20 +27,20 @@ function formatPrice(value: number | null) {
   if (value === null) return '—'
 
   if (value >= 1000) {
-    return value.toLocaleString('en-US', {
+    return value.toLocaleString('en-GB', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })
   }
 
   if (value >= 1) {
-    return value.toLocaleString('en-US', {
+    return value.toLocaleString('en-GB', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 4,
     })
   }
 
-  return value.toLocaleString('en-US', {
+  return value.toLocaleString('en-GB', {
     minimumFractionDigits: 4,
     maximumFractionDigits: 6,
   })
@@ -49,19 +49,13 @@ function formatPrice(value: number | null) {
 function formatChange(value: number | null) {
   if (value === null) return '—'
   const sign = value > 0 ? '+' : ''
-  return `${sign}${value.toFixed(2)}`
+  return `${sign}${value.toFixed(4)}`
 }
 
 function formatPercent(value: number | null) {
   if (value === null) return '—'
   const sign = value > 0 ? '+' : ''
   return `${sign}${value.toFixed(2)}%`
-}
-
-function typeLabel(type: MarketInstrumentType) {
-  if (type === 'forex') return 'Forex'
-  if (type === 'crypto') return 'Crypto'
-  return 'Stock'
 }
 
 export default function MarketWidget() {
@@ -89,6 +83,7 @@ export default function MarketWidget() {
       }
 
       const data = (await response.json()) as MarketApiResponse
+
       setQuotes(Array.isArray(data.quotes) ? data.quotes : [])
       setUpdatedAt(data.updatedAt ?? null)
       setError(null)
@@ -118,104 +113,97 @@ export default function MarketWidget() {
   )
 
   return (
-    <section className="rounded-2xl border border-yellow-200/60 bg-white/95 shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-yellow-100 px-5 py-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-neutral-900">
-            Live Market Watch
-          </h2>
-          <p className="text-sm text-neutral-600">
-            Real-time watchlist for forex, stocks and crypto
-          </p>
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-yellow-200/60 bg-white/95 shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-yellow-100 px-5 py-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight text-neutral-900">
+              Live FX Market Watch
+            </h2>
+            <p className="text-sm text-neutral-600">
+              Live forex pairs already connected to your dashboard.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {updatedAt ? (
+              <span className="text-xs text-neutral-500">
+                Updated: {new Date(updatedAt).toLocaleTimeString('en-GB')}
+              </span>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => void loadQuotes(false)}
+              className="inline-flex items-center rounded-full border border-yellow-300 bg-gradient-to-r from-yellow-400 to-amber-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:brightness-105"
+            >
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {updatedAt ? (
-            <span className="text-xs text-neutral-500">
-              Updated: {new Date(updatedAt).toLocaleTimeString('en-GB')}
-            </span>
-          ) : null}
+        {loading ? (
+          <div className="px-5 py-8 text-sm text-neutral-500">
+            Loading market data...
+          </div>
+        ) : error && !hasAnyData ? (
+          <div className="px-5 py-8 text-sm text-red-600">{error}</div>
+        ) : (
+          <div className="grid gap-4 px-5 py-5 md:grid-cols-2 xl:grid-cols-3">
+            {quotes.map((item) => {
+              const positive = (item.percentChange ?? 0) > 0
+              const negative = (item.percentChange ?? 0) < 0
 
-          <button
-            type="button"
-            onClick={() => void loadQuotes(false)}
-            className="inline-flex items-center rounded-full border border-yellow-300 bg-gradient-to-r from-yellow-400 to-amber-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:brightness-105"
-          >
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="px-5 py-8 text-sm text-neutral-500">
-          Loading market data...
-        </div>
-      ) : error && !hasAnyData ? (
-        <div className="px-5 py-8 text-sm text-red-600">{error}</div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-          {quotes.map((item) => {
-            const positive = (item.percentChange ?? 0) > 0
-            const negative = (item.percentChange ?? 0) < 0
-
-            return (
-              <article
-                key={item.symbol}
-                className="rounded-2xl border border-yellow-100 bg-gradient-to-br from-white to-yellow-50/70 p-4 shadow-sm"
-              >
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-base font-semibold text-neutral-900">
-                      {item.label}
+              return (
+                <article
+                  key={item.key}
+                  className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-neutral-900">
+                        {item.label}
+                      </h3>
+                      <p className="mt-1 text-xs uppercase tracking-wide text-neutral-500">
+                        Forex pair
+                      </p>
                     </div>
-                    <div className="text-xs text-neutral-500">
-                      {item.symbol}
-                      {item.exchange ? ` • ${item.exchange}` : ''}
-                    </div>
+
+                    {item.currency ? (
+                      <span className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-600">
+                        {item.currency}
+                      </span>
+                    ) : null}
                   </div>
 
-                  <span className="rounded-full border border-yellow-200 bg-white px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-neutral-700">
-                    {typeLabel(item.type)}
-                  </span>
-                </div>
+                  <div className="mt-4">
+                    <p className="text-2xl font-semibold tracking-tight text-neutral-900">
+                      {formatPrice(item.price)}
+                    </p>
 
-                <div className="mb-2 text-2xl font-bold text-neutral-950">
-                  {formatPrice(item.price)}
-                </div>
+                    <p
+                      className={[
+                        'mt-2 text-sm font-medium',
+                        positive ? 'text-emerald-600' : '',
+                        negative ? 'text-red-600' : '',
+                        !positive && !negative ? 'text-neutral-500' : '',
+                      ].join(' ')}
+                    >
+                      {formatChange(item.change)} ({formatPercent(item.percentChange)})
+                    </p>
+                  </div>
 
-                <div
-                  className={[
-                    'text-sm font-medium',
-                    positive ? 'text-emerald-600' : '',
-                    negative ? 'text-red-600' : '',
-                    !positive && !negative ? 'text-neutral-500' : '',
-                  ].join(' ')}
-                >
-                  {formatChange(item.change)} ({formatPercent(item.percentChange)})
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
-                  {item.currency ? (
-                    <span className="rounded-full bg-white px-2 py-1 ring-1 ring-yellow-100">
-                      {item.currency}
-                    </span>
+                  {item.error ? (
+                    <p className="mt-3 text-xs text-red-600">{item.error}</p>
                   ) : null}
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </section>
 
-                  {item.isMarketOpen !== null ? (
-                    <span className="rounded-full bg-white px-2 py-1 ring-1 ring-yellow-100">
-                      {item.isMarketOpen ? 'Market open' : 'Market closed'}
-                    </span>
-                  ) : null}
-                </div>
-
-                {item.error ? (
-                  <div className="mt-3 text-xs text-red-600">{item.error}</div>
-                ) : null}
-              </article>
-            )
-          })}
-        </div>
-      )}
-    </section>
+      <CurrencyConverterWidget />
+    </div>
   )
 }
