@@ -33,9 +33,10 @@ export default function LiveNotifications({
   const [toast, setToast] = useState<NotificationRow | null>(null)
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const seenIdsRef = useRef<Set<string>>(new Set())
   const currentChatIdRef = useRef<string | null>(null)
   const pathnameRef = useRef<string | null>(null)
+  const lastShownToastIdRef = useRef<string | null>(null)
+  const syncInFlightRef = useRef(false)
 
   const currentChatId = extractChatId(pathname)
 
@@ -54,18 +55,13 @@ export default function LiveNotifications({
   }
 
   const notificationBelongsToOpenChat = (notification: NotificationRow) => {
+    if (notification.type !== 'chat') return false
+
     const openChatId = currentChatIdRef.current
-    const currentPath = pathnameRef.current
     const notificationChatId = extractChatId(notification.link)
 
     if (!openChatId || !notificationChatId) return false
-    if (notificationChatId !== openChatId) return false
-
-    if (currentPath && notification.link && currentPath === notification.link) {
-      return true
-    }
-
-    return true
+    return openChatId === notificationChatId
   }
 
   const markNotificationRead = async (notificationId: string) => {
@@ -88,52 +84,69 @@ export default function LiveNotifications({
       .eq('is_read', false)
   }
 
+  const syncLatestToastCandidate = async () => {
+    if (syncInFlightRef.current) return
+    syncInFlightRef.current = true
+
+    try {
+      await clearOpenChatNotifications()
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id, user_id, type, title, body, link, is_read, created_at')
+        .eq('user_id', currentUserId)
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (error) {
+        console.error('live notifications sync error:', error)
+        return
+      }
+
+      const rows = (data ?? []) as NotificationRow[]
+
+      const candidate = rows.find((notification) => !notificationBelongsToOpenChat(notification))
+
+      if (!candidate) {
+        if (toast && notificationBelongsToOpenChat(toast)) {
+          dismissToast()
+        }
+        return
+      }
+
+      if (lastShownToastIdRef.current === candidate.id) {
+        return
+      }
+
+      lastShownToastIdRef.current = candidate.id
+      setToast(candidate)
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+
+      timeoutRef.current = setTimeout(() => {
+        setToast(null)
+      }, 4500)
+    } finally {
+      syncInFlightRef.current = false
+    }
+  }
+
   useEffect(() => {
     void clearOpenChatNotifications()
 
     if (toast && notificationBelongsToOpenChat(toast)) {
       dismissToast()
     }
+
+    void syncLatestToastCandidate()
   }, [currentChatId, pathname])
 
   useEffect(() => {
-    const insertChannel = supabase
-      .channel(`live-notifications-insert-${currentUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${currentUserId}`,
-        },
-        async (payload) => {
-          const notification = payload.new as NotificationRow
-          if (!notification) return
-
-          if (seenIdsRef.current.has(notification.id)) return
-          seenIdsRef.current.add(notification.id)
-
-          if (notification.type === 'chat' && notificationBelongsToOpenChat(notification)) {
-            await markNotificationRead(notification.id)
-            return
-          }
-
-          setToast(notification)
-
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current)
-          }
-
-          timeoutRef.current = setTimeout(() => {
-            setToast(null)
-          }, 4500)
-        }
-      )
-      .subscribe()
-
-    const syncChannel = supabase
-      .channel(`live-notifications-sync-${currentUserId}`)
+    const channel = supabase
+      .channel(`live-notifications-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -143,14 +156,13 @@ export default function LiveNotifications({
           filter: `user_id=eq.${currentUserId}`,
         },
         async () => {
-          await clearOpenChatNotifications()
+          await syncLatestToastCandidate()
         }
       )
       .subscribe()
 
     return () => {
-      supabase.removeChannel(insertChannel)
-      supabase.removeChannel(syncChannel)
+      supabase.removeChannel(channel)
 
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
