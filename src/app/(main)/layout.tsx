@@ -4,6 +4,7 @@ import TopAnnouncementBar from '@/components/TopAnnouncementBar'
 import LiveNotifications from '@/components/LiveNotifications'
 import MarketTickerBar from '@/components/MarketTickerBar'
 import PersonalWhiteboardLauncher from '@/components/PersonalWhiteboardLauncher'
+import CurrencyConverterLauncher from '@/components/CurrencyConverterLauncher'
 
 export default async function MainLayout({
   children,
@@ -19,6 +20,7 @@ export default async function MainLayout({
   return (
     <div className="min-h-screen bg-transparent">
       {user && <TopAnnouncementBar />}
+
       {user && <MarketTickerBar />}
 
       <div className="min-h-[calc(100vh-49px)] xl:flex">
@@ -32,6 +34,8 @@ export default async function MainLayout({
           </div>
         </main>
       </div>
+
+      {user && <CurrencyConverterLauncher />}
 
       {user && <PersonalWhiteboardLauncher userId={user.id} />}
     </div>

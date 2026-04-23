@@ -8,7 +8,6 @@ type FrankfurterRateResponse = {
   base?: string
   date?: string
   rate?: number
-  quote?: string
 }
 
 function isValidCurrencyCode(value: string) {
@@ -27,14 +26,14 @@ export async function GET(request: NextRequest) {
 
     if (!Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json(
-        { error: 'Invalid amount. Please provide a number greater than 0.' },
+        { error: 'Invalid amount. Please enter a number greater than 0.' },
         { status: 400 }
       )
     }
 
     if (!isValidCurrencyCode(fromParam) || !isValidCurrencyCode(toParam)) {
       return NextResponse.json(
-        { error: 'Invalid currency code. Use 3-letter ISO codes like EUR, USD, GBP.' },
+        { error: 'Invalid currency code. Use values like EUR, USD, GBP, BGN.' },
         { status: 400 }
       )
     }
@@ -57,15 +56,16 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const url = `https://api.frankfurter.dev/v2/rate/${fromParam}/${toParam}`
-
-    const response = await fetch(url, {
-      method: 'GET',
-      cache: 'no-store',
-      headers: {
-        Accept: 'application/json',
-      },
-    })
+    const response = await fetch(
+      `https://api.frankfurter.dev/v2/rate/${fromParam}/${toParam}`,
+      {
+        method: 'GET',
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/json',
+        },
+      }
+    )
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '')
@@ -87,15 +87,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const result = amount * rate
-
     return NextResponse.json(
       {
         amount,
         from: fromParam,
         to: toParam,
         rate,
-        result,
+        result: amount * rate,
         date: data.date ?? new Date().toISOString().slice(0, 10),
       },
       {
@@ -108,9 +106,6 @@ export async function GET(request: NextRequest) {
     const message =
       error instanceof Error ? error.message : 'Unexpected error while converting currency.'
 
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
