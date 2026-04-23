@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ChatRoomLive from '@/components/ChatRoomLive'
 
-interface Message {
+type Message = {
   id: string
   content: string | null
   created_at: string
@@ -14,7 +14,25 @@ interface Message {
   reply_to_message_id?: string | null
 }
 
-export default async function ChatDetailsPage({
+type ChatRow = {
+  id: string
+  chat_type: 'direct' | 'group'
+  name: string | null
+  created_by: string | null
+  user1_id: string | null
+  user2_id: string | null
+  admin_id: string | null
+  employee_id: string | null
+}
+
+type ProfileRow = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  job_title: string | null
+}
+
+export default async function ChatRoomPage({
   params,
 }: {
   params: Promise<{ chatId: string }>
@@ -26,22 +44,44 @@ export default async function ChatDetailsPage({
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) redirect('/login')
+  if (!user) {
+    redirect('/login')
+  }
 
   const { data: chat } = await supabase
     .from('chats')
-    .select('id, user1_id, user2_id, admin_id, employee_id')
+    .select(
+      'id, chat_type, name, created_by, user1_id, user2_id, admin_id, employee_id'
+    )
     .eq('id', chatId)
-    .single()
+    .maybeSingle<ChatRow>()
 
-  if (!chat) redirect('/chat')
+  if (!chat) {
+    redirect('/chat')
+  }
 
-  const firstUser = chat.user1_id ?? chat.admin_id
-  const secondUser = chat.user2_id ?? chat.employee_id
+  let canAccess = false
+  let memberIds: string[] = []
+  let groupName = chat.name?.trim() || 'Untitled group'
+  let otherUserId: string | null = null
 
-  if (!firstUser || !secondUser) redirect('/chat')
+  if (chat.chat_type === 'group') {
+    const { data: membershipRows } = await supabase
+      .from('chat_members')
+      .select('user_id')
+      .eq('chat_id', chatId)
 
-  if (user.id !== firstUser && user.id !== secondUser) {
+    memberIds = (membershipRows ?? []).map((row) => row.user_id as string)
+    canAccess = memberIds.includes(user.id)
+  } else {
+    const first = chat.user1_id ?? chat.admin_id
+    const second = chat.user2_id ?? chat.employee_id
+    canAccess = first === user.id || second === user.id
+    otherUserId = first === user.id ? second : first
+    memberIds = [first, second].filter(Boolean) as string[]
+  }
+
+  if (!canAccess) {
     redirect('/chat')
   }
 
@@ -53,43 +93,61 @@ export default async function ChatDetailsPage({
     .eq('chat_id', chatId)
     .order('created_at', { ascending: true })
 
-  const senderIds = [...new Set((messages ?? []).map((m) => m.sender_id))]
-  const safeSenderIds = senderIds.length
-    ? senderIds
-    : ['00000000-0000-0000-0000-000000000000']
-
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, full_name, avatar_url, job_title')
-    .in('id', safeSenderIds)
+    .in('id', memberIds)
 
+  const profileRows = (profiles ?? []) as ProfileRow[]
   const senderNames = Object.fromEntries(
-    (profiles ?? []).map((profile) => [
-      profile.id,
-      profile.full_name ?? 'User',
-    ])
+    profileRows.map((profile) => [profile.id, profile.full_name ?? 'User'])
   )
-
   const senderAvatars = Object.fromEntries(
-    (profiles ?? []).map((profile) => [profile.id, profile.avatar_url ?? null])
+    profileRows.map((profile) => [profile.id, profile.avatar_url ?? null])
   )
 
-  const otherUserId = user.id === firstUser ? secondUser : firstUser
-  const otherProfile = (profiles ?? []).find((p) => p.id === otherUserId)
+  let headerTitle = 'Chat'
+  let headerSubtitle = ''
+  let otherUserName = ''
+  let otherUserAvatar: string | null = null
+  let otherUserJobTitle: string | null = null
+
+  if (chat.chat_type === 'group') {
+    headerTitle = groupName
+    headerSubtitle = `${memberIds.length} members`
+  } else {
+    const otherProfile = profileRows.find((profile) => profile.id === otherUserId)
+    headerTitle = otherProfile?.full_name ?? 'User'
+    headerSubtitle = otherProfile?.job_title ?? 'Team member'
+    otherUserName = otherProfile?.full_name ?? 'User'
+    otherUserAvatar = otherProfile?.avatar_url ?? null
+    otherUserJobTitle = otherProfile?.job_title ?? null
+  }
+
+  const groupMembers = profileRows.map((profile) => ({
+    id: profile.id,
+    full_name: profile.full_name ?? 'User',
+    avatar_url: profile.avatar_url ?? null,
+    job_title: profile.job_title ?? null,
+  }))
 
   return (
-    <main className="h-[calc(100dvh-32px)] overflow-hidden">
-      <ChatRoomLive
-        initialMessages={(messages ?? []) as Message[]}
-        currentUserId={user.id}
-        chatId={chatId}
-        senderNames={senderNames}
-        senderAvatars={senderAvatars}
-        otherUserId={otherUserId}
-        otherUserName={otherProfile?.full_name ?? 'User'}
-        otherUserAvatar={otherProfile?.avatar_url ?? null}
-        otherUserJobTitle={otherProfile?.job_title ?? null}
-      />
-    </main>
+    <ChatRoomLive
+      initialMessages={(messages ?? []) as Message[]}
+      currentUserId={user.id}
+      currentUserName={senderNames[user.id] ?? 'You'}
+      chatId={chatId}
+      chatType={chat.chat_type}
+      senderNames={senderNames}
+      senderAvatars={senderAvatars}
+      otherUserId={otherUserId}
+      otherUserName={otherUserName}
+      otherUserAvatar={otherUserAvatar}
+      otherUserJobTitle={otherUserJobTitle}
+      groupName={chat.chat_type === 'group' ? groupName : null}
+      groupMembers={groupMembers}
+      headerTitle={headerTitle}
+      headerSubtitle={headerSubtitle}
+    />
   )
 }
