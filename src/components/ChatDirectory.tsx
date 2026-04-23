@@ -431,47 +431,55 @@ export default function ChatDirectory({
     )
   }
 
-  const createGroup = async () => {
-    const trimmedName = groupName.trim()
-    if (!trimmedName) return
-    if (!selectedMemberIds.length) return
+const createGroup = async () => {
+  const trimmedName = groupName.trim()
+  if (!trimmedName) return
+  if (!selectedMemberIds.length) return
 
-    setCreatingGroup(true)
+  setCreatingGroup(true)
 
-    const chatId = createClientUuid()
-
-    const { error: createChatError } = await supabase.from('chats').insert({
-      id: chatId,
+  const { data: createdChat, error: createChatError } = await supabase
+    .from('chats')
+    .insert({
       chat_type: 'group',
       name: trimmedName,
       created_by: currentUserId,
     })
+    .select('id')
+    .single()
 
-    if (createChatError) {
-      console.error('create group chat insert error full:', createChatError)
-      setCreatingGroup(false)
-      return
-    }
-
-    const allMembers = Array.from(new Set([currentUserId, ...selectedMemberIds]))
-
-    const { error: membersInsertError } = await supabase
-      .from('chat_members')
-      .insert(allMembers.map((userId) => ({ chat_id: chatId, user_id: userId })))
-
-    if (membersInsertError) {
-      console.error('chat_members insert error full:', membersInsertError)
-      setCreatingGroup(false)
-      return
-    }
-
+  if (createChatError || !createdChat) {
+    console.error(
+      'create group chat insert error full:',
+      JSON.stringify(createChatError, null, 2)
+    )
     setCreatingGroup(false)
-    setGroupName('')
-    setSelectedMemberIds([])
-    setShowGroupModal(false)
-    await loadDirectory()
-    router.push(`/chat/${chatId}`)
+    return
   }
+
+  const allMembers = Array.from(new Set([currentUserId, ...selectedMemberIds]))
+
+  const { error: membersInsertError } = await supabase
+    .from('chat_members')
+    .insert(allMembers.map((userId) => ({ chat_id: createdChat.id, user_id: userId })))
+
+  if (membersInsertError) {
+    console.error(
+      'chat_members insert error full:',
+      JSON.stringify(membersInsertError, null, 2)
+    )
+    setCreatingGroup(false)
+    return
+  }
+
+  setCreatingGroup(false)
+  setGroupName('')
+  setSelectedMemberIds([])
+  setShowGroupModal(false)
+  await loadDirectory()
+  router.push(`/chat/${createdChat.id}`)
+}
+
 
   return (
     <>
