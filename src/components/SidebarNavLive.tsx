@@ -9,7 +9,7 @@ function Badge({ count }: { count: number }) {
   if (!count) return null
 
   return (
-    <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-[#1f1a14] px-2 py-0.5 text-xs font-semibold text-white">
+    <span className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-[#c9a227] px-2 py-1 text-xs font-semibold text-white">
       {count}
     </span>
   )
@@ -30,12 +30,17 @@ function NavItem({
   return (
     <Link
       href={href}
-      className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium transition ${
+      className={`group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
         isActive
           ? 'bg-[#1f1a14] text-white'
-          : 'text-[#1f1a14] hover:bg-white/70'
+          : 'text-[#433b32] hover:bg-[#f7f1e2] hover:text-[#1f1a14]'
       }`}
     >
+      <span
+        className={`h-2 w-2 rounded-full transition ${
+          isActive ? 'bg-white' : 'bg-[#d9c9a0] group-hover:bg-[#c9a227]'
+        }`}
+      />
       <span>{label}</span>
       <Badge count={count} />
     </Link>
@@ -48,6 +53,15 @@ function extractChatId(path: string | null | undefined) {
   return match ? match[1] : null
 }
 
+type SidebarNavLiveProps = {
+  currentUserId: string
+  role: string
+  chatIds: string[]
+  initialNotificationsCount: number
+  initialUnreadChatCount: number
+  initialTasksCount: number
+}
+
 export default function SidebarNavLive({
   currentUserId,
   role,
@@ -55,14 +69,7 @@ export default function SidebarNavLive({
   initialNotificationsCount,
   initialUnreadChatCount,
   initialTasksCount,
-}: {
-  currentUserId: string
-  role: string
-  chatIds: string[]
-  initialNotificationsCount: number
-  initialUnreadChatCount: number
-  initialTasksCount: number
-}) {
+}: SidebarNavLiveProps) {
   const supabase = useMemo(() => createClient(), [])
   const pathname = usePathname()
   const currentOpenChatId = extractChatId(pathname)
@@ -72,6 +79,22 @@ export default function SidebarNavLive({
   )
   const [unreadChatCount, setUnreadChatCount] = useState(initialUnreadChatCount)
   const [tasksCount, setTasksCount] = useState(initialTasksCount)
+
+  const clearOpenChatNotifications = async () => {
+    if (!currentOpenChatId) return
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', currentUserId)
+      .eq('type', 'chat')
+      .eq('link', `/chat/${currentOpenChatId}`)
+      .eq('is_read', false)
+
+    if (error) {
+      console.error('sidebar clear open chat notifications error:', error)
+    }
+  }
 
   const refreshChatUnreadCount = async () => {
     if (!chatIds.length) {
@@ -88,15 +111,25 @@ export default function SidebarNavLive({
       return
     }
 
-    const { data: readRows } = await supabase
+    const { data: readRows, error: readError } = await supabase
       .from('chat_reads')
       .select('chat_id, last_read_at')
       .eq('user_id', currentUserId)
 
-    const { data: messages } = await supabase
+    if (readError) {
+      console.error('sidebar chat_reads error:', readError)
+      return
+    }
+
+    const { data: messages, error: messagesError } = await supabase
       .from('messages')
       .select('chat_id, created_at, sender_id')
       .in('chat_id', effectiveChatIds)
+
+    if (messagesError) {
+      console.error('sidebar messages error:', messagesError)
+      return
+    }
 
     const readMap = new Map(
       (readRows ?? []).map((row) => [row.chat_id, row.last_read_at])
@@ -104,11 +137,13 @@ export default function SidebarNavLive({
 
     const unreadCount = (messages ?? []).filter((message) => {
       if (message.sender_id === currentUserId) return false
+
       const lastReadAt = readMap.get(message.chat_id)
       if (!lastReadAt) return true
 
       return (
-        new Date(message.created_at).getTime() > new Date(lastReadAt).getTime()
+        new Date(message.created_at).getTime() >
+        new Date(lastReadAt).getTime()
       )
     }).length
 
@@ -116,11 +151,16 @@ export default function SidebarNavLive({
   }
 
   const refreshNotificationCount = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('notifications')
       .select('id, type, link')
       .eq('user_id', currentUserId)
       .eq('is_read', false)
+
+    if (error) {
+      console.error('sidebar notifications error:', error)
+      return
+    }
 
     const count = (data ?? []).filter((notification) => {
       if (notification.type !== 'chat') return true
@@ -131,36 +171,46 @@ export default function SidebarNavLive({
           : null
 
       if (!notificationChatId || !currentOpenChatId) return true
-
       return notificationChatId !== currentOpenChatId
     }).length
 
     setNotificationsCount(count)
   }
 
-  const refreshCounts = async () => {
-    await refreshNotificationCount()
-    await refreshChatUnreadCount()
-
+  const refreshTasksCount = async () => {
     const taskColumn = role === 'admin' ? 'created_by' : 'assigned_to'
 
-    const { count: openTasksCount } = await supabase
+    const { count: openTasksCount, error } = await supabase
       .from('tasks')
       .select('*', { count: 'exact', head: true })
       .eq(taskColumn, currentUserId)
       .neq('status', 'done')
 
+    if (error) {
+      console.error('sidebar tasks error:', error)
+      return
+    }
+
     setTasksCount(openTasksCount ?? 0)
+  }
+
+  const refreshCounts = async () => {
+    await clearOpenChatNotifications()
+    await refreshNotificationCount()
+    await refreshChatUnreadCount()
+    await refreshTasksCount()
   }
 
   useEffect(() => {
     void refreshCounts()
+  }, [currentOpenChatId])
 
+  useEffect(() => {
     const pollInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         void refreshCounts()
       }
-    }, 2000)
+    }, 2500)
 
     const notificationChannel = supabase
       .channel(`sidebar-notifications-${currentUserId}`)
@@ -188,7 +238,7 @@ export default function SidebarNavLive({
           table: 'messages',
         },
         () => {
-          void refreshCounts()
+          void refreshChatUnreadCount()
         }
       )
       .subscribe()
@@ -204,7 +254,7 @@ export default function SidebarNavLive({
           filter: `user_id=eq.${currentUserId}`,
         },
         () => {
-          void refreshCounts()
+          void refreshChatUnreadCount()
         }
       )
       .subscribe()
@@ -219,7 +269,7 @@ export default function SidebarNavLive({
           table: 'tasks',
         },
         () => {
-          void refreshCounts()
+          void refreshTasksCount()
         }
       )
       .subscribe()
@@ -234,21 +284,25 @@ export default function SidebarNavLive({
   }, [currentUserId, role, supabase, currentOpenChatId, chatIds.join(',')])
 
   return (
-    <nav className="mt-6 space-y-2">
+    <nav className="space-y-1">
       <NavItem href="/feed" label="Feed" />
       <NavItem href="/wall" label="Wall" />
-      <NavItem href="/employees" label="Employees" />
-      <NavItem href="/documents" label="Documents" />
-      <NavItem href="/projects" label="Projects" />
+      <NavItem href="/chat" label="Chat" count={unreadChatCount} />
+      <NavItem href="/calls" label="Calls" />
       <NavItem href="/tasks" label="Tasks" count={tasksCount} />
+      <NavItem href="/projects" label="Projects" />
+      <NavItem href="/pamm" label="PAMM" />
+      <NavItem href="/documents" label="Documents" />
       <NavItem href="/calendar" label="Calendar" />
       <NavItem href="/events" label="Events" />
-      <NavItem href="/chat" label="Chat" count={unreadChatCount} />
-      <NavItem href="/notifications" label="Notifications" count={notificationsCount} />
-      <NavItem href="/calls" label="Calls" />
-
+      <NavItem href="/employees" label="Employees" />
+      <NavItem
+        href="/notifications"
+        label="Notifications"
+        count={notificationsCount}
+      />
       {role === 'admin' && <NavItem href="/dashboard" label="Dashboard" />}
-      {role === 'admin' && <NavItem href="/admin" label="Admin" />}
+      {role === 'admin' && <NavItem href="/admin" label="Admin Panel" />}
     </nav>
   )
 }
