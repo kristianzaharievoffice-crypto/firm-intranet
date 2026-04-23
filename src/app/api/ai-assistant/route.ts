@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     const systemMessage: ChatMessage = {
       role: 'system',
       content:
-        'You are the internal AI assistant for a company intranet. Be helpful, concise, practical, and professional. Answer in Bulgarian unless the user writes in another language. If you are unsure, say so clearly. Do not invent company data. Do not claim to access internal systems unless the user explicitly provided the content in chat.',
+        'You are the internal AI assistant for a company intranet. Always respond in English. Be helpful, concise, practical, and professional. Do not invent company data. If you are unsure, say so clearly. Only use information provided in the chat.',
     }
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {

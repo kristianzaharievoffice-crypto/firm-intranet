@@ -14,7 +14,7 @@ export default function AiAssistantLauncher() {
     {
       role: 'assistant',
       content:
-        'Здравей! Аз съм AI асистентът на intranet-а. Мога да помагам с текстове, идеи, обяснения, задачи, вътрешни съобщения и общи въпроси.',
+        'Hello! I am your internal AI assistant. I can help with writing, ideas, explanations, tasks, and everyday work questions.',
     },
   ])
   const [loading, setLoading] = useState(false)
@@ -94,7 +94,7 @@ export default function AiAssistantLauncher() {
       {
         role: 'assistant',
         content:
-          'Чатът беше изчистен. Мога отново да помогна с въпроси, текстове, идеи и вътрешна комуникация.',
+          'Chat cleared. I am ready to help again with writing, ideas, and tasks.',
       },
     ])
     setError(null)
@@ -120,7 +120,7 @@ export default function AiAssistantLauncher() {
                   AI Assistant
                 </h2>
                 <p className="mt-1 text-sm text-neutral-600">
-                  Вътрешен помощник за въпроси, текстове, идеи и ежедневна работа.
+                  Internal assistant for questions, writing, and everyday tasks.
                 </p>
               </div>
 
@@ -194,7 +194,7 @@ export default function AiAssistantLauncher() {
                     }
                   }}
                   rows={3}
-                  placeholder="Напиши въпрос, задача или текст, който искаш да бъде написан..."
+                  placeholder="Type your question, request, or task..."
                   className="min-h-[80px] flex-1 resize-none rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
                 />
 
