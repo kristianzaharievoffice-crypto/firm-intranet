@@ -29,46 +29,76 @@ export default function LiveNotifications({
   const supabase = useMemo(() => createClient(), [])
   const pathname = usePathname()
   const router = useRouter()
+
   const [toast, setToast] = useState<NotificationRow | null>(null)
+
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const seenIdsRef = useRef<Set<string>>(new Set())
+  const currentChatIdRef = useRef<string | null>(null)
+  const pathnameRef = useRef<string | null>(null)
 
   const currentChatId = extractChatId(pathname)
 
-  const belongsToOpenChat = (notification: NotificationRow) => {
-    if (notification.type !== 'chat') return false
-    const notificationChatId = extractChatId(notification.link)
-    if (!notificationChatId || !currentChatId) return false
-    return notificationChatId === currentChatId
-  }
+  useEffect(() => {
+    currentChatIdRef.current = currentChatId
+    pathnameRef.current = pathname
+  }, [currentChatId, pathname])
 
   const dismissToast = () => {
     setToast(null)
+
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
       timeoutRef.current = null
     }
   }
 
+  const notificationBelongsToOpenChat = (notification: NotificationRow) => {
+    const openChatId = currentChatIdRef.current
+    const currentPath = pathnameRef.current
+    const notificationChatId = extractChatId(notification.link)
+
+    if (!openChatId || !notificationChatId) return false
+    if (notificationChatId !== openChatId) return false
+
+    if (currentPath && notification.link && currentPath === notification.link) {
+      return true
+    }
+
+    return true
+  }
+
+  const markNotificationRead = async (notificationId: string) => {
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId)
+  }
+
   const clearOpenChatNotifications = async () => {
-    if (!currentChatId) return
+    const openChatId = currentChatIdRef.current
+    if (!openChatId) return
 
     await supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('user_id', currentUserId)
       .eq('type', 'chat')
-      .eq('link', `/chat/${currentChatId}`)
+      .eq('link', `/chat/${openChatId}`)
       .eq('is_read', false)
   }
 
   useEffect(() => {
     void clearOpenChatNotifications()
-  }, [currentChatId])
+
+    if (toast && notificationBelongsToOpenChat(toast)) {
+      dismissToast()
+    }
+  }, [currentChatId, pathname])
 
   useEffect(() => {
-    const channel = supabase
-      .channel(`live-notifications-${currentUserId}`)
+    const insertChannel = supabase
+      .channel(`live-notifications-insert-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -80,14 +110,12 @@ export default function LiveNotifications({
         async (payload) => {
           const notification = payload.new as NotificationRow
           if (!notification) return
+
           if (seenIdsRef.current.has(notification.id)) return
           seenIdsRef.current.add(notification.id)
 
-          if (belongsToOpenChat(notification)) {
-            await supabase
-              .from('notifications')
-              .update({ is_read: true })
-              .eq('id', notification.id)
+          if (notification.type === 'chat' && notificationBelongsToOpenChat(notification)) {
+            await markNotificationRead(notification.id)
             return
           }
 
@@ -104,8 +132,8 @@ export default function LiveNotifications({
       )
       .subscribe()
 
-    const updateChannel = supabase
-      .channel(`live-notifications-update-${currentUserId}`)
+    const syncChannel = supabase
+      .channel(`live-notifications-sync-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -121,13 +149,14 @@ export default function LiveNotifications({
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
-      supabase.removeChannel(updateChannel)
+      supabase.removeChannel(insertChannel)
+      supabase.removeChannel(syncChannel)
+
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
       }
     }
-  }, [currentUserId, currentChatId, supabase])
+  }, [currentUserId, supabase])
 
   if (!toast) return null
 
@@ -136,12 +165,10 @@ export default function LiveNotifications({
       type="button"
       onClick={async () => {
         const targetLink = toast.link
-        dismissToast()
+        const toastId = toast.id
 
-        await supabase
-          .from('notifications')
-          .update({ is_read: true })
-          .eq('id', toast.id)
+        dismissToast()
+        await markNotificationRead(toastId)
 
         if (targetLink) {
           router.push(targetLink)
@@ -152,8 +179,11 @@ export default function LiveNotifications({
       <p className="text-sm font-black text-[#1f1a14]">
         {toast.title || 'New notification'}
       </p>
+
       {toast.body ? (
-        <p className="mt-1 text-sm leading-6 text-[#6f675d]">{toast.body}</p>
+        <p className="mt-1 text-sm leading-6 text-[#6f675d]">
+          {toast.body}
+        </p>
       ) : null}
     </button>
   )
