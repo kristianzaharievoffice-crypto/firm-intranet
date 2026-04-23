@@ -47,6 +47,7 @@ export default function JitsiCallClient({ displayName, email }: Props) {
   const [isLoadingMeeting, setIsLoadingMeeting] = useState(false)
   const [hasMeeting, setHasMeeting] = useState(false)
   const [copyMessage, setCopyMessage] = useState('')
+  const [error, setError] = useState('')
 
   const joinUrl = useMemo(() => {
     if (!activeRoom) return ''
@@ -75,6 +76,11 @@ export default function JitsiCallClient({ displayName, email }: Props) {
       )
 
       if (existing) {
+        if (window.JitsiMeetExternalAPI) {
+          resolve()
+          return
+        }
+
         existing.addEventListener('load', () => resolve(), { once: true })
         existing.addEventListener(
           'error',
@@ -99,12 +105,16 @@ export default function JitsiCallClient({ displayName, email }: Props) {
   async function startMeeting(mode: MeetingMode) {
     const safeRoom = slugifyRoomName(roomName) || generateRoomName()
 
-    if (!containerRef.current) return
-
     setIsLoadingMeeting(true)
+    setError('')
+    setCopyMessage('')
 
     try {
       await ensureJitsiScript()
+
+      if (!containerRef.current) {
+        throw new Error('Meeting container is not ready yet.')
+      }
 
       apiRef.current?.dispose?.()
       apiRef.current = null
@@ -145,9 +155,15 @@ export default function JitsiCallClient({ displayName, email }: Props) {
       setActiveRoom(safeRoom)
       setMeetingMode(mode)
       setHasMeeting(true)
-    } catch (error) {
-      console.error(error)
-      alert('Could not load the meeting. Please try again.')
+    } catch (err) {
+      console.error(err)
+      setHasMeeting(false)
+      setActiveRoom('')
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Could not load the meeting. Please try again.'
+      )
     } finally {
       setIsLoadingMeeting(false)
     }
@@ -163,6 +179,7 @@ export default function JitsiCallClient({ displayName, email }: Props) {
 
     setHasMeeting(false)
     setActiveRoom('')
+    setError('')
   }
 
   async function copyRoomLink() {
@@ -240,9 +257,7 @@ export default function JitsiCallClient({ displayName, email }: Props) {
                 disabled={isLoadingMeeting}
                 className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isLoadingMeeting && meetingMode === 'audio'
-                  ? 'Opening...'
-                  : 'Start audio call'}
+                {isLoadingMeeting ? 'Opening...' : 'Start audio call'}
               </button>
 
               <button
@@ -251,9 +266,7 @@ export default function JitsiCallClient({ displayName, email }: Props) {
                 disabled={isLoadingMeeting}
                 className="rounded-2xl bg-gradient-to-r from-fuchsia-500 to-violet-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isLoadingMeeting && meetingMode === 'video'
-                  ? 'Opening...'
-                  : 'Start video call'}
+                {isLoadingMeeting ? 'Opening...' : 'Start video call'}
               </button>
 
               <button
@@ -265,6 +278,12 @@ export default function JitsiCallClient({ displayName, email }: Props) {
                 Join room
               </button>
             </div>
+
+            {error ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            ) : null}
           </div>
 
           <div className="rounded-3xl border border-neutral-200 bg-neutral-50 p-4">
@@ -346,14 +365,17 @@ export default function JitsiCallClient({ displayName, email }: Props) {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-3xl border border-neutral-200 bg-neutral-950">
-          {hasMeeting ? (
-            <div ref={containerRef} className="h-[72vh] w-full" />
-          ) : (
+        <div className="relative overflow-hidden rounded-3xl border border-neutral-200 bg-neutral-950">
+          <div
+            ref={containerRef}
+            className={`h-[72vh] w-full ${hasMeeting ? 'block' : 'hidden'}`}
+          />
+
+          {!hasMeeting ? (
             <div className="flex h-[72vh] items-center justify-center px-6 text-center text-sm text-neutral-400">
               Start or join a room to load the meeting here.
             </div>
-          )}
+          ) : null}
         </div>
       </section>
     </div>
