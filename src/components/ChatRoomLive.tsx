@@ -188,6 +188,7 @@ export default function ChatRoomLive({
     void markReadNow()
     void updateOwnPresence(chatId)
     void clearCurrentChatNotifications()
+
     if (isDirect) {
       void loadOtherState()
     }
@@ -408,6 +409,7 @@ export default function ChatRoomLive({
       setMessageError('Write a message or choose a file.')
       return
     }
+
 
     setIsSending(true)
 
@@ -647,7 +649,11 @@ export default function ChatRoomLive({
                       </span>
 
                       {isMine && isDirect && message.id === lastOwnMessage?.id ? (
-                        <span className={isLastOwnMessageSeen ? 'text-emerald-700' : 'text-[#5a470f]'}>
+                        <span
+                          className={
+                            isLastOwnMessageSeen ? 'text-emerald-700' : 'text-[#5a470f]'
+                          }
+                        >
                           {isLastOwnMessageSeen ? 'Seen' : 'Sent'}
                         </span>
                       ) : null}
@@ -657,8 +663,7 @@ export default function ChatRoomLive({
               </div>
             )
           })}
-    
-            </div>
+        </div>
       </div>
 
       <form
@@ -666,51 +671,69 @@ export default function ChatRoomLive({
         className="border-t border-[#ece5d8] bg-white px-4 py-4"
       >
         {replyTo ? (
-          <div className="mb-3 flex items-center justify-between rounded-xl bg-[#f8f4ea] px-3 py-2 text-sm text-[#6f624e]">
-            <div className="truncate">
-              Replying to:{' '}
-              <span className="font-semibold">
-                {senderNames[replyTo.sender_id] ?? 'User'}
-              </span>{' '}
-              – {replyPreviewText}
+          <div className="mb-3 flex items-start justify-between gap-3 rounded-[18px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold uppercase tracking-wide text-[#a88414]">
+                Replying to{' '}
+                {replyTo.sender_id === currentUserId
+                  ? 'yourself'
+                  : senderNames[replyTo.sender_id] ?? 'User'}
+              </div>
+              <div className="truncate text-sm text-[#5d5346]">{replyPreviewText}</div>
             </div>
+
             <button
               type="button"
               onClick={() => setReplyTo(null)}
-              className="ml-3 text-xs font-semibold text-[#a88414]"
+              className="text-sm font-semibold text-[#7b6f5a]"
             >
-              Cancel
+              ×
             </button>
           </div>
         ) : null}
 
-        <div className="flex items-end gap-3">
-          <textarea
-            value={content}
-            onChange={(e) => handleTyping(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Write a message..."
-            className="flex-1 resize-none rounded-2xl border border-[#ece5d8] px-4 py-3 text-sm outline-none focus:border-[#d4af37]"
-            rows={2}
-          />
+        {messageError ? (
+          <div className="mb-3 rounded-[16px] bg-red-50 px-4 py-3 text-sm text-red-600">
+            {messageError}
+          </div>
+        ) : null}
 
-          <input
-            type="file"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="text-sm"
-          />
+        <div className="flex items-end gap-3">
+          <div className="flex-1 rounded-[22px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3">
+            <textarea
+              value={content}
+              onChange={(e) =>
+                isDirect ? void handleTyping(e.target.value) : setContent(e.target.value)
+              }
+              onKeyDown={handleKeyDown}
+              rows={3}
+              placeholder={
+                isDirect ? 'Write a message...' : `Message ${groupName ?? 'group'}...`
+              }
+              className="max-h-40 min-h-[72px] w-full resize-none bg-transparent text-sm text-[#1f1f1f] outline-none placeholder:text-[#9a8d75]"
+            />
+          </div>
+
+          <label className="flex h-12 cursor-pointer items-center justify-center rounded-[18px] border border-[#ece5d8] bg-white px-4 text-sm font-medium text-[#7b6f5a] shadow-sm">
+            File
+            <input
+              type="file"
+              className="hidden"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
 
           <button
             type="submit"
             disabled={isSending}
-            className="rounded-2xl bg-gradient-to-r from-[#d4af37] to-[#f2d27a] px-5 py-3 text-sm font-semibold text-[#1f1f1f] disabled:opacity-60"
+            className="h-12 rounded-[18px] bg-gradient-to-r from-[#d4af37] to-[#f2d27a] px-5 text-sm font-semibold text-[#1f1f1f] shadow-sm disabled:opacity-60"
           >
             {isSending ? 'Sending...' : 'Send'}
           </button>
         </div>
 
-        {messageError ? (
-          <div className="mt-2 text-sm text-red-600">{messageError}</div>
+        {file ? (
+          <div className="mt-3 text-sm text-[#7b6f5a]">Selected file: {file.name}</div>
         ) : null}
       </form>
     </div>

@@ -153,6 +153,7 @@ export default function ChatDirectory({
 
     let messages: MessageRow[] = []
     let reads: ChatReadRow[] = []
+
     if (allChatIds.length) {
       const { data: messagesData } = await supabase
         .from('messages')
@@ -365,11 +366,12 @@ export default function ChatDirectory({
       )
     }
 
+
     return (
       item.full_name.toLowerCase().includes(q) ||
       (item.job_title ?? '').toLowerCase().includes(q) ||
       (item.department ?? '').toLowerCase().includes(q) ||
-      (item.last_message ?? '').toLowerCase().includes(q)
+      item.last_message.toLowerCase().includes(q)
     )
   })
 
@@ -456,62 +458,66 @@ export default function ChatDirectory({
 
         {filtered.length ? (
           <div className="space-y-3">
-            {filtered.map((item) =>
-              item.kind === 'group' ? (
-                <button
-                  key={`group-${item.id}`}
-                  type="button"
-                  onClick={() => openGroupChat(item.id)}
-                  className="w-full rounded-[24px] border border-[#ece5d8] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex items-start gap-3">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#f6e7a7] to-[#d4af37] text-lg font-semibold text-[#3a2e0b]">
-                        👥
-                      </div>
+            {filtered.map((item) => {
+              if (item.kind === 'group') {
+                return (
+                  <button
+                    key={`group-${item.id}`}
+                    type="button"
+                    onClick={() => openGroupChat(item.id)}
+                    className="w-full rounded-[24px] border border-[#ece5d8] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex items-start gap-3">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#f6e7a7] to-[#d4af37] text-lg font-semibold text-[#3a2e0b]">
+                          👥
+                        </div>
 
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="truncate text-base font-semibold text-[#1f1f1f]">
-                            {item.name}
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="truncate text-base font-semibold text-[#1f1f1f]">
+                              {item.name}
+                            </div>
+                            <span className="rounded-full bg-[#fff7df] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#a88414]">
+                              Group
+                            </span>
                           </div>
-                          <span className="rounded-full bg-[#fff7df] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#a88414]">
-                            Group
-                          </span>
-                        </div>
 
-                        <div className="mt-1 text-sm text-[#7b6f5a]">
-                          {item.member_count} members
-                        </div>
+                          <div className="mt-1 text-sm text-[#7b6f5a]">
+                            {item.member_count} members
+                          </div>
 
-                        <div className="mt-1 truncate text-sm text-[#9a8d75]">
-                          {item.member_names.slice(0, 4).join(', ')}
-                          {item.member_names.length > 4 ? '…' : ''}
+                          <div className="mt-1 truncate text-sm text-[#9a8d75]">
+                            {item.member_names.slice(0, 4).join(', ')}
+                            {item.member_names.length > 4 ? '…' : ''}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {item.last_message_at ? (
+                            <span className="text-xs text-[#9a8d75]">
+                              {formatTime(item.last_message_at)}
+                            </span>
+                          ) : null}
+                          {item.unread_count > 0 ? (
+                            <span className="rounded-full bg-[#d4af37] px-2 py-0.5 text-xs font-semibold text-white">
+                              {item.unread_count}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </div>
 
-                    <div className="shrink-0 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {item.last_message_at ? (
-                          <span className="text-xs text-[#9a8d75]">
-                            {formatTime(item.last_message_at)}
-                          </span>
-                        ) : null}
-                        {item.unread_count > 0 ? (
-                          <span className="rounded-full bg-[#d4af37] px-2 py-0.5 text-xs font-semibold text-white">
-                            {item.unread_count}
-                          </span>
-                        ) : null}
-                      </div>
+                    <div className="mt-3 truncate text-sm text-[#5d5346]">
+                      {item.last_message}
                     </div>
-                  </div>
+                  </button>
+                )
+              }
 
-                  <div className="mt-3 truncate text-sm text-[#5d5346]">
-                    {item.last_message}
-                  </div>
-                </button>
-              ) : (
+              return (
                 <button
                   key={`direct-${item.id}`}
                   type="button"
@@ -582,4 +588,107 @@ export default function ChatDirectory({
                   </div>
                 </button>
               )
-    
+            })}
+          </div>
+        ) : (
+          <div className="rounded-[24px] border border-[#ece5d8] bg-white p-6 text-sm text-[#7b6f5a] shadow-sm">
+            No chats found.
+          </div>
+        )}
+      </div>
+
+      {showGroupModal ? (
+        <div className="fixed inset-0 z-[110] bg-black/25 backdrop-blur-sm">
+          <div className="absolute inset-x-4 top-1/2 mx-auto w-full max-w-2xl -translate-y-1/2 rounded-[28px] border border-[#ece5d8] bg-white p-6 shadow-2xl">
+            <div className="mb-5">
+              <div className="text-xl font-semibold text-[#1f1f1f]">Create Group Chat</div>
+              <div className="mt-1 text-sm text-[#7b6f5a]">
+                Choose a group name and select the members you want to add.
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[#5d5346]">
+                  Group name
+                </label>
+                <input
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="Enter group name"
+                  className="w-full rounded-[18px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3 text-sm outline-none focus:border-[#c9a227]"
+                />
+              </div>
+
+              <div>
+                <div className="mb-2 text-sm font-medium text-[#5d5346]">Members</div>
+                <div className="max-h-[320px] space-y-2 overflow-auto rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] p-3">
+                  {profiles.map((person) => {
+                    const checked = selectedMemberIds.includes(person.id)
+
+                    return (
+                      <label
+                        key={person.id}
+                        className="flex cursor-pointer items-center gap-3 rounded-[16px] bg-white px-3 py-3"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleSelectedMember(person.id)}
+                        />
+                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-sm font-semibold text-[#8e7b56]">
+                          {person.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={person.avatar_url}
+                              alt={person.full_name ?? 'User'}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            (person.full_name?.[0] ?? 'U').toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-[#1f1f1f]">
+                            {person.full_name ?? 'User'}
+                          </div>
+                          <div className="text-xs text-[#8f836c]">
+                            {person.job_title || 'Team member'}
+                            {person.department ? ` · ${person.department}` : ''}
+                          </div>
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGroupModal(false)
+                  setGroupName('')
+                  setSelectedMemberIds([])
+                }}
+                className="rounded-[18px] bg-[#f3efe8] px-4 py-3 text-sm font-medium text-[#5d5346]"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={createGroup}
+                disabled={creatingGroup || !groupName.trim() || !selectedMemberIds.length}
+                className="rounded-[18px] bg-gradient-to-r from-[#d4af37] to-[#f2d27a] px-4 py-3 text-sm font-semibold text-[#1f1f1f] shadow-sm disabled:opacity-50"
+              >
+                {creatingGroup ? 'Creating...' : 'Create Group'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  )
+}
