@@ -5,6 +5,7 @@ import LiveNotifications from '@/components/LiveNotifications'
 import MarketTickerBar from '@/components/MarketTickerBar'
 import PersonalWhiteboardLauncher from '@/components/PersonalWhiteboardLauncher'
 import CurrencyConverterLauncher from '@/components/CurrencyConverterLauncher'
+import AiAssistantLauncher from '@/components/AiAssistantLauncher'
 
 export default async function MainLayout({
   children,
@@ -34,6 +35,8 @@ export default async function MainLayout({
           </div>
         </main>
       </div>
+
+      {user && <AiAssistantLauncher />}
 
       {user && <CurrencyConverterLauncher />}
 
