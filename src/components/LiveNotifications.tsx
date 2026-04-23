@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 type NotificationRow = {
@@ -21,21 +21,22 @@ function extractChatId(path: string | null | undefined) {
   return match ? match[1] : null
 }
 
+function getCurrentBrowserChatId() {
+  if (typeof window === 'undefined') return null
+  return extractChatId(window.location.pathname)
+}
+
 export default function LiveNotifications({
   currentUserId,
 }: {
   currentUserId: string
 }) {
   const supabase = useMemo(() => createClient(), [])
-  const pathname = usePathname()
   const router = useRouter()
 
   const [toast, setToast] = useState<NotificationRow | null>(null)
-
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const seenIdsRef = useRef<Set<string>>(new Set())
-
-  const currentChatId = extractChatId(pathname)
 
   const dismissToast = () => {
     setToast(null)
@@ -46,15 +47,6 @@ export default function LiveNotifications({
     }
   }
 
-  const notificationBelongsToOpenChat = (notification: NotificationRow) => {
-    if (notification.type !== 'chat') return false
-
-    const notificationChatId = extractChatId(notification.link)
-    if (!notificationChatId || !currentChatId) return false
-
-    return notificationChatId === currentChatId
-  }
-
   const markNotificationRead = async (notificationId: string) => {
     await supabase
       .from('notifications')
@@ -63,6 +55,7 @@ export default function LiveNotifications({
   }
 
   const clearOpenChatNotifications = async () => {
+    const currentChatId = getCurrentBrowserChatId()
     if (!currentChatId) return
 
     await supabase
@@ -74,13 +67,57 @@ export default function LiveNotifications({
       .eq('is_read', false)
   }
 
+  const notificationBelongsToOpenChat = (notification: NotificationRow) => {
+    if (notification.type !== 'chat') return false
+
+    const openChatId = getCurrentBrowserChatId()
+    const notificationChatId = extractChatId(notification.link)
+
+    if (!openChatId || !notificationChatId) return false
+    return openChatId === notificationChatId
+  }
+
   useEffect(() => {
     void clearOpenChatNotifications()
 
-    if (toast && notificationBelongsToOpenChat(toast)) {
-      dismissToast()
+    const onFocus = () => {
+      void clearOpenChatNotifications()
+      if (toast && notificationBelongsToOpenChat(toast)) {
+        dismissToast()
+      }
     }
-  }, [currentChatId, pathname])
+
+    const onPopState = () => {
+      void clearOpenChatNotifications()
+      if (toast && notificationBelongsToOpenChat(toast)) {
+        dismissToast()
+      }
+    }
+
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('popstate', onPopState)
+
+    const interval = window.setInterval(() => {
+      void clearOpenChatNotifications()
+
+      setToast((currentToast) => {
+        if (currentToast && notificationBelongsToOpenChat(currentToast)) {
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current)
+            timeoutRef.current = null
+          }
+          return null
+        }
+        return currentToast
+      })
+    }, 1000)
+
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('popstate', onPopState)
+      window.clearInterval(interval)
+    }
+  }, [currentUserId, toast, supabase])
 
   useEffect(() => {
     const channel = supabase
@@ -125,7 +162,7 @@ export default function LiveNotifications({
         clearTimeout(timeoutRef.current)
       }
     }
-  }, [currentUserId, currentChatId, supabase])
+  }, [currentUserId, supabase])
 
   if (!toast) return null
 
@@ -150,7 +187,9 @@ export default function LiveNotifications({
       </p>
 
       {toast.body ? (
-        <p className="mt-1 text-sm leading-6 text-[#6f675d]">{toast.body}</p>
+        <p className="mt-1 text-sm leading-6 text-[#6f675d]">
+          {toast.body}
+        </p>
       ) : null}
     </button>
   )
