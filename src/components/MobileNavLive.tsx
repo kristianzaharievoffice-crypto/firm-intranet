@@ -18,10 +18,12 @@ function Badge({ count }: { count: number }) {
 function NavItem({
   href,
   label,
+  onClick,
   count = 0,
 }: {
   href: string
   label: string
+  onClick: () => void
   count?: number
 }) {
   const pathname = usePathname()
@@ -30,6 +32,7 @@ function NavItem({
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium transition ${
         isActive
           ? 'bg-[#1f1a14] text-white'
@@ -48,21 +51,25 @@ function extractChatId(path: string | null | undefined) {
   return match ? match[1] : null
 }
 
-export default function SidebarNavLive({
-  currentUserId,
-  role,
-  chatIds,
-  initialNotificationsCount,
-  initialUnreadChatCount,
-  initialTasksCount,
-}: {
+type MobileNavLiveProps = {
   currentUserId: string
   role: string
   chatIds: string[]
   initialNotificationsCount: number
   initialUnreadChatCount: number
   initialTasksCount: number
-}) {
+  onNavigate: () => void
+}
+
+export default function MobileNavLive({
+  currentUserId,
+  role,
+  chatIds,
+  initialNotificationsCount,
+  initialUnreadChatCount,
+  initialTasksCount,
+  onNavigate,
+}: MobileNavLiveProps) {
   const supabase = useMemo(() => createClient(), [])
   const pathname = usePathname()
   const currentOpenChatId = extractChatId(pathname)
@@ -163,7 +170,7 @@ export default function SidebarNavLive({
     }, 2000)
 
     const notificationChannel = supabase
-      .channel(`sidebar-notifications-${currentUserId}`)
+      .channel(`mobile-notifications-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -179,7 +186,7 @@ export default function SidebarNavLive({
       .subscribe()
 
     const messageChannel = supabase
-      .channel(`sidebar-messages-${currentUserId}`)
+      .channel(`mobile-messages-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -194,7 +201,7 @@ export default function SidebarNavLive({
       .subscribe()
 
     const readChannel = supabase
-      .channel(`sidebar-chat-reads-${currentUserId}`)
+      .channel(`mobile-chat-reads-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -210,7 +217,7 @@ export default function SidebarNavLive({
       .subscribe()
 
     const tasksChannel = supabase
-      .channel(`sidebar-tasks-${currentUserId}`)
+      .channel(`mobile-tasks-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -235,20 +242,29 @@ export default function SidebarNavLive({
 
   return (
     <nav className="mt-6 space-y-2">
-      <NavItem href="/feed" label="Feed" />
-      <NavItem href="/wall" label="Wall" />
-      <NavItem href="/employees" label="Employees" />
-      <NavItem href="/documents" label="Documents" />
-      <NavItem href="/projects" label="Projects" />
-      <NavItem href="/tasks" label="Tasks" count={tasksCount} />
-      <NavItem href="/calendar" label="Calendar" />
-      <NavItem href="/events" label="Events" />
-      <NavItem href="/chat" label="Chat" count={unreadChatCount} />
-      <NavItem href="/notifications" label="Notifications" count={notificationsCount} />
-      <NavItem href="/calls" label="Calls" />
+      <NavItem href="/feed" label="Feed" onClick={onNavigate} />
+      <NavItem href="/wall" label="Wall" onClick={onNavigate} />
+      <NavItem href="/employees" label="Employees" onClick={onNavigate} />
+      <NavItem href="/documents" label="Documents" onClick={onNavigate} />
+      <NavItem href="/projects" label="Projects" onClick={onNavigate} />
+      <NavItem href="/tasks" label="Tasks" count={tasksCount} onClick={onNavigate} />
+      <NavItem href="/calendar" label="Calendar" onClick={onNavigate} />
+      <NavItem href="/events" label="Events" onClick={onNavigate} />
+      <NavItem href="/chat" label="Chat" count={unreadChatCount} onClick={onNavigate} />
+      <NavItem
+        href="/notifications"
+        label="Notifications"
+        count={notificationsCount}
+        onClick={onNavigate}
+      />
+      <NavItem href="/calls" label="Calls" onClick={onNavigate} />
 
-      {role === 'admin' && <NavItem href="/dashboard" label="Dashboard" />}
-      {role === 'admin' && <NavItem href="/admin" label="Admin" />}
+      {role === 'admin' && (
+        <NavItem href="/dashboard" label="Dashboard" onClick={onNavigate} />
+      )}
+      {role === 'admin' && (
+        <NavItem href="/admin" label="Admin" onClick={onNavigate} />
+      )}
     </nav>
   )
 }
