@@ -755,29 +755,30 @@ export default function ChatRoomLive({
     setReplyTo(null)
   }
 
-  const deleteMessage = async (message: Message) => {
-    if (message.sender_id !== currentUserId) return
+const deleteMessage = async (message: Message) => {
+  if (message.sender_id !== currentUserId) return
 
-    const ok = window.confirm('Delete this message?')
-    if (!ok) return
+  const ok = window.confirm('Delete this message?')
+  if (!ok) return
 
-    const { error } = await supabase
-      .from('messages')
-      .update({
-        content: null,
-        attachment_url: null,
-        deleted_at: new Date().toISOString(),
-      })
-      .eq('id', message.id)
-      .eq('sender_id', currentUserId)
+  const { error } = await supabase
+    .from('messages')
+    .update({
+      content: '[deleted]',
+      attachment_url: null,
+      deleted_at: new Date().toISOString(),
+    })
+    .eq('id', message.id)
+    .eq('sender_id', currentUserId)
 
-    if (error) {
-      setMessageError(error.message)
-      return
-    }
-
-    await loadMessages()
+  if (error) {
+    setMessageError(error.message)
+    return
   }
+
+  await loadMessages()
+}
+
 
   const toggleReaction = async (message: Message, emoji: string) => {
     if (message.deleted_at) return
