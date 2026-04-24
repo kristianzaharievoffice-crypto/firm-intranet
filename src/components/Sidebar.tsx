@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import SidebarNavLive from '@/components/SidebarNavLive'
 import MobileSidebarShell from '@/components/MobileSidebarShell'
+import OnlineNowSidebar from '@/components/OnLineNowSidebar' // ✅ ДОБАВЕНО
 
 interface ChatRow {
   id: string
@@ -120,7 +121,7 @@ export default async function Sidebar() {
             <p className="mt-1 text-sm text-[#7b746b]">{me.role}</p>
           </div>
 
-          <div className="mt-6 flex-1">
+          <div className="mt-6">
             <SidebarNavLive
               currentUserId={user.id}
               role={me.role}
@@ -129,6 +130,11 @@ export default async function Sidebar() {
               initialUnreadChatCount={unreadChatCount}
               initialTasksCount={tasksCount ?? 0}
             />
+          </div>
+
+          {/* ✅ ТУК СЕ ДОБАВЯ ONLINE USERS */}
+          <div className="mt-4">
+            <OnlineNowSidebar currentUserId={user.id} />
           </div>
         </div>
       </aside>
