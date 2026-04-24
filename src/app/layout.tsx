@@ -20,7 +20,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-[#fbf3dc] text-[#1f1a14]">{children}</body>
+      <div
+  className="min-h-screen bg-cover bg-center bg-no-repeat"
+  style={{
+    backgroundImage:
+      'linear-gradient(rgba(255, 248, 226, 0.55), rgba(255, 248, 226, 0.55)), url("/images/chat-background.png")',
+  }}
+>
+  {children}
+</div>
     </html>
   )
 }

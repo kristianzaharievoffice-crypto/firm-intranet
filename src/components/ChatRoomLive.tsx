@@ -851,7 +851,7 @@ export default function ChatRoomLive({
   return (
     <div className="flex h-[calc(100vh-180px)] min-h-[620px] flex-col overflow-hidden rounded-[28px] border border-[#ece5d8] bg-white shadow-sm">
       <div className="border-b border-[#ece5d8] bg-[#fffdf8] px-5 py-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center bg-white/70 backdrop-blur-md rounded-t-[28px] px-4 py-3">
           {isDirect ? (
             <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-sm font-semibold text-[#8e7b56]">
               {otherUserAvatar ? (
@@ -867,7 +867,7 @@ export default function ChatRoomLive({
 
               <span
                 className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full border-2 border-white ${
-                  otherOnline ? 'bg-emerald-500' : 'bg-[#c7bda9]'
+                  otherOnline ? 'bg-emerald-500' : 'bg-[#c9a227] shadow-lg'
                 }`}
               />
             </div>
@@ -1095,13 +1095,13 @@ export default function ChatRoomLive({
 
       <div
   ref={scrollRef}
-  className="relative min-h-0 flex-1 overflow-y-auto bg-[#faf8f4] bg-cover bg-center bg-no-repeat bg-fixed px-4 py-5"
+  className="relative min-h-0 flex-1 overflow-y-auto px-4 py-5"
   style={{
     backgroundImage:
       'linear-gradient(rgba(255, 248, 226, 0.35), rgba(255, 248, 226, 0.35)), url("/images/chat-background.png")',
   }}
 >
-        <div className="flex w-full flex-col gap-2">
+        <div className="flex h-full flex-col rounded-[28px] border border-white/40 bg-white/60 backdrop-blur-md shadow-xl">
           {messages.map((message, index) => {
             const previous = messages[index - 1]
             const isMine = message.sender_id === currentUserId
