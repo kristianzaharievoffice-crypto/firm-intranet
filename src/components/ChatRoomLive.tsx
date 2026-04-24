@@ -1093,7 +1093,14 @@ export default function ChatRoomLive({
         ) : null}
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-[#faf8f4] px-4 py-5">
+      <div
+  ref={scrollRef}
+  className="relative min-h-0 flex-1 overflow-y-auto bg-[#faf8f4] bg-cover bg-center bg-no-repeat bg-fixed px-4 py-5"
+  style={{
+    backgroundImage:
+      'linear-gradient(rgba(255, 248, 226, 0.35), rgba(255, 248, 226, 0.35)), url("/images/chat-background.png")',
+  }}
+>
         <div className="flex w-full flex-col gap-2">
           {messages.map((message, index) => {
             const previous = messages[index - 1]
@@ -1159,7 +1166,7 @@ export default function ChatRoomLive({
                   )}
 
                   <div
-                    className={`relative rounded-[22px] px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                    className={`relative rounded-[22px] px-4 py-3 shadow-lg backdrop-blur-[1px] transition hover:-translate-y-0.5 hover:shadow-xl ${
                       isMine
                         ? 'bg-gradient-to-r from-[#d4af37] to-[#f2d27a] text-[#1f1f1f]'
                         : 'border border-[#ece5d8] bg-white text-[#1f1f1f]'
