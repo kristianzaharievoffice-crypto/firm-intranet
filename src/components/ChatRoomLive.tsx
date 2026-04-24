@@ -1098,7 +1098,7 @@ export default function ChatRoomLive({
   className="relative min-h-0 flex-1 overflow-y-auto bg-[#faf8f4] bg-cover bg-center bg-no-repeat bg-fixed px-4 py-5"
   style={{
     backgroundImage:
-      'linear-gradient(rgba(255, 248, 226, 0.35), rgba(255, 248, 226, 0.35)), url("/public/chat-background.png")',
+      'linear-gradient(rgba(255, 248, 226, 0.35), rgba(255, 248, 226, 0.35)), url("/images/chat-background.png")',
   }}
 >
         <div className="flex w-full flex-col gap-2">
