@@ -11,6 +11,8 @@ interface Message {
   chat_id: string
   attachment_url?: string | null
   reply_to_message_id?: string | null
+  edited_at?: string | null
+  deleted_at?: string | null
 }
 
 interface SenderMap {
@@ -28,11 +30,55 @@ interface GroupMember {
   job_title: string | null
 }
 
+type ReactionRow = {
+  id: string
+  message_id: string
+  user_id: string
+  emoji: string
+}
+
+type PinRow = {
+  id: string
+  chat_id: string
+  message_id: string
+  pinned_by: string
+  created_at: string
+}
+
+const QUICK_REACTIONS = ['👍', '❤️', '🔥', '😂', '✅', '👏']
+const QUICK_EMOJIS = ['😀', '😂', '🔥', '👍', '❤️', '✅', '🙏', '🚀']
+
 function formatMessageTime(value: string) {
   return new Date(value).toLocaleTimeString('en-GB', {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function messageText(message: Message) {
+  if (message.deleted_at) return 'Message deleted'
+  return message.content?.trim() || (message.attachment_url ? 'Attached file' : '')
+}
+
+function highlightText(text: string, query: string) {
+  if (!query.trim()) return text
+
+  const index = text.toLowerCase().indexOf(query.toLowerCase())
+  if (index === -1) return text
+
+  return (
+    <>
+      {text.slice(0, index)}
+      <mark className="rounded bg-yellow-200 px-1">
+        {text.slice(index, index + query.length)}
+      </mark>
+      {text.slice(index + query.length)}
+    </>
+  )
+}
+
+function sameMinute(a: Message, b: Message) {
+  return Math.abs(new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) < 60_000
 }
 
 export default function ChatRoomLive({
@@ -69,33 +115,97 @@ export default function ChatRoomLive({
   headerSubtitle: string
 }) {
   const supabase = useMemo(() => createClient(), [])
+  const isDirect = chatType === 'direct'
 
-  const [messages, setMessages] = useState(initialMessages)
+  const [messages, setMessages] = useState<Message[]>(initialMessages)
+  const [reactions, setReactions] = useState<ReactionRow[]>([])
+  const [pins, setPins] = useState<PinRow[]>([])
   const [typing, setTyping] = useState(false)
   const [otherOnline, setOtherOnline] = useState(false)
   const [otherLastReadAt, setOtherLastReadAt] = useState<string | null>(null)
+
   const [content, setContent] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [messageError, setMessageError] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
 
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showSearch, setShowSearch] = useState(false)
+  const [showMentionMenu, setShowMentionMenu] = useState(false)
+
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const uiChannelRef = useRef<any>(null)
   const shouldStickBottomRef = useRef(true)
   const markingReadRef = useRef(false)
   const clearingNotificationsRef = useRef(false)
+
   const currentChatLink = `/chat/${chatId}`
 
-  const isDirect = chatType === 'direct'
+  const peopleForMentions = useMemo(() => {
+    const base =
+      chatType === 'group'
+        ? groupMembers
+        : otherUserId
+        ? [
+            {
+              id: otherUserId,
+              full_name: otherUserName || 'User',
+              avatar_url: otherUserAvatar,
+              job_title: otherUserJobTitle,
+            },
+          ]
+        : []
+
+    return base.filter((person) => person.id !== currentUserId)
+  }, [chatType, groupMembers, otherUserId, otherUserName, otherUserAvatar, otherUserJobTitle, currentUserId])
+
+  const filteredMentions = useMemo(() => {
+    const lastAt = content.lastIndexOf('@')
+    if (lastAt === -1) return []
+
+    const query = content.slice(lastAt + 1).toLowerCase()
+
+    return peopleForMentions
+      .filter((person) => person.full_name.toLowerCase().includes(query))
+      .slice(0, 6)
+  }, [content, peopleForMentions])
+
+  const pinnedMessages = useMemo(() => {
+    const pinIds = new Set(pins.map((pin) => pin.message_id))
+    return messages.filter((message) => pinIds.has(message.id) && !message.deleted_at)
+  }, [pins, messages])
+
+  const reactionsByMessage = useMemo(() => {
+    const map = new Map<string, ReactionRow[]>()
+
+    for (const reaction of reactions) {
+      const current = map.get(reaction.message_id) ?? []
+      current.push(reaction)
+      map.set(reaction.message_id, current)
+    }
+
+    return map
+  }, [reactions])
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return []
+
+    return messages.filter((message) =>
+      message.content?.toLowerCase().includes(q)
+    )
+  }, [messages, searchQuery])
 
   const loadMessages = async () => {
     const { data } = await supabase
       .from('messages')
       .select(
-        'id, content, created_at, sender_id, chat_id, attachment_url, reply_to_message_id'
+        'id, content, created_at, sender_id, chat_id, attachment_url, reply_to_message_id, edited_at, deleted_at'
       )
       .eq('chat_id', chatId)
       .order('created_at', { ascending: true })
@@ -103,10 +213,43 @@ export default function ChatRoomLive({
     setMessages((data ?? []) as Message[])
   }
 
+  const loadReactions = async () => {
+    const messageIds = messages.map((message) => message.id)
+
+    if (!messageIds.length) {
+      setReactions([])
+      return
+    }
+
+    const { data } = await supabase
+      .from('message_reactions')
+      .select('id, message_id, user_id, emoji')
+      .in('message_id', messageIds)
+
+    setReactions((data ?? []) as ReactionRow[])
+  }
+
+  const loadPins = async () => {
+    const { data } = await supabase
+      .from('message_pins')
+      .select('id, chat_id, message_id, pinned_by, created_at')
+      .eq('chat_id', chatId)
+      .order('created_at', { ascending: false })
+
+    setPins((data ?? []) as PinRow[])
+  }
+
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     const el = scrollRef.current
     if (!el) return
     el.scrollTo({ top: el.scrollHeight, behavior })
+  }
+
+  const scrollToMessage = (messageId: string) => {
+    messageRefs.current[messageId]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
   }
 
   const clearCurrentChatNotifications = async () => {
@@ -161,10 +304,7 @@ export default function ChatRoomLive({
       .maybeSingle()
 
     if (presence?.last_seen_at) {
-      const lastSeen = new Date(presence.last_seen_at).getTime()
-      const now = Date.now()
-      const diffSeconds = (now - lastSeen) / 1000
-      setOtherOnline(diffSeconds < 35)
+      setOtherOnline(Date.now() - new Date(presence.last_seen_at).getTime() < 35_000)
     } else {
       setOtherOnline(false)
     }
@@ -183,6 +323,14 @@ export default function ChatRoomLive({
     setMessages(initialMessages)
     setTimeout(() => scrollToBottom('auto'), 40)
   }, [initialMessages])
+
+  useEffect(() => {
+    void loadReactions()
+  }, [messages.map((m) => m.id).join(',')])
+
+  useEffect(() => {
+    void loadPins()
+  }, [chatId])
 
   useEffect(() => {
     void markReadNow()
@@ -236,7 +384,7 @@ export default function ChatRoomLive({
 
     const onScroll = () => {
       const distance = el.scrollHeight - el.scrollTop - el.clientHeight
-      shouldStickBottomRef.current = distance < 120
+      shouldStickBottomRef.current = distance < 140
     }
 
     el.addEventListener('scroll', onScroll)
@@ -249,7 +397,7 @@ export default function ChatRoomLive({
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'messages',
           filter: `chat_id=eq.${chatId}`,
@@ -267,35 +415,33 @@ export default function ChatRoomLive({
       )
       .subscribe()
 
-    const notificationChannel = supabase
-      .channel(`chat-room-notifications-${chatId}-${currentUserId}`)
+    const reactionsChannel = supabase
+      .channel(`chat-room-reactions-${chatId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${currentUserId}`,
+          table: 'message_reactions',
         },
         async () => {
-          await clearCurrentChatNotifications()
+          await loadReactions()
         }
       )
       .subscribe()
 
-    const presenceChannel = supabase
-      .channel(`chat-room-presence-${chatId}`)
+    const pinsChannel = supabase
+      .channel(`chat-room-pins-${chatId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'user_presence',
+          table: 'message_pins',
+          filter: `chat_id=eq.${chatId}`,
         },
         async () => {
-          if (isDirect) {
-            await loadOtherState()
-          }
+          await loadPins()
         }
       )
       .subscribe()
@@ -325,11 +471,11 @@ export default function ChatRoomLive({
 
     return () => {
       supabase.removeChannel(messagesChannel)
-      supabase.removeChannel(notificationChannel)
-      supabase.removeChannel(presenceChannel)
+      supabase.removeChannel(reactionsChannel)
+      supabase.removeChannel(pinsChannel)
       supabase.removeChannel(uiChannel)
     }
-  }, [chatId, currentUserId, isDirect, otherUserId, supabase])
+  }, [chatId, currentUserId, isDirect, otherUserId, supabase, messages.length])
 
   const lastOwnMessage = [...messages].reverse().find((m) => m.sender_id === currentUserId)
 
@@ -353,6 +499,10 @@ export default function ChatRoomLive({
 
   const handleTyping = async (value: string) => {
     setContent(value)
+
+    const lastAt = value.lastIndexOf('@')
+    setShowMentionMenu(lastAt !== -1 && value.slice(lastAt).length <= 24)
+
     if (!isDirect) return
 
     if (typingTimeoutRef.current) {
@@ -364,6 +514,15 @@ export default function ChatRoomLive({
     typingTimeoutRef.current = setTimeout(async () => {
       await broadcastTyping(false)
     }, 1200)
+  }
+
+  const insertMention = (name: string) => {
+    const lastAt = content.lastIndexOf('@')
+    if (lastAt === -1) return
+
+    const next = `${content.slice(0, lastAt)}@${name} `
+    setContent(next)
+    setShowMentionMenu(false)
   }
 
   const uploadAttachmentIfAny = async () => {
@@ -405,11 +564,36 @@ export default function ChatRoomLive({
 
     const trimmedContent = content.trim()
 
+    if (editingMessage) {
+      if (!trimmedContent) {
+        setMessageError('Edited message cannot be empty.')
+        return
+      }
+
+      const { error } = await supabase
+        .from('messages')
+        .update({
+          content: trimmedContent,
+          edited_at: new Date().toISOString(),
+        })
+        .eq('id', editingMessage.id)
+        .eq('sender_id', currentUserId)
+
+      if (error) {
+        setMessageError(error.message)
+        return
+      }
+
+      setEditingMessage(null)
+      setContent('')
+      await loadMessages()
+      return
+    }
+
     if (!trimmedContent && !file) {
       setMessageError('Write a message or choose a file.')
       return
     }
-
 
     setIsSending(true)
 
@@ -424,9 +608,7 @@ export default function ChatRoomLive({
           reply_to: replyTo?.id ?? null,
         })
 
-        if (error) {
-          throw new Error(error.message)
-        }
+        if (error) throw new Error(error.message)
       } else {
         const { error } = await supabase.rpc('send_group_message_v1', {
           target_chat_id: chatId,
@@ -435,15 +617,14 @@ export default function ChatRoomLive({
           reply_to: replyTo?.id ?? null,
         })
 
-        if (error) {
-          throw new Error(error.message)
-        }
+        if (error) throw new Error(error.message)
       }
 
       setContent('')
       setFile(null)
       setReplyTo(null)
       setIsSending(false)
+      setShowMentionMenu(false)
 
       if (isDirect) {
         await broadcastTyping(false)
@@ -460,6 +641,79 @@ export default function ChatRoomLive({
     }
   }
 
+  const editMessage = (message: Message) => {
+    if (message.sender_id !== currentUserId || message.deleted_at) return
+
+    setEditingMessage(message)
+    setContent(message.content ?? '')
+    setReplyTo(null)
+  }
+
+  const deleteMessage = async (message: Message) => {
+    if (message.sender_id !== currentUserId) return
+
+    const ok = window.confirm('Delete this message?')
+    if (!ok) return
+
+    const { error } = await supabase
+      .from('messages')
+      .update({
+        content: null,
+        attachment_url: null,
+        deleted_at: new Date().toISOString(),
+      })
+      .eq('id', message.id)
+      .eq('sender_id', currentUserId)
+
+    if (error) {
+      setMessageError(error.message)
+      return
+    }
+
+    await loadMessages()
+  }
+
+  const toggleReaction = async (message: Message, emoji: string) => {
+    if (message.deleted_at) return
+
+    const existing = reactions.find(
+      (reaction) =>
+        reaction.message_id === message.id &&
+        reaction.user_id === currentUserId &&
+        reaction.emoji === emoji
+    )
+
+    if (existing) {
+      await supabase.from('message_reactions').delete().eq('id', existing.id)
+    } else {
+      await supabase.from('message_reactions').insert({
+        message_id: message.id,
+        user_id: currentUserId,
+        emoji,
+      })
+    }
+
+    await loadReactions()
+  }
+
+  const togglePin = async (message: Message) => {
+    if (message.deleted_at) return
+
+    const existing = pins.find((pin) => pin.message_id === message.id)
+
+    if (existing) {
+      await supabase.from('message_pins').delete().eq('id', existing.id)
+    } else {
+      await supabase.from('message_pins').insert({
+        chat_id: chatId,
+        message_id: message.id,
+        pinned_by: currentUserId,
+      })
+    }
+
+    await loadPins()
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     await send()
@@ -472,6 +726,12 @@ export default function ChatRoomLive({
         await send()
       }
     }
+
+    if (e.key === 'Escape') {
+      setEditingMessage(null)
+      setReplyTo(null)
+      setShowMentionMenu(false)
+    }
   }
 
   const replyPreviewText = replyTo?.content?.trim()
@@ -480,7 +740,7 @@ export default function ChatRoomLive({
     ? 'Attached file'
     : ''
 
-  return (
+ return (
     <div className="flex h-[calc(100vh-180px)] min-h-[620px] flex-col overflow-hidden rounded-[28px] border border-[#ece5d8] bg-white shadow-sm">
       <div className="border-b border-[#ece5d8] bg-[#fffdf8] px-5 py-4">
         <div className="flex items-center gap-4">
@@ -542,34 +802,122 @@ export default function ChatRoomLive({
               </div>
             ) : null}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowSearch((prev) => !prev)}
+            className="rounded-[18px] bg-[#f3efe8] px-4 py-2 text-sm font-semibold text-[#5d5346]"
+          >
+            Search
+          </button>
         </div>
+
+        {showSearch ? (
+          <div className="mt-4 rounded-[20px] border border-[#ece5d8] bg-white p-3">
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search in this chat..."
+              className="w-full rounded-[16px] bg-[#fcfbf8] px-4 py-3 text-sm outline-none"
+            />
+
+            {searchQuery.trim() ? (
+              <div className="mt-3 max-h-40 space-y-2 overflow-auto">
+                {searchResults.length ? (
+                  searchResults.slice(0, 8).map((message) => (
+                    <button
+                      key={message.id}
+                      type="button"
+                      onClick={() => scrollToMessage(message.id)}
+                      className="block w-full rounded-[14px] bg-[#faf8f4] px-3 py-2 text-left text-sm text-[#5d5346]"
+                    >
+                      {senderNames[message.sender_id] ?? 'User'}:{' '}
+                      {message.content}
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm text-[#8f836c]">
+                    No results
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {pinnedMessages.length ? (
+          <div className="mt-4 rounded-[20px] border border-[#eadfbe] bg-[#fff8df] p-3">
+            <div className="mb-2 text-xs font-black uppercase tracking-wide text-[#8f6f16]">
+              Pinned messages
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {pinnedMessages.slice(0, 4).map((message) => (
+                <button
+                  key={message.id}
+                  type="button"
+                  onClick={() => scrollToMessage(message.id)}
+                  className="max-w-xs truncate rounded-full bg-white px-3 py-1.5 text-xs font-medium text-[#5d5346]"
+                >
+                  {messageText(message)}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div
         ref={scrollRef}
         className="min-h-0 flex-1 overflow-y-auto bg-[#faf8f4] px-4 py-5"
       >
-        <div className="mx-auto flex max-w-5xl flex-col gap-4">
-          {messages.map((message) => {
+        <div className="mx-auto flex max-w-5xl flex-col gap-2">
+          {messages.map((message, index) => {
+            const previous = messages[index - 1]
             const isMine = message.sender_id === currentUserId
-            const senderName = senderNames[message.sender_id] ?? 'User'
+            const isGrouped =
+              previous &&
+              previous.sender_id === message.sender_id &&
+              sameMinute(previous, message)
+
+            const senderName =
+              message.sender_id === currentUserId
+                ? currentUserName
+                : senderNames[message.sender_id] ?? 'User'
+
             const senderAvatar = senderAvatars[message.sender_id] ?? null
             const repliedMessage = message.reply_to_message_id
               ? messages.find((m) => m.id === message.reply_to_message_id)
               : null
 
+            const messageReactions = reactionsByMessage.get(message.id) ?? []
+            const groupedReactions = QUICK_REACTIONS.map((emoji) => {
+              const rows = messageReactions.filter((reaction) => reaction.emoji === emoji)
+              return {
+                emoji,
+                count: rows.length,
+                reactedByMe: rows.some((reaction) => reaction.user_id === currentUserId),
+              }
+            }).filter((item) => item.count > 0)
+
+            const isPinned = pins.some((pin) => pin.message_id === message.id)
+
             return (
               <div
                 key={message.id}
-                className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
+                ref={(node) => {
+                  messageRefs.current[message.id] = node
+                }}
+                className={`animate-[fadeIn_180ms_ease-out] flex ${
+                  isMine ? 'justify-end' : 'justify-start'
+                } ${isGrouped ? 'mt-1' : 'mt-4'}`}
               >
                 <div
                   className={`flex max-w-[82%] items-end gap-2 ${
                     isMine ? 'flex-row-reverse' : 'flex-row'
                   }`}
                 >
-                  {!isMine ? (
-                    <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56]">
+                  {!isMine && !isGrouped ? (
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56]">
                       {senderAvatar ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -582,55 +930,95 @@ export default function ChatRoomLive({
                       )}
                     </div>
                   ) : (
-                    <div className="w-9" />
+                    <div className="w-9 shrink-0" />
                   )}
 
                   <div
-                    className={`rounded-[22px] px-4 py-3 shadow-sm ${
+                    className={`rounded-[22px] px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
                       isMine
                         ? 'bg-gradient-to-r from-[#d4af37] to-[#f2d27a] text-[#1f1f1f]'
                         : 'border border-[#ece5d8] bg-white text-[#1f1f1f]'
-                    }`}
+                    } ${message.deleted_at ? 'opacity-60' : ''}`}
                   >
-                    <div className="mb-1 flex items-center justify-between gap-3">
-                      <div
-                        className={`text-[11px] font-semibold ${
-                          isMine ? 'text-[#5a470f]' : 'text-[#a88414]'
-                        }`}
-                      >
-                        {isMine ? 'You' : senderName}
-                      </div>
+                    {!isGrouped ? (
+                      <div className="mb-1 flex items-center justify-between gap-3">
+                        <div
+                          className={`text-[11px] font-semibold ${
+                            isMine ? 'text-[#5a470f]' : 'text-[#a88414]'
+                          }`}
+                        >
+                          {isMine ? 'You' : senderName}
+                        </div>
 
+                        <div className="flex items-center gap-2 text-[11px] font-semibold">
+                          {!message.deleted_at ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setReplyTo(message)}
+                                className={isMine ? 'text-[#5a470f]' : 'text-[#a88414]'}
+                              >
+                                Reply
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => togglePin(message)}
+                                className={isMine ? 'text-[#5a470f]' : 'text-[#a88414]'}
+                              >
+                                {isPinned ? 'Unpin' : 'Pin'}
+                              </button>
+
+                              {isMine ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => editMessage(message)}
+                                    className="text-[#5a470f]"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteMessage(message)}
+                                    className="text-[#5a470f]"
+                                  >
+                                    Delete
+                                  </button>
+                                </>
+                              ) : null}
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+
+
+ 
+                    {repliedMessage ? (
                       <button
                         type="button"
-                        onClick={() => setReplyTo(message)}
-                        className={`text-[11px] font-semibold ${
-                          isMine ? 'text-[#5a470f]' : 'text-[#a88414]'
-                        }`}
-                      >
-                        Reply
-                      </button>
-                    </div>
-
-                    {repliedMessage ? (
-                      <div
-                        className={`mb-2 rounded-[14px] px-3 py-2 text-xs ${
+                        onClick={() => scrollToMessage(repliedMessage.id)}
+                        className={`mb-2 block w-full rounded-[14px] px-3 py-2 text-left text-xs ${
                           isMine ? 'bg-white/40 text-[#3d3210]' : 'bg-[#f8f4ea] text-[#6f624e]'
                         }`}
                       >
                         {senderNames[repliedMessage.sender_id] ?? 'User'}:{' '}
-                        {repliedMessage.content?.trim() ||
-                          (repliedMessage.attachment_url ? 'Attached file' : 'Message')}
-                      </div>
+                        {messageText(repliedMessage)}
+                      </button>
                     ) : null}
 
-                    {message.content ? (
+                    {message.content && !message.deleted_at ? (
                       <div className="whitespace-pre-wrap break-words text-sm leading-6">
-                        {message.content}
+                        {highlightText(message.content, searchQuery)}
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="text-sm italic leading-6">
+                        {message.deleted_at ? 'Message deleted' : null}
+                      </div>
+                    )}
 
-                    {message.attachment_url ? (
+                    {message.attachment_url && !message.deleted_at ? (
                       <a
                         href={message.attachment_url}
                         target="_blank"
@@ -643,7 +1031,53 @@ export default function ChatRoomLive({
                       </a>
                     ) : null}
 
+                    {!message.deleted_at ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-1">
+                        {QUICK_REACTIONS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => toggleReaction(message, emoji)}
+                            className="rounded-full bg-white/60 px-2 py-1 text-xs transition hover:scale-110"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {groupedReactions.length ? (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {groupedReactions.map((reaction) => (
+                          <button
+                            key={reaction.emoji}
+                            type="button"
+                            onClick={() => toggleReaction(message, reaction.emoji)}
+                            className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                              reaction.reactedByMe
+                                ? 'bg-[#1f1a14] text-white'
+                                : 'bg-white/70 text-[#5d5346]'
+                            }`}
+                          >
+                            {reaction.emoji} {reaction.count}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+
                     <div className="mt-2 flex items-center justify-end gap-2 text-[11px]">
+                      {message.edited_at && !message.deleted_at ? (
+                        <span className={isMine ? 'text-[#5a470f]' : 'text-[#8f836c]'}>
+                          edited
+                        </span>
+                      ) : null}
+
+                      {isPinned ? (
+                        <span className={isMine ? 'text-[#5a470f]' : 'text-[#8f836c]'}>
+                          pinned
+                        </span>
+                      ) : null}
+
                       <span className={isMine ? 'text-[#5a470f]' : 'text-[#8f836c]'}>
                         {formatMessageTime(message.created_at)}
                       </span>
@@ -656,6 +1090,10 @@ export default function ChatRoomLive({
                         >
                           {isLastOwnMessageSeen ? 'Seen' : 'Sent'}
                         </span>
+                      ) : null}
+
+                      {isMine && !isDirect && message.id === lastOwnMessage?.id ? (
+                        <span className="text-[#5a470f]">Sent</span>
                       ) : null}
                     </div>
                   </div>
@@ -670,6 +1108,24 @@ export default function ChatRoomLive({
         onSubmit={handleSubmit}
         className="border-t border-[#ece5d8] bg-white px-4 py-4"
       >
+        {editingMessage ? (
+          <div className="mb-3 flex items-center justify-between rounded-[18px] border border-[#ece5d8] bg-[#fff8df] px-4 py-3">
+            <div className="text-sm font-semibold text-[#5d5346]">
+              Editing message
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingMessage(null)
+                setContent('')
+              }}
+              className="text-sm font-semibold text-[#7b6f5a]"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : null}
+
         {replyTo ? (
           <div className="mb-3 flex items-start justify-between gap-3 rounded-[18px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3">
             <div className="min-w-0">
@@ -698,20 +1154,62 @@ export default function ChatRoomLive({
           </div>
         ) : null}
 
-        <div className="flex items-end gap-3">
+        <div className="relative flex items-end gap-3">
+          {showMentionMenu && filteredMentions.length ? (
+            <div className="absolute bottom-full left-0 mb-2 w-72 overflow-hidden rounded-[20px] border border-[#ece5d8] bg-white shadow-xl">
+              {filteredMentions.map((person) => (
+                <button
+                  key={person.id}
+                  type="button"
+                  onClick={() => insertMention(person.full_name)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-[#f7f1e2]"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56]">
+                    {person.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={person.avatar_url}
+                        alt={person.full_name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      person.full_name[0]?.toUpperCase()
+                    )}
+                  </div>
+                  <span>{person.full_name}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           <div className="flex-1 rounded-[22px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3">
             <textarea
               value={content}
-              onChange={(e) =>
-                isDirect ? void handleTyping(e.target.value) : setContent(e.target.value)
-              }
+              onChange={(e) => void handleTyping(e.target.value)}
               onKeyDown={handleKeyDown}
               rows={3}
               placeholder={
-                isDirect ? 'Write a message...' : `Message ${groupName ?? 'group'}...`
+                editingMessage
+                  ? 'Edit your message...'
+                  : isDirect
+                  ? 'Write a message...'
+                  : `Message ${groupName ?? 'group'}... Use @ to mention`
               }
               className="max-h-40 min-h-[72px] w-full resize-none bg-transparent text-sm text-[#1f1f1f] outline-none placeholder:text-[#9a8d75]"
             />
+
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {QUICK_EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => setContent((prev) => `${prev}${emoji}`)}
+                  className="rounded-full bg-white px-2 py-1 text-sm transition hover:scale-110"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
           </div>
 
           <label className="flex h-12 cursor-pointer items-center justify-center rounded-[18px] border border-[#ece5d8] bg-white px-4 text-sm font-medium text-[#7b6f5a] shadow-sm">
@@ -728,14 +1226,36 @@ export default function ChatRoomLive({
             disabled={isSending}
             className="h-12 rounded-[18px] bg-gradient-to-r from-[#d4af37] to-[#f2d27a] px-5 text-sm font-semibold text-[#1f1f1f] shadow-sm disabled:opacity-60"
           >
-            {isSending ? 'Sending...' : 'Send'}
+            {isSending ? 'Sending...' : editingMessage ? 'Save' : 'Send'}
           </button>
         </div>
 
         {file ? (
-          <div className="mt-3 text-sm text-[#7b6f5a]">Selected file: {file.name}</div>
+          <div className="mt-3 flex items-center justify-between rounded-[16px] bg-[#fcfbf8] px-4 py-3 text-sm text-[#7b6f5a]">
+            <span>Selected file: {file.name}</span>
+            <button
+              type="button"
+              onClick={() => setFile(null)}
+              className="font-semibold text-[#a88414]"
+            >
+              Remove
+            </button>
+          </div>
         ) : null}
       </form>
+
+      <style jsx>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   )
 }
