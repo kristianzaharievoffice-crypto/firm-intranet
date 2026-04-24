@@ -736,7 +736,6 @@ export default function ChatRoomLive({
         await broadcastTyping(false)
       }
 
-
       await updateOwnPresence(chatId)
       await loadMessages()
       await clearCurrentChatNotifications()
@@ -849,13 +848,12 @@ export default function ChatRoomLive({
       : ''
 
   return (
-    <div className="flex h-[calc(100vh-180px)] min-h-[620px] flex-col overflow-hidden rounded-[28px] border border-[#ece5d8] bg-white shadow-sm">
-      <div className="border-b border-[#ece5d8] bg-[#fffdf8] px-5 py-4">
-        <div className="flex items-center bg-white/70 backdrop-blur-md rounded-t-[28px] px-4 py-3">
+    <div className="flex h-[calc(100vh-180px)] min-h-[620px] flex-col overflow-hidden rounded-[28px] border border-white/40 bg-white/60 shadow-xl backdrop-blur-md">
+      <div className="border-b border-white/30 bg-white/70 px-5 py-4 backdrop-blur-md">
+        <div className="flex items-center gap-4">
           {isDirect ? (
             <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-sm font-semibold text-[#8e7b56]">
               {otherUserAvatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={otherUserAvatar}
                   alt={otherUserName}
@@ -867,7 +865,7 @@ export default function ChatRoomLive({
 
               <span
                 className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full border-2 border-white ${
-                  otherOnline ? 'bg-emerald-500' : 'bg-[#c9a227] shadow-lg'
+                  otherOnline ? 'bg-emerald-500' : 'bg-[#c7bda9]'
                 }`}
               />
             </div>
@@ -915,7 +913,7 @@ export default function ChatRoomLive({
             <button
               type="button"
               onClick={() => setShowGroupPanel((prev) => !prev)}
-              className="rounded-[18px] bg-[#f3efe8] px-4 py-2 text-sm font-semibold text-[#5d5346]"
+              className="rounded-[18px] bg-white/70 px-4 py-2 text-sm font-semibold text-[#5d5346] shadow-sm backdrop-blur-sm"
             >
               Members
             </button>
@@ -924,19 +922,19 @@ export default function ChatRoomLive({
           <button
             type="button"
             onClick={() => setShowSearch((prev) => !prev)}
-            className="rounded-[18px] bg-[#f3efe8] px-4 py-2 text-sm font-semibold text-[#5d5346]"
+            className="rounded-[18px] bg-white/70 px-4 py-2 text-sm font-semibold text-[#5d5346] shadow-sm backdrop-blur-sm"
           >
             Search
           </button>
         </div>
 
         {showSearch ? (
-          <div className="mt-4 rounded-[20px] border border-[#ece5d8] bg-white p-3">
+          <div className="mt-4 rounded-[20px] border border-white/40 bg-white/80 p-3 backdrop-blur-md">
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search in this chat..."
-              className="w-full rounded-[16px] bg-[#fcfbf8] px-4 py-3 text-sm outline-none"
+              className="w-full rounded-[16px] bg-white/80 px-4 py-3 text-sm outline-none"
             />
 
             {searchQuery.trim() ? (
@@ -961,7 +959,7 @@ export default function ChatRoomLive({
         ) : null}
 
         {showGroupPanel && chatType === 'group' ? (
-          <div className="mt-4 rounded-[20px] border border-[#ece5d8] bg-white p-4">
+          <div className="mt-4 rounded-[20px] border border-white/40 bg-white/80 p-4 backdrop-blur-md">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <div className="text-sm font-black text-[#1f1a14]">Group settings</div>
@@ -986,12 +984,11 @@ export default function ChatRoomLive({
                 {localGroupMembers.map((member) => (
                   <div
                     key={member.id}
-                    className="flex items-center justify-between rounded-[16px] bg-[#faf8f4] px-3 py-2"
+                    className="flex items-center justify-between rounded-[16px] bg-[#faf8f4]/90 px-3 py-2"
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56]">
                         {member.avatar_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={member.avatar_url}
                             alt={member.full_name}
@@ -1042,11 +1039,10 @@ export default function ChatRoomLive({
                       key={person.id}
                       type="button"
                       onClick={() => addMemberToGroup(person.id)}
-                      className="flex items-center gap-3 rounded-[16px] bg-[#faf8f4] px-3 py-2 text-left hover:bg-[#f7f1e2]"
+                      className="flex items-center gap-3 rounded-[16px] bg-[#faf8f4]/90 px-3 py-2 text-left hover:bg-[#f7f1e2]"
                     >
                       <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56]">
                         {person.avatar_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={person.avatar_url}
                             alt={person.full_name}
@@ -1073,7 +1069,7 @@ export default function ChatRoomLive({
         ) : null}
 
         {pinnedMessages.length ? (
-          <div className="mt-4 rounded-[20px] border border-[#eadfbe] bg-[#fff8df] p-3">
+          <div className="mt-4 rounded-[20px] border border-[#eadfbe] bg-[#fff8df]/90 p-3 backdrop-blur-sm">
             <div className="mb-2 text-xs font-black uppercase tracking-wide text-[#8f6f16]">
               Pinned messages
             </div>
@@ -1093,15 +1089,8 @@ export default function ChatRoomLive({
         ) : null}
       </div>
 
-      <div
-  ref={scrollRef}
-  className="relative min-h-0 flex-1 overflow-y-auto px-4 py-5"
-  style={{
-    backgroundImage:
-      'linear-gradient(rgba(255, 248, 226, 0.35), rgba(255, 248, 226, 0.35)), url("/images/chat-background.png")',
-  }}
->
-        <div className="flex h-full flex-col rounded-[28px] border border-white/40 bg-white/60 backdrop-blur-md shadow-xl">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+        <div className="flex w-full flex-col gap-2">
           {messages.map((message, index) => {
             const previous = messages[index - 1]
             const isMine = message.sender_id === currentUserId
@@ -1138,7 +1127,7 @@ export default function ChatRoomLive({
                 ref={(node) => {
                   messageRefs.current[message.id] = node
                 }}
-                className={`animate-[fadeIn_180ms_ease-out] flex ${
+                className={`animate-[fadeIn_180ms_ease-out] flex w-full ${
                   isMine ? 'justify-end' : 'justify-start'
                 } ${isGrouped ? 'mt-1' : 'mt-4'}`}
               >
@@ -1147,11 +1136,9 @@ export default function ChatRoomLive({
                     isMine ? 'flex-row-reverse' : 'flex-row'
                   }`}
                 >
-
                   {!isMine && !isGrouped ? (
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56]">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56] shadow-sm">
                       {senderAvatar ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={senderAvatar}
                           alt={senderName}
@@ -1166,17 +1153,17 @@ export default function ChatRoomLive({
                   )}
 
                   <div
-                    className={`relative rounded-[22px] px-4 py-3 shadow-lg backdrop-blur-[1px] transition hover:-translate-y-0.5 hover:shadow-xl ${
+                    className={`relative rounded-[22px] px-4 py-3 shadow-lg backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-xl ${
                       isMine
-                        ? 'bg-gradient-to-r from-[#d4af37] to-[#f2d27a] text-[#1f1f1f]'
-                        : 'border border-[#ece5d8] bg-white text-[#1f1f1f]'
+                        ? 'bg-[#c9a227] text-white'
+                        : 'border border-white/50 bg-white/90 text-[#1f1f1f]'
                     } ${message.deleted_at ? 'opacity-60' : ''}`}
                   >
                     {!isGrouped ? (
                       <div className="mb-1 flex items-center justify-between gap-3">
                         <div
                           className={`text-[11px] font-semibold ${
-                            isMine ? 'text-[#5a470f]' : 'text-[#a88414]'
+                            isMine ? 'text-white/80' : 'text-[#a88414]'
                           }`}
                         >
                           {isMine ? 'You' : senderName}
@@ -1191,7 +1178,7 @@ export default function ChatRoomLive({
                                   prev === message.id ? null : message.id
                                 )
                               }
-                              className={isMine ? 'text-[#5a470f]' : 'text-[#a88414]'}
+                              className={isMine ? 'text-white/80' : 'text-[#a88414]'}
                             >
                               ⋯
                             </button>
@@ -1257,7 +1244,7 @@ export default function ChatRoomLive({
                         type="button"
                         onClick={() => scrollToMessage(repliedMessage.id)}
                         className={`mb-2 block w-full rounded-[14px] px-3 py-2 text-left text-xs ${
-                          isMine ? 'bg-white/40 text-[#3d3210]' : 'bg-[#f8f4ea] text-[#6f624e]'
+                          isMine ? 'bg-white/25 text-white' : 'bg-[#f8f4ea] text-[#6f624e]'
                         }`}
                       >
                         {senderNames[repliedMessage.sender_id] ?? 'User'}:{' '}
@@ -1265,28 +1252,7 @@ export default function ChatRoomLive({
                       </button>
                     ) : null}
 
-                    {message.content && !message.deleted_at ? (
-                      <div className="whitespace-pre-wrap break-words text-sm leading-6">
-                        {highlightText(message.content, searchQuery)}
-                      </div>
-                    ) : (
-                      <div className="text-sm italic leading-6">
-                        {message.deleted_at ? 'Message deleted' : null}
-                      </div>
-                    )}
-
-                    {message.attachment_url && !message.deleted_at ? (
-                      <a
-                        href={message.attachment_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={`mt-2 block text-sm font-semibold underline ${
-                          isMine ? 'text-[#3d3210]' : 'text-[#a88414]'
-                        }`}
-                      >
-                        Open attached file
-                      </a>
-                    ) : null}
+      
 
                     {!message.deleted_at ? (
                       <div className="mt-3 flex flex-wrap items-center gap-1">
@@ -1324,25 +1290,25 @@ export default function ChatRoomLive({
 
                     <div className="mt-2 flex items-center justify-end gap-2 text-[11px]">
                       {message.edited_at && !message.deleted_at ? (
-                        <span className={isMine ? 'text-[#5a470f]' : 'text-[#8f836c]'}>
+                        <span className={isMine ? 'text-white/70' : 'text-[#8f836c]'}>
                           edited
                         </span>
                       ) : null}
 
                       {isPinned ? (
-                        <span className={isMine ? 'text-[#5a470f]' : 'text-[#8f836c]'}>
+                        <span className={isMine ? 'text-white/70' : 'text-[#8f836c]'}>
                           pinned
                         </span>
                       ) : null}
 
-                      <span className={isMine ? 'text-[#5a470f]' : 'text-[#8f836c]'}>
+                      <span className={isMine ? 'text-white/70' : 'text-[#8f836c]'}>
                         {formatMessageTime(message.created_at)}
                       </span>
 
                       {isMine && isDirect && message.id === lastOwnMessage?.id ? (
                         <span
                           className={
-                            isLastOwnMessageSeen ? 'text-emerald-700' : 'text-[#5a470f]'
+                            isLastOwnMessageSeen ? 'text-emerald-100' : 'text-white/70'
                           }
                         >
                           {isLastOwnMessageSeen ? 'Seen' : 'Sent'}
@@ -1350,7 +1316,7 @@ export default function ChatRoomLive({
                       ) : null}
 
                       {isMine && !isDirect && message.id === lastOwnMessage?.id ? (
-                        <span className="text-[#5a470f]">Sent</span>
+                        <span className="text-white/70">Sent</span>
                       ) : null}
                     </div>
                   </div>
@@ -1361,7 +1327,7 @@ export default function ChatRoomLive({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="border-t border-[#ece5d8] bg-white px-4 py-4">
+      <form onSubmit={handleSubmit} className="border-t border-white/30 bg-white/70 px-4 py-4 backdrop-blur-md">
         {editingMessage ? (
           <div className="mb-3 flex items-center justify-between rounded-[18px] border border-[#ece5d8] bg-[#fff8df] px-4 py-3">
             <div className="text-sm font-semibold text-[#5d5346]">Editing message</div>
@@ -1379,7 +1345,7 @@ export default function ChatRoomLive({
         ) : null}
 
         {replyTo ? (
-          <div className="mb-3 flex items-start justify-between gap-3 rounded-[18px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3">
+          <div className="mb-3 flex items-start justify-between gap-3 rounded-[18px] border border-[#ece5d8] bg-[#fcfbf8]/90 px-4 py-3">
             <div className="min-w-0">
               <div className="text-xs font-semibold uppercase tracking-wide text-[#a88414]">
                 Replying to{' '}
@@ -1418,7 +1384,6 @@ export default function ChatRoomLive({
                 >
                   <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56]">
                     {person.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={person.avatar_url}
                         alt={person.full_name}
@@ -1434,7 +1399,7 @@ export default function ChatRoomLive({
             </div>
           ) : null}
 
-          <div className="flex-1 rounded-[22px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3">
+          <div className="flex-1 rounded-[22px] border border-white/40 bg-white/75 px-4 py-3 backdrop-blur-sm">
             <textarea
               value={content}
               onChange={(e) => void handleTyping(e.target.value)}
@@ -1464,7 +1429,7 @@ export default function ChatRoomLive({
             </div>
           </div>
 
-          <label className="flex h-12 cursor-pointer items-center justify-center rounded-[18px] border border-[#ece5d8] bg-white px-4 text-sm font-medium text-[#7b6f5a] shadow-sm">
+          <label className="flex h-12 cursor-pointer items-center justify-center rounded-[18px] border border-white/40 bg-white/80 px-4 text-sm font-medium text-[#7b6f5a] shadow-sm">
             File
             <input
               type="file"
@@ -1483,7 +1448,7 @@ export default function ChatRoomLive({
         </div>
 
         {file ? (
-          <div className="mt-3 flex items-center justify-between rounded-[16px] bg-[#fcfbf8] px-4 py-3 text-sm text-[#7b6f5a]">
+          <div className="mt-3 flex items-center justify-between rounded-[16px] bg-[#fcfbf8]/90 px-4 py-3 text-sm text-[#7b6f5a]">
             <span>Selected file: {file.name}</span>
             <button
               type="button"
