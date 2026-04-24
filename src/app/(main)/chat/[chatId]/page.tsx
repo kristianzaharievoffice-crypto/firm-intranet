@@ -12,6 +12,8 @@ type Message = {
   chat_id: string
   attachment_url?: string | null
   reply_to_message_id?: string | null
+  edited_at?: string | null
+  deleted_at?: string | null
 }
 
 type ChatRow = {
@@ -44,9 +46,7 @@ export default async function ChatRoomPage({
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  if (!user) redirect('/login')
 
   const { data: chat } = await supabase
     .from('chats')
@@ -56,13 +56,11 @@ export default async function ChatRoomPage({
     .eq('id', chatId)
     .maybeSingle<ChatRow>()
 
-  if (!chat) {
-    redirect('/chat')
-  }
+  if (!chat) redirect('/chat')
 
   let canAccess = false
   let memberIds: string[] = []
-  let groupName = chat.name?.trim() || 'Untitled group'
+  const groupName = chat.name?.trim() || 'Untitled group'
   let otherUserId: string | null = null
 
   if (chat.chat_type === 'group') {
@@ -76,19 +74,18 @@ export default async function ChatRoomPage({
   } else {
     const first = chat.user1_id ?? chat.admin_id
     const second = chat.user2_id ?? chat.employee_id
+
     canAccess = first === user.id || second === user.id
     otherUserId = first === user.id ? second : first
     memberIds = [first, second].filter(Boolean) as string[]
   }
 
-  if (!canAccess) {
-    redirect('/chat')
-  }
+  if (!canAccess) redirect('/chat')
 
   const { data: messages } = await supabase
     .from('messages')
     .select(
-      'id, content, created_at, sender_id, chat_id, attachment_url, reply_to_message_id'
+      'id, content, created_at, sender_id, chat_id, attachment_url, reply_to_message_id, edited_at, deleted_at'
     )
     .eq('chat_id', chatId)
     .order('created_at', { ascending: true })
@@ -98,10 +95,17 @@ export default async function ChatRoomPage({
     .select('id, full_name, avatar_url, job_title')
     .in('id', memberIds)
 
+  const { data: allProfiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, job_title')
+    .order('full_name', { ascending: true })
+
   const profileRows = (profiles ?? []) as ProfileRow[]
+
   const senderNames = Object.fromEntries(
     profileRows.map((profile) => [profile.id, profile.full_name ?? 'User'])
   )
+
   const senderAvatars = Object.fromEntries(
     profileRows.map((profile) => [profile.id, profile.avatar_url ?? null])
   )
@@ -117,6 +121,7 @@ export default async function ChatRoomPage({
     headerSubtitle = `${memberIds.length} members`
   } else {
     const otherProfile = profileRows.find((profile) => profile.id === otherUserId)
+
     headerTitle = otherProfile?.full_name ?? 'User'
     headerSubtitle = otherProfile?.job_title ?? 'Team member'
     otherUserName = otherProfile?.full_name ?? 'User'
@@ -125,6 +130,13 @@ export default async function ChatRoomPage({
   }
 
   const groupMembers = profileRows.map((profile) => ({
+    id: profile.id,
+    full_name: profile.full_name ?? 'User',
+    avatar_url: profile.avatar_url ?? null,
+    job_title: profile.job_title ?? null,
+  }))
+
+  const availableMembers = ((allProfiles ?? []) as ProfileRow[]).map((profile) => ({
     id: profile.id,
     full_name: profile.full_name ?? 'User',
     avatar_url: profile.avatar_url ?? null,
@@ -146,6 +158,7 @@ export default async function ChatRoomPage({
       otherUserJobTitle={otherUserJobTitle}
       groupName={chat.chat_type === 'group' ? groupName : null}
       groupMembers={groupMembers}
+      availableMembers={availableMembers}
       headerTitle={headerTitle}
       headerSubtitle={headerSubtitle}
     />

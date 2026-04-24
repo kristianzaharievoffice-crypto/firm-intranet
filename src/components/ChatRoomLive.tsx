@@ -95,6 +95,7 @@ export default function ChatRoomLive({
   otherUserJobTitle,
   groupName,
   groupMembers,
+  availableMembers,
   headerTitle,
   headerSubtitle,
 }: {
@@ -111,6 +112,7 @@ export default function ChatRoomLive({
   otherUserJobTitle: string | null
   groupName: string | null
   groupMembers: GroupMember[]
+  availableMembers: GroupMember[]
   headerTitle: string
   headerSubtitle: string
 }) {
@@ -135,6 +137,11 @@ export default function ChatRoomLive({
   const [showSearch, setShowSearch] = useState(false)
   const [showMentionMenu, setShowMentionMenu] = useState(false)
 
+  const [localGroupName, setLocalGroupName] = useState(groupName ?? '')
+  const [localGroupMembers, setLocalGroupMembers] = useState<GroupMember[]>(groupMembers)
+  const [showGroupPanel, setShowGroupPanel] = useState(false)
+  const [actionMenuId, setActionMenuId] = useState<string | null>(null)
+
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -149,20 +156,28 @@ export default function ChatRoomLive({
   const peopleForMentions = useMemo(() => {
     const base =
       chatType === 'group'
-        ? groupMembers
+        ? localGroupMembers
         : otherUserId
-        ? [
-            {
-              id: otherUserId,
-              full_name: otherUserName || 'User',
-              avatar_url: otherUserAvatar,
-              job_title: otherUserJobTitle,
-            },
-          ]
-        : []
+          ? [
+              {
+                id: otherUserId,
+                full_name: otherUserName || 'User',
+                avatar_url: otherUserAvatar,
+                job_title: otherUserJobTitle,
+              },
+            ]
+          : []
 
     return base.filter((person) => person.id !== currentUserId)
-  }, [chatType, groupMembers, otherUserId, otherUserName, otherUserAvatar, otherUserJobTitle, currentUserId])
+  }, [
+    chatType,
+    localGroupMembers,
+    otherUserId,
+    otherUserName,
+    otherUserAvatar,
+    otherUserJobTitle,
+    currentUserId,
+  ])
 
   const filteredMentions = useMemo(() => {
     const lastAt = content.lastIndexOf('@')
@@ -196,9 +211,7 @@ export default function ChatRoomLive({
     const q = searchQuery.trim().toLowerCase()
     if (!q) return []
 
-    return messages.filter((message) =>
-      message.content?.toLowerCase().includes(q)
-    )
+    return messages.filter((message) => message.content?.toLowerCase().includes(q))
   }, [messages, searchQuery])
 
   const loadMessages = async () => {
@@ -214,17 +227,9 @@ export default function ChatRoomLive({
   }
 
   const loadReactions = async () => {
-    const messageIds = messages.map((message) => message.id)
-
-    if (!messageIds.length) {
-      setReactions([])
-      return
-    }
-
     const { data } = await supabase
       .from('message_reactions')
       .select('id, message_id, user_id, emoji')
-      .in('message_id', messageIds)
 
     setReactions((data ?? []) as ReactionRow[])
   }
@@ -237,6 +242,91 @@ export default function ChatRoomLive({
       .order('created_at', { ascending: false })
 
     setPins((data ?? []) as PinRow[])
+  }
+
+  const refreshGroupMembers = async () => {
+    if (chatType !== 'group') return
+
+    const { data: memberRows } = await supabase
+      .from('chat_members')
+      .select('user_id')
+      .eq('chat_id', chatId)
+
+    const ids = (memberRows ?? []).map((row) => row.user_id as string)
+
+    if (!ids.length) {
+      setLocalGroupMembers([])
+      return
+    }
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url, job_title')
+      .in('id', ids)
+
+    setLocalGroupMembers(
+      (profiles ?? []).map((profile) => ({
+        id: profile.id,
+        full_name: profile.full_name ?? 'User',
+        avatar_url: profile.avatar_url ?? null,
+        job_title: profile.job_title ?? null,
+      }))
+    )
+  }
+
+  const renameGroup = async () => {
+    const nextName = window.prompt('Group name', localGroupName)
+    if (!nextName || !nextName.trim()) return
+
+    const { error } = await supabase
+      .from('chats')
+      .update({ name: nextName.trim() })
+      .eq('id', chatId)
+      .eq('chat_type', 'group')
+
+    if (error) {
+      setMessageError(error.message)
+      return
+    }
+
+    setLocalGroupName(nextName.trim())
+  }
+
+  const addMemberToGroup = async (userId: string) => {
+    const { error } = await supabase.from('chat_members').insert({
+      chat_id: chatId,
+      user_id: userId,
+    })
+
+    if (error) {
+      setMessageError(error.message)
+      return
+    }
+
+    await refreshGroupMembers()
+  }
+
+  const removeMemberFromGroup = async (userId: string) => {
+    const ok = window.confirm(
+      userId === currentUserId
+        ? 'Remove yourself from this group?'
+        : 'Remove this member from the group?'
+    )
+
+    if (!ok) return
+
+    const { error } = await supabase
+      .from('chat_members')
+      .delete()
+      .eq('chat_id', chatId)
+      .eq('user_id', userId)
+
+    if (error) {
+      setMessageError(error.message)
+      return
+    }
+
+    await refreshGroupMembers()
   }
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
@@ -321,14 +411,13 @@ export default function ChatRoomLive({
 
   useEffect(() => {
     setMessages(initialMessages)
+    setLocalGroupName(groupName ?? '')
+    setLocalGroupMembers(groupMembers)
     setTimeout(() => scrollToBottom('auto'), 40)
-  }, [initialMessages])
+  }, [initialMessages, groupName, groupMembers])
 
   useEffect(() => {
     void loadReactions()
-  }, [messages.map((m) => m.id).join(',')])
-
-  useEffect(() => {
     void loadPins()
   }, [chatId])
 
@@ -446,6 +535,22 @@ export default function ChatRoomLive({
       )
       .subscribe()
 
+    const membersChannel = supabase
+      .channel(`chat-room-members-${chatId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_members',
+          filter: `chat_id=eq.${chatId}`,
+        },
+        async () => {
+          await refreshGroupMembers()
+        }
+      )
+      .subscribe()
+
     const uiChannel = supabase.channel(`chat-ui-${chatId}`)
     uiChannelRef.current = uiChannel
 
@@ -473,9 +578,10 @@ export default function ChatRoomLive({
       supabase.removeChannel(messagesChannel)
       supabase.removeChannel(reactionsChannel)
       supabase.removeChannel(pinsChannel)
+      supabase.removeChannel(membersChannel)
       supabase.removeChannel(uiChannel)
     }
-  }, [chatId, currentUserId, isDirect, otherUserId, supabase, messages.length])
+  }, [chatId, currentUserId, isDirect, otherUserId, supabase])
 
   const lastOwnMessage = [...messages].reverse().find((m) => m.sender_id === currentUserId)
 
@@ -630,6 +736,7 @@ export default function ChatRoomLive({
         await broadcastTyping(false)
       }
 
+
       await updateOwnPresence(chatId)
       await loadMessages()
       await clearCurrentChatNotifications()
@@ -731,16 +838,17 @@ export default function ChatRoomLive({
       setEditingMessage(null)
       setReplyTo(null)
       setShowMentionMenu(false)
+      setActionMenuId(null)
     }
   }
 
   const replyPreviewText = replyTo?.content?.trim()
     ? replyTo.content
     : replyTo?.attachment_url
-    ? 'Attached file'
-    : ''
+      ? 'Attached file'
+      : ''
 
- return (
+  return (
     <div className="flex h-[calc(100vh-180px)] min-h-[620px] flex-col overflow-hidden rounded-[28px] border border-[#ece5d8] bg-white shadow-sm">
       <div className="border-b border-[#ece5d8] bg-[#fffdf8] px-5 py-4">
         <div className="flex items-center gap-4">
@@ -771,7 +879,7 @@ export default function ChatRoomLive({
 
           <div className="min-w-0 flex-1">
             <div className="truncate text-lg font-semibold text-[#1f1f1f]">
-              {headerTitle}
+              {chatType === 'group' ? localGroupName || headerTitle : headerTitle}
             </div>
 
             <div className="mt-1 text-sm text-[#7b6f5a]">
@@ -779,14 +887,14 @@ export default function ChatRoomLive({
                 ? typing
                   ? `${otherUserName} is typing...`
                   : otherOnline
-                  ? 'Online now'
-                  : otherUserJobTitle || 'Offline'
-                : headerSubtitle}
+                    ? 'Online now'
+                    : otherUserJobTitle || 'Offline'
+                : `${localGroupMembers.length} members`}
             </div>
 
-            {!isDirect && groupMembers.length ? (
+            {!isDirect && localGroupMembers.length ? (
               <div className="mt-2 flex flex-wrap gap-1">
-                {groupMembers.slice(0, 6).map((member) => (
+                {localGroupMembers.slice(0, 6).map((member) => (
                   <span
                     key={member.id}
                     className="rounded-full bg-[#fff7df] px-2 py-0.5 text-[11px] font-medium text-[#8f6f16]"
@@ -794,14 +902,24 @@ export default function ChatRoomLive({
                     {member.id === currentUserId ? 'You' : member.full_name}
                   </span>
                 ))}
-                {groupMembers.length > 6 ? (
+                {localGroupMembers.length > 6 ? (
                   <span className="rounded-full bg-[#f3efe8] px-2 py-0.5 text-[11px] font-medium text-[#7b6f5a]">
-                    +{groupMembers.length - 6}
+                    +{localGroupMembers.length - 6}
                   </span>
                 ) : null}
               </div>
             ) : null}
           </div>
+
+          {chatType === 'group' ? (
+            <button
+              type="button"
+              onClick={() => setShowGroupPanel((prev) => !prev)}
+              className="rounded-[18px] bg-[#f3efe8] px-4 py-2 text-sm font-semibold text-[#5d5346]"
+            >
+              Members
+            </button>
+          ) : null}
 
           <button
             type="button"
@@ -831,17 +949,126 @@ export default function ChatRoomLive({
                       onClick={() => scrollToMessage(message.id)}
                       className="block w-full rounded-[14px] bg-[#faf8f4] px-3 py-2 text-left text-sm text-[#5d5346]"
                     >
-                      {senderNames[message.sender_id] ?? 'User'}:{' '}
-                      {message.content}
+                      {senderNames[message.sender_id] ?? 'User'}: {message.content}
                     </button>
                   ))
                 ) : (
-                  <div className="px-3 py-2 text-sm text-[#8f836c]">
-                    No results
-                  </div>
+                  <div className="px-3 py-2 text-sm text-[#8f836c]">No results</div>
                 )}
               </div>
             ) : null}
+          </div>
+        ) : null}
+
+        {showGroupPanel && chatType === 'group' ? (
+          <div className="mt-4 rounded-[20px] border border-[#ece5d8] bg-white p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-black text-[#1f1a14]">Group settings</div>
+                <div className="text-xs text-[#8f836c]">Manage name and members</div>
+              </div>
+
+              <button
+                type="button"
+                onClick={renameGroup}
+                className="rounded-full bg-[#fff7df] px-3 py-2 text-xs font-semibold text-[#8f6f16]"
+              >
+                Rename
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <div className="mb-2 text-xs font-black uppercase tracking-wide text-[#8f6f16]">
+                Members
+              </div>
+
+              <div className="space-y-2">
+                {localGroupMembers.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between rounded-[16px] bg-[#faf8f4] px-3 py-2"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56]">
+                        {member.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={member.avatar_url}
+                            alt={member.full_name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          member.full_name[0]?.toUpperCase()
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="text-sm font-semibold text-[#1f1a14]">
+                          {member.id === currentUserId ? 'You' : member.full_name}
+                        </div>
+                        <div className="text-xs text-[#8f836c]">
+                          {member.job_title || 'Team member'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {localGroupMembers.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => removeMemberFromGroup(member.id)}
+                        className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-red-600"
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-2 text-xs font-black uppercase tracking-wide text-[#8f6f16]">
+                Add members
+              </div>
+
+              <div className="flex max-h-48 flex-col gap-2 overflow-auto">
+                {availableMembers
+                  .filter(
+                    (person) =>
+                      !localGroupMembers.some((member) => member.id === person.id)
+                  )
+                  .map((person) => (
+                    <button
+                      key={person.id}
+                      type="button"
+                      onClick={() => addMemberToGroup(person.id)}
+                      className="flex items-center gap-3 rounded-[16px] bg-[#faf8f4] px-3 py-2 text-left hover:bg-[#f7f1e2]"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56]">
+                        {person.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={person.avatar_url}
+                            alt={person.full_name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          person.full_name[0]?.toUpperCase()
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="text-sm font-semibold text-[#1f1a14]">
+                          {person.full_name}
+                        </div>
+                        <div className="text-xs text-[#8f836c]">
+                          {person.job_title || 'Team member'}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -866,11 +1093,8 @@ export default function ChatRoomLive({
         ) : null}
       </div>
 
-      <div
-        ref={scrollRef}
-        className="min-h-0 flex-1 overflow-y-auto bg-[#faf8f4] px-4 py-5"
-      >
-        <div className="mx-auto flex max-w-5xl flex-col gap-2">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-[#faf8f4] px-4 py-5">
+        <div className="flex w-full flex-col gap-2">
           {messages.map((message, index) => {
             const previous = messages[index - 1]
             const isMine = message.sender_id === currentUserId
@@ -912,10 +1136,11 @@ export default function ChatRoomLive({
                 } ${isGrouped ? 'mt-1' : 'mt-4'}`}
               >
                 <div
-                  className={`flex max-w-[82%] items-end gap-2 ${
+                  className={`flex max-w-[72%] items-end gap-2 ${
                     isMine ? 'flex-row-reverse' : 'flex-row'
                   }`}
                 >
+
                   {!isMine && !isGrouped ? (
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56]">
                       {senderAvatar ? (
@@ -934,7 +1159,7 @@ export default function ChatRoomLive({
                   )}
 
                   <div
-                    className={`rounded-[22px] px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                    className={`relative rounded-[22px] px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
                       isMine
                         ? 'bg-gradient-to-r from-[#d4af37] to-[#f2d27a] text-[#1f1f1f]'
                         : 'border border-[#ece5d8] bg-white text-[#1f1f1f]'
@@ -950,51 +1175,76 @@ export default function ChatRoomLive({
                           {isMine ? 'You' : senderName}
                         </div>
 
-                        <div className="flex items-center gap-2 text-[11px] font-semibold">
-                          {!message.deleted_at ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => setReplyTo(message)}
-                                className={isMine ? 'text-[#5a470f]' : 'text-[#a88414]'}
-                              >
-                                Reply
-                              </button>
+                        {!message.deleted_at ? (
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setActionMenuId((prev) =>
+                                  prev === message.id ? null : message.id
+                                )
+                              }
+                              className={isMine ? 'text-[#5a470f]' : 'text-[#a88414]'}
+                            >
+                              ⋯
+                            </button>
 
-                              <button
-                                type="button"
-                                onClick={() => togglePin(message)}
-                                className={isMine ? 'text-[#5a470f]' : 'text-[#a88414]'}
-                              >
-                                {isPinned ? 'Unpin' : 'Pin'}
-                              </button>
+                            {actionMenuId === message.id ? (
+                              <div className="absolute right-0 top-6 z-20 w-36 overflow-hidden rounded-[16px] border border-[#ece5d8] bg-white text-[#1f1f1f] shadow-xl">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReplyTo(message)
+                                    setActionMenuId(null)
+                                  }}
+                                  className="block w-full px-3 py-2 text-left text-xs hover:bg-[#f7f1e2]"
+                                >
+                                  Reply
+                                </button>
 
-                              {isMine ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => editMessage(message)}
-                                    className="text-[#5a470f]"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => deleteMessage(message)}
-                                    className="text-[#5a470f]"
-                                  >
-                                    Delete
-                                  </button>
-                                </>
-                              ) : null}
-                            </>
-                          ) : null}
-                        </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    void togglePin(message)
+                                    setActionMenuId(null)
+                                  }}
+                                  className="block w-full px-3 py-2 text-left text-xs hover:bg-[#f7f1e2]"
+                                >
+                                  {isPinned ? 'Unpin' : 'Pin'}
+                                </button>
+
+                                {isMine ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        editMessage(message)
+                                        setActionMenuId(null)
+                                      }}
+                                      className="block w-full px-3 py-2 text-left text-xs hover:bg-[#f7f1e2]"
+                                    >
+                                      Edit
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        void deleteMessage(message)
+                                        setActionMenuId(null)
+                                      }}
+                                      className="block w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-red-50"
+                                    >
+                                      Delete
+                                    </button>
+                                  </>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
 
-
- 
                     {repliedMessage ? (
                       <button
                         type="button"
@@ -1104,15 +1354,10 @@ export default function ChatRoomLive({
         </div>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="border-t border-[#ece5d8] bg-white px-4 py-4"
-      >
+      <form onSubmit={handleSubmit} className="border-t border-[#ece5d8] bg-white px-4 py-4">
         {editingMessage ? (
           <div className="mb-3 flex items-center justify-between rounded-[18px] border border-[#ece5d8] bg-[#fff8df] px-4 py-3">
-            <div className="text-sm font-semibold text-[#5d5346]">
-              Editing message
-            </div>
+            <div className="text-sm font-semibold text-[#5d5346]">Editing message</div>
             <button
               type="button"
               onClick={() => {
@@ -1192,8 +1437,8 @@ export default function ChatRoomLive({
                 editingMessage
                   ? 'Edit your message...'
                   : isDirect
-                  ? 'Write a message...'
-                  : `Message ${groupName ?? 'group'}... Use @ to mention`
+                    ? 'Write a message...'
+                    : `Message ${groupName ?? 'group'}... Use @ to mention`
               }
               className="max-h-40 min-h-[72px] w-full resize-none bg-transparent text-sm text-[#1f1f1f] outline-none placeholder:text-[#9a8d75]"
             />
