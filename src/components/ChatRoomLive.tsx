@@ -665,87 +665,98 @@ export default function ChatRoomLive({
     return publicUrlData.publicUrl
   }
 
-  const send = async () => {
-    setMessageError('')
+ const send = async () => {
+  setMessageError('')
 
-    const trimmedContent = content.trim()
+  const trimmedContent = content.trim()
 
-    if (editingMessage) {
-      if (!trimmedContent) {
-        setMessageError('Edited message cannot be empty.')
-        return
-      }
-
-      const { error } = await supabase
-        .from('messages')
-        .update({
-          content: trimmedContent,
-          edited_at: new Date().toISOString(),
-        })
-        .eq('id', editingMessage.id)
-        .eq('sender_id', currentUserId)
-
-      if (error) {
-        setMessageError(error.message)
-        return
-      }
-
-      setEditingMessage(null)
-      setContent('')
-      await loadMessages()
+  if (editingMessage) {
+    if (!trimmedContent) {
+      setMessageError('Edited message cannot be empty.')
       return
     }
 
-    if (!trimmedContent && !file) {
-      setMessageError('Write a message or choose a file.')
+    const { error } = await supabase
+      .from('messages')
+      .update({
+        content: trimmedContent,
+        edited_at: new Date().toISOString(),
+      })
+      .eq('id', editingMessage.id)
+      .eq('sender_id', currentUserId)
+
+    if (error) {
+      setMessageError(error.message)
       return
     }
 
-    setIsSending(true)
-
-    try {
-      const attachmentUrl = await uploadAttachmentIfAny()
-
-      if (isDirect) {
-        const { error } = await supabase.rpc('send_message_v2', {
-          target_chat_id: chatId,
-          message_content: trimmedContent || 'Attached file',
-          message_attachment_url: attachmentUrl,
-          reply_to: replyTo?.id ?? null,
-        })
-
-        if (error) throw new Error(error.message)
-      } else {
-        const { error } = await supabase.rpc('send_group_message_v1', {
-          target_chat_id: chatId,
-          message_content: trimmedContent || 'Attached file',
-          message_attachment_url: attachmentUrl,
-          reply_to: replyTo?.id ?? null,
-        })
-
-        if (error) throw new Error(error.message)
-      }
-
-      setContent('')
-      setFile(null)
-      setReplyTo(null)
-      setIsSending(false)
-      setShowMentionMenu(false)
-
-      if (isDirect) {
-        await broadcastTyping(false)
-      }
-
-      await updateOwnPresence(chatId)
-      await loadMessages()
-      await clearCurrentChatNotifications()
-      shouldStickBottomRef.current = true
-      setTimeout(() => scrollToBottom('smooth'), 60)
-    } catch (error) {
-      setMessageError(error instanceof Error ? error.message : 'Message send failed')
-      setIsSending(false)
-    }
+    setEditingMessage(null)
+    setContent('')
+    await loadMessages()
+    return
   }
+
+  if (!trimmedContent && !file) {
+    setMessageError('Write a message or choose a file.')
+    return
+  }
+
+  setIsSending(true)
+
+  try {
+    const attachmentUrl = await uploadAttachmentIfAny()
+
+    const finalMessageContent =
+      trimmedContent || (attachmentUrl ? 'Attached file' : '')
+
+    if (!finalMessageContent) {
+      setMessageError('Message cannot be empty.')
+      setIsSending(false)
+      return
+    }
+
+    if (isDirect) {
+      const { error } = await supabase.rpc('send_message_v2', {
+        target_chat_id: chatId,
+        message_content: finalMessageContent,
+        message_attachment_url: attachmentUrl,
+        reply_to: replyTo?.id ?? null,
+      })
+
+      if (error) throw new Error(error.message)
+    } else {
+      const { error } = await supabase.rpc('send_group_message_v1', {
+        target_chat_id: chatId,
+        message_content: finalMessageContent,
+        message_attachment_url: attachmentUrl,
+        reply_to: replyTo?.id ?? null,
+      })
+
+      if (error) throw new Error(error.message)
+    }
+
+    setContent('')
+    setFile(null)
+    setReplyTo(null)
+    setIsSending(false)
+    setShowMentionMenu(false)
+
+    if (isDirect) {
+      await broadcastTyping(false)
+    }
+
+    await updateOwnPresence(chatId)
+    await loadMessages()
+    await clearCurrentChatNotifications()
+
+    shouldStickBottomRef.current = true
+    setTimeout(() => scrollToBottom('smooth'), 60)
+  } catch (error) {
+    setMessageError(error instanceof Error ? error.message : 'Message send failed')
+    setIsSending(false)
+  }
+}
+
 
   const editMessage = (message: Message) => {
     if (message.sender_id !== currentUserId || message.deleted_at) return
@@ -755,6 +766,8 @@ export default function ChatRoomLive({
     setReplyTo(null)
   }
 
+
+  
 const deleteMessage = async (message: Message) => {
   if (message.sender_id !== currentUserId) return
 
