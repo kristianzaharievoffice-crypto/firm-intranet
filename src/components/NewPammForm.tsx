@@ -11,6 +11,10 @@ type NewPammFormProps = {
   redirectTo?: string
 }
 
+function pammNotificationTitle(sectionLabel: string) {
+  return `New ${sectionLabel} item`
+}
+
 export default function NewPammForm({
   section = 'pamm',
   sectionLabel = 'PAMM',
@@ -52,9 +56,12 @@ export default function NewPammForm({
       return
     }
 
+    const trimmedTitle = title.trim()
+    const notificationStartedAt = new Date(Date.now() - 5000).toISOString()
+
     const { error } = await supabase.from('pamm_items').insert({
       section,
-      title: title.trim(),
+      title: trimmedTitle,
       description: description.trim() || null,
       amount: Number(amount),
       currency,
@@ -67,6 +74,15 @@ export default function NewPammForm({
       setIsSaving(false)
       return
     }
+
+    await supabase
+      .from('notifications')
+      .update({
+        title: pammNotificationTitle(sectionLabel),
+        link: redirectTo,
+      })
+      .eq('title', 'New PAMM item')
+      .gte('created_at', notificationStartedAt)
 
     window.location.href = redirectTo
   }
@@ -136,3 +152,5 @@ export default function NewPammForm({
     </form>
   )
 }
+
+

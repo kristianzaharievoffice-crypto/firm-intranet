@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { notificationTitle } from '@/lib/notifications'
 
 type NotificationRow = {
   id: string
@@ -178,7 +179,7 @@ export default function LiveNotifications({
       className="fixed right-4 top-4 z-[120] w-[340px] max-w-[calc(100vw-2rem)] rounded-[22px] border border-[#eadfbe] bg-white p-4 text-left shadow-2xl transition hover:shadow-xl"
     >
       <p className="text-sm font-black text-[#1f1a14]">
-        {toast.title || 'New notification'}
+        {notificationTitle(toast.title, toast.link)}
       </p>
 
       {toast.body ? (
@@ -187,3 +188,5 @@ export default function LiveNotifications({
     </button>
   )
 }
+
+

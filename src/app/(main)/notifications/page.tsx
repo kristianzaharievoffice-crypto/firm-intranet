@@ -6,6 +6,7 @@ import PageHeader from '@/components/PageHeader'
 import NotificationsLiveRefresh from '@/components/NotificationsLiveRefresh'
 import ClearNotificationsButton from '@/components/ClearNotificationsButton'
 import ClientDateTime from '@/components/ClientDateTime'
+import { notificationTitle } from '@/lib/notifications'
 
 interface NotificationItem {
   id: string
@@ -83,7 +84,7 @@ export default async function NotificationsPage() {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-black tracking-tight text-[#1f1a14]">
-                    {item.title || 'Untitled'}
+                    {notificationTitle(item.title, item.link)}
                   </h2>
 
                   {item.body && (
@@ -123,3 +124,5 @@ export default async function NotificationsPage() {
     </main>
   )
 }
+
+
