@@ -15,6 +15,12 @@ function pammNotificationTitle(sectionLabel: string) {
   return `New ${sectionLabel} item`
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
 export default function NewPammForm({
   section = 'pamm',
   sectionLabel = 'PAMM',
@@ -28,6 +34,35 @@ export default function NewPammForm({
   const [currency, setCurrency] = useState<'USD' | 'EUR'>('USD')
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+
+  const correctRecentNotifications = async (createdSince: string) => {
+    if (section === 'pamm') return
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      if (attempt > 0) {
+        await wait(700)
+      }
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .update({
+          title: pammNotificationTitle(sectionLabel),
+          link: redirectTo,
+        })
+        .in('title', ['New PAMM', 'New PAMM item'])
+        .gte('created_at', createdSince)
+        .select('id')
+
+      if (error) {
+        console.error('PAMM notification correction error:', error)
+        return
+      }
+
+      if (data?.length) {
+        return
+      }
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,14 +110,7 @@ export default function NewPammForm({
       return
     }
 
-    await supabase
-      .from('notifications')
-      .update({
-        title: pammNotificationTitle(sectionLabel),
-        link: redirectTo,
-      })
-      .eq('title', 'New PAMM item')
-      .gte('created_at', notificationStartedAt)
+    await correctRecentNotifications(notificationStartedAt)
 
     window.location.href = redirectTo
   }
