@@ -60,6 +60,7 @@ export default function MobileNav({
       <NavItem href="/pamm" label="PAMM" onClick={onNavigate} />
       <NavItem href="/mt5" label="MT5" onClick={onNavigate} />
       <NavItem href="/fund" label="FUND" onClick={onNavigate} />
+      <NavItem href="/sma" label="SMA" onClick={onNavigate} />
       <NavItem href="/documents" label="Documents" onClick={onNavigate} />
       <NavItem href="/calendar" label="Calendar" onClick={onNavigate} />
       <NavItem href="/events" label="Events" onClick={onNavigate} />

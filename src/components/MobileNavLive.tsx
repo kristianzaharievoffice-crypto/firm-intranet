@@ -270,6 +270,7 @@ export default function MobileNavLive({
       <NavItem href="/pamm" label="PAMM" onClick={onNavigate} />
       <NavItem href="/mt5" label="MT5" onClick={onNavigate} />
       <NavItem href="/fund" label="FUND" onClick={onNavigate} />
+      <NavItem href="/sma" label="SMA" onClick={onNavigate} />
       <NavItem href="/documents" label="Documents" onClick={onNavigate} />
       <NavItem href="/calendar" label="Calendar" onClick={onNavigate} />
       <NavItem href="/events" label="Events" onClick={onNavigate} />
@@ -280,8 +281,6 @@ export default function MobileNavLive({
         count={notificationsCount}
         onClick={onNavigate}
       />
-      <NavItem href="/calls" label="Calls" onClick={onNavigate} />
-
       {role === 'admin' && (
         <NavItem href="/dashboard" label="Dashboard" onClick={onNavigate} />
       )}
