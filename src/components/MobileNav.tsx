@@ -54,9 +54,12 @@ export default function MobileNav({
       <NavItem href="/feed" label="Feed" onClick={onNavigate} />
       <NavItem href="/wall" label="Wall" onClick={onNavigate} />
       <NavItem href="/chat" label="Chat" count={unreadChatCount} onClick={onNavigate} />
+      <NavItem href="/calls" label="Calls" onClick={onNavigate} />
       <NavItem href="/tasks" label="Tasks" count={tasksCount} onClick={onNavigate} />
       <NavItem href="/projects" label="Projects" onClick={onNavigate} />
       <NavItem href="/pamm" label="PAMM" onClick={onNavigate} />
+      <NavItem href="/mt5" label="MT5" onClick={onNavigate} />
+      <NavItem href="/fund" label="FUND" onClick={onNavigate} />
       <NavItem href="/documents" label="Documents" onClick={onNavigate} />
       <NavItem href="/calendar" label="Calendar" onClick={onNavigate} />
       <NavItem href="/events" label="Events" onClick={onNavigate} />
@@ -76,3 +79,5 @@ export default function MobileNav({
     </nav>
   )
 }
+
+

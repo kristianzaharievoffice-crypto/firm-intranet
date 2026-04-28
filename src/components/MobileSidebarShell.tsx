@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import MobileNavLive from '@/components/MobileNavLive'
+import OnlineNowSidebar from '@/components/OnLineNowSidebar'
 
 type MobileSidebarShellProps = {
   fullName: string
@@ -59,32 +60,28 @@ export default function MobileSidebarShell({
             className="absolute inset-0 bg-black/35"
           />
 
-          <div className="absolute left-0 top-0 h-full w-[88vw] max-w-sm overflow-y-auto border-r border-[#eadfbe] bg-[#f7f1df] px-4 py-5 shadow-2xl">
+          <div className="absolute left-0 top-0 h-full w-[88vw] max-w-sm overflow-y-auto border-r border-[#ece5d8] bg-[#fffdf8] px-5 py-6 shadow-2xl">
             <Link href="/feed" onClick={() => setOpen(false)} className="block">
-              <div className="rounded-3xl border border-[#eadfbe] bg-white/80 px-4 py-4 shadow-sm">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7f7460]">
-                  Premium workspace
+              <div className="rounded-[28px] bg-gradient-to-br from-[#d4af37] via-[#c9a227] to-[#a88414] px-5 py-5 text-white shadow-lg">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/80">
+                  PREMIUM WORKSPACE
                 </p>
-                <h2 className="mt-2 text-xl font-semibold tracking-tight text-[#1f1a14]">
+                <h2 className="mt-3 text-2xl font-black tracking-tight text-white">
                   RCX NETWORK
                 </h2>
-                <p className="mt-1 text-sm text-[#6b6358]">
+                <p className="mt-2 text-sm leading-6 text-white/90">
                   Inside information platform
                 </p>
-
-                <div className="mt-4 rounded-2xl bg-[#f7f1df] px-3 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-[#8b816f]">
-                    Signed in as
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-[#1f1a14]">
-                    {fullName}
-                  </p>
-                  <p className="text-xs uppercase tracking-wide text-[#8b816f]">
-                    {role}
-                  </p>
-                </div>
               </div>
             </Link>
+
+            <div className="mt-6 rounded-[28px] border border-[#ece5d8] bg-white p-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a88414]">
+                Signed in as
+              </p>
+              <p className="mt-2 text-lg font-bold text-[#1f1a14]">{fullName}</p>
+              <p className="mt-1 text-sm text-[#7b746b]">{role}</p>
+            </div>
 
             <MobileNavLive
               currentUserId={currentUserId}
@@ -95,6 +92,10 @@ export default function MobileSidebarShell({
               initialTasksCount={initialTasksCount}
               onNavigate={() => setOpen(false)}
             />
+
+            <div className="mt-4">
+              <OnlineNowSidebar currentUserId={currentUserId} />
+            </div>
           </div>
         </div>
       )}

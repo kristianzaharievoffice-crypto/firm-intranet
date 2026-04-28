@@ -9,7 +9,7 @@ function Badge({ count }: { count: number }) {
   if (!count) return null
 
   return (
-    <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-[#1f1a14] px-2 py-0.5 text-xs font-semibold text-white">
+    <span className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-[#c9a227] px-2 py-1 text-xs font-semibold text-white">
       {count}
     </span>
   )
@@ -33,12 +33,17 @@ function NavItem({
     <Link
       href={href}
       onClick={onClick}
-      className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium transition ${
+      className={`group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
         isActive
           ? 'bg-[#1f1a14] text-white'
-          : 'text-[#1f1a14] hover:bg-white/70'
+          : 'text-[#433b32] hover:bg-[#f7f1e2] hover:text-[#1f1a14]'
       }`}
     >
+      <span
+        className={`h-2 w-2 rounded-full transition ${
+          isActive ? 'bg-white' : 'bg-[#d9c9a0] group-hover:bg-[#c9a227]'
+        }`}
+      />
       <span>{label}</span>
       <Badge count={count} />
     </Link>
@@ -79,6 +84,18 @@ export default function MobileNavLive({
   )
   const [unreadChatCount, setUnreadChatCount] = useState(initialUnreadChatCount)
   const [tasksCount, setTasksCount] = useState(initialTasksCount)
+
+  const clearOpenChatNotifications = async () => {
+    if (!currentOpenChatId) return
+
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', currentUserId)
+      .eq('type', 'chat')
+      .eq('link', `/chat/${currentOpenChatId}`)
+      .eq('is_read', false)
+  }
 
   const refreshChatUnreadCount = async () => {
     if (!chatIds.length) {
@@ -123,6 +140,8 @@ export default function MobileNavLive({
   }
 
   const refreshNotificationCount = async () => {
+    await clearOpenChatNotifications()
+
     const { data } = await supabase
       .from('notifications')
       .select('id, type, link')
@@ -241,16 +260,20 @@ export default function MobileNavLive({
   }, [currentUserId, role, supabase, currentOpenChatId, chatIds.join(',')])
 
   return (
-    <nav className="mt-6 space-y-2">
+    <nav className="mt-6 space-y-1">
       <NavItem href="/feed" label="Feed" onClick={onNavigate} />
       <NavItem href="/wall" label="Wall" onClick={onNavigate} />
-      <NavItem href="/employees" label="Employees" onClick={onNavigate} />
-      <NavItem href="/documents" label="Documents" onClick={onNavigate} />
-      <NavItem href="/projects" label="Projects" onClick={onNavigate} />
+      <NavItem href="/chat" label="Chat" count={unreadChatCount} onClick={onNavigate} />
+      <NavItem href="/calls" label="Calls" onClick={onNavigate} />
       <NavItem href="/tasks" label="Tasks" count={tasksCount} onClick={onNavigate} />
+      <NavItem href="/projects" label="Projects" onClick={onNavigate} />
+      <NavItem href="/pamm" label="PAMM" onClick={onNavigate} />
+      <NavItem href="/mt5" label="MT5" onClick={onNavigate} />
+      <NavItem href="/fund" label="FUND" onClick={onNavigate} />
+      <NavItem href="/documents" label="Documents" onClick={onNavigate} />
       <NavItem href="/calendar" label="Calendar" onClick={onNavigate} />
       <NavItem href="/events" label="Events" onClick={onNavigate} />
-      <NavItem href="/chat" label="Chat" count={unreadChatCount} onClick={onNavigate} />
+      <NavItem href="/employees" label="Employees" onClick={onNavigate} />
       <NavItem
         href="/notifications"
         label="Notifications"
@@ -263,8 +286,10 @@ export default function MobileNavLive({
         <NavItem href="/dashboard" label="Dashboard" onClick={onNavigate} />
       )}
       {role === 'admin' && (
-        <NavItem href="/admin" label="Admin" onClick={onNavigate} />
+        <NavItem href="/admin" label="Admin Panel" onClick={onNavigate} />
       )}
     </nav>
   )
 }
+
+
