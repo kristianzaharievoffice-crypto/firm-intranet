@@ -482,6 +482,19 @@ export default function ChatRoomLive({
   }, [])
 
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    const previousOverscrollBehavior = document.body.style.overscrollBehavior
+
+    document.body.style.overflow = 'hidden'
+    document.body.style.overscrollBehavior = 'none'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.body.style.overscrollBehavior = previousOverscrollBehavior
+    }
+  }, [])
+
+  useEffect(() => {
     const messagesChannel = supabase
       .channel(`chat-room-messages-${chatId}`)
       .on(
@@ -502,12 +515,10 @@ export default function ChatRoomLive({
             setTimeout(() => scrollToBottom('smooth'), 60)
           }
         }
-
-
       )
       .subscribe()
 
-    const reactionsChannel = supabase
+ const reactionsChannel = supabase
       .channel(`chat-room-reactions-${chatId}`)
       .on(
         'postgres_changes',
@@ -882,11 +893,11 @@ const deleteMessage = async (message: Message) => {
       : ''
 
   return (
-    <div className="flex h-[calc(100vh-180px)] min-h-[620px] flex-col overflow-hidden rounded-[28px] border border-white/40 bg-white/60 shadow-xl backdrop-blur-md">
-      <div className="border-b border-white/30 bg-white/70 px-5 py-4 backdrop-blur-md">
-        <div className="flex items-center gap-4">
+    <div className="flex h-[calc(100dvh-96px)] min-h-0 flex-col overflow-hidden rounded-[20px] border border-white/40 bg-white/60 shadow-xl backdrop-blur-md md:h-[calc(100vh-180px)] md:min-h-[620px] md:rounded-[28px]">
+      <div className="shrink-0 border-b border-white/30 bg-white/70 px-3 py-3 backdrop-blur-md md:px-5 md:py-4">
+        <div className="flex items-center gap-3 md:gap-4">
           {isDirect ? (
-            <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-sm font-semibold text-[#8e7b56]">
+            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-sm font-semibold text-[#8e7b56] md:h-14 md:w-14">
               {otherUserAvatar ? (
                 <img
                   src={otherUserAvatar}
@@ -898,23 +909,23 @@ const deleteMessage = async (message: Message) => {
               )}
 
               <span
-                className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full border-2 border-white ${
+                className={`absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2 border-white md:bottom-1 md:right-1 md:h-3.5 md:w-3.5 ${
                   otherOnline ? 'bg-emerald-500' : 'bg-[#c7bda9]'
                 }`}
               />
             </div>
           ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#f6e7a7] to-[#d4af37] text-lg font-semibold text-[#3a2e0b]">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#f6e7a7] to-[#d4af37] text-base font-semibold text-[#3a2e0b] md:h-14 md:w-14 md:text-lg">
               👥
             </div>
           )}
 
           <div className="min-w-0 flex-1">
-            <div className="truncate text-lg font-semibold text-[#1f1f1f]">
+            <div className="truncate text-base font-semibold text-[#1f1f1f] md:text-lg">
               {chatType === 'group' ? localGroupName || headerTitle : headerTitle}
             </div>
 
-            <div className="mt-1 text-sm text-[#7b6f5a]">
+            <div className="mt-0.5 truncate text-xs text-[#7b6f5a] md:mt-1 md:text-sm">
               {isDirect
                 ? typing
                   ? `${otherUserName} is typing...`
@@ -925,7 +936,7 @@ const deleteMessage = async (message: Message) => {
             </div>
 
             {!isDirect && localGroupMembers.length ? (
-              <div className="mt-2 flex flex-wrap gap-1">
+              <div className="mt-2 hidden flex-wrap gap-1 sm:flex">
                 {localGroupMembers.slice(0, 6).map((member) => (
                   <span
                     key={member.id}
@@ -947,7 +958,7 @@ const deleteMessage = async (message: Message) => {
             <button
               type="button"
               onClick={() => setShowGroupPanel((prev) => !prev)}
-              className="rounded-[18px] bg-white/70 px-4 py-2 text-sm font-semibold text-[#5d5346] shadow-sm backdrop-blur-sm"
+              className="rounded-[14px] bg-white/70 px-3 py-2 text-xs font-semibold text-[#5d5346] shadow-sm backdrop-blur-sm md:rounded-[18px] md:px-4 md:text-sm"
             >
               Members
             </button>
@@ -956,19 +967,21 @@ const deleteMessage = async (message: Message) => {
           <button
             type="button"
             onClick={() => setShowSearch((prev) => !prev)}
-            className="rounded-[18px] bg-white/70 px-4 py-2 text-sm font-semibold text-[#5d5346] shadow-sm backdrop-blur-sm"
+            className="rounded-[14px] bg-white/70 px-3 py-2 text-xs font-semibold text-[#5d5346] shadow-sm backdrop-blur-sm md:rounded-[18px] md:px-4 md:text-sm"
           >
             Search
+
+
           </button>
         </div>
 
         {showSearch ? (
-          <div className="mt-4 rounded-[20px] border border-white/40 bg-white/80 p-3 backdrop-blur-md">
+          <div className="mt-3 rounded-[18px] border border-white/40 bg-white/80 p-3 backdrop-blur-md md:mt-4 md:rounded-[20px]">
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search in this chat..."
-              className="w-full rounded-[16px] bg-white/80 px-4 py-3 text-sm outline-none"
+              className="w-full rounded-[14px] bg-white/80 px-3 py-2 text-sm outline-none md:rounded-[16px] md:px-4 md:py-3"
             />
 
             {searchQuery.trim() ? (
@@ -993,7 +1006,7 @@ const deleteMessage = async (message: Message) => {
         ) : null}
 
         {showGroupPanel && chatType === 'group' ? (
-          <div className="mt-4 rounded-[20px] border border-white/40 bg-white/80 p-4 backdrop-blur-md">
+          <div className="mt-3 max-h-[42dvh] overflow-y-auto rounded-[18px] border border-white/40 bg-white/80 p-3 backdrop-blur-md md:mt-4 md:max-h-none md:rounded-[20px] md:p-4">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <div className="text-sm font-black text-[#1f1a14]">Group settings</div>
@@ -1068,8 +1081,6 @@ const deleteMessage = async (message: Message) => {
                     (person) =>
                       !localGroupMembers.some((member) => member.id === person.id)
                   )
-
-
                   .map((person) => (
                     <button
                       key={person.id}
@@ -1105,7 +1116,7 @@ const deleteMessage = async (message: Message) => {
         ) : null}
 
         {pinnedMessages.length ? (
-          <div className="mt-4 rounded-[20px] border border-[#eadfbe] bg-[#fff8df]/90 p-3 backdrop-blur-sm">
+          <div className="mt-3 rounded-[18px] border border-[#eadfbe] bg-[#fff8df]/90 p-3 backdrop-blur-sm md:mt-4 md:rounded-[20px]">
             <div className="mb-2 text-xs font-black uppercase tracking-wide text-[#8f6f16]">
               Pinned messages
             </div>
@@ -1125,7 +1136,7 @@ const deleteMessage = async (message: Message) => {
         ) : null}
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+      <div ref={scrollRef} className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-2 py-3 md:px-4 md:py-5">
         <div className="flex w-full flex-col gap-2">
           {messages.map((message, index) => {
             const previous = messages[index - 1]
@@ -1168,12 +1179,12 @@ const deleteMessage = async (message: Message) => {
                 } ${isGrouped ? 'mt-1' : 'mt-4'}`}
               >
                 <div
-                  className={`flex max-w-[72%] items-end gap-2 ${
+                  className={`flex max-w-[92%] items-end gap-1.5 md:max-w-[72%] md:gap-2 ${
                     isMine ? 'flex-row-reverse' : 'flex-row'
                   }`}
                 >
                   {!isMine && !isGrouped ? (
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56] shadow-sm">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-[11px] font-semibold text-[#8e7b56] shadow-sm md:h-9 md:w-9 md:text-xs">
                       {senderAvatar ? (
                         <img
                           src={senderAvatar}
@@ -1185,11 +1196,11 @@ const deleteMessage = async (message: Message) => {
                       )}
                     </div>
                   ) : (
-                    <div className="w-9 shrink-0" />
+                    <div className="w-7 shrink-0 md:w-9" />
                   )}
 
                   <div
-                    className={`relative rounded-[22px] px-4 py-3 shadow-lg backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-xl ${
+                    className={`relative rounded-[18px] px-3 py-2.5 shadow-lg backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-xl md:rounded-[22px] md:px-4 md:py-3 ${
                       isMine
                         ? 'bg-[#c9a227] text-white'
                         : 'border border-white/50 bg-white/90 text-[#1f1f1f]'
@@ -1276,49 +1287,49 @@ const deleteMessage = async (message: Message) => {
                     ) : null}
 
                     {repliedMessage ? (
-  <button
-    type="button"
-    onClick={() => scrollToMessage(repliedMessage.id)}
-    className={`mb-2 block w-full rounded-[14px] px-3 py-2 text-left text-xs ${
-      isMine ? 'bg-white/25 text-white' : 'bg-[#f8f4ea] text-[#6f624e]'
-    }`}
-  >
-    {senderNames[repliedMessage.sender_id] ?? 'User'}:{' '}
-    {messageText(repliedMessage)}
-  </button>
-) : null}
+                      <button
+                        type="button"
+                        onClick={() => scrollToMessage(repliedMessage.id)}
+                        className={`mb-2 block w-full rounded-[14px] px-3 py-2 text-left text-xs ${
+                          isMine
+                            ? 'bg-white/25 text-white'
+                            : 'bg-[#f8f4ea] text-[#6f624e]'
+                        }`}
+                      >
+                        {senderNames[repliedMessage.sender_id] ?? 'User'}:{' '}
+                        {messageText(repliedMessage)}
+                      </button>
+                    ) : null}
 
-<div
-  className={`whitespace-pre-wrap break-words text-sm leading-relaxed ${
-    message.deleted_at
-      ? isMine
-        ? 'text-white/70 italic'
-        : 'text-[#8f836c] italic'
-      : isMine
-        ? 'text-white'
-        : 'text-[#1f1f1f]'
-  }`}
->
-  {highlightText(messageText(message), searchQuery)}
-</div>
+                    <div
+                      className={`whitespace-pre-wrap break-words text-sm leading-relaxed ${
+                        message.deleted_at
+                          ? isMine
+                            ? 'text-white/70 italic'
+                            : 'text-[#8f836c] italic'
+                          : isMine
+                            ? 'text-white'
+                            : 'text-[#1f1f1f]'
+                      }`}
+                    >
+                      {highlightText(messageText(message), searchQuery)}
+                    </div>
 
-{message.attachment_url && !message.deleted_at ? (
-  <a
-    href={message.attachment_url}
-    target="_blank"
-    rel="noreferrer"
-    className={`mt-2 block text-sm font-semibold underline ${
-      isMine ? 'text-white' : 'text-[#a88414]'
-    }`}
-  >
-    Open attachment
-  </a>
-) : null}
+                    {message.attachment_url && !message.deleted_at ? (
+                      <a
+                        href={message.attachment_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`mt-2 block text-sm font-semibold underline ${
+                          isMine ? 'text-white' : 'text-[#a88414]'
+                        }`}
+                      >
+                        Open attachment
+                      </a>
+                    ) : null}
 
-{!message.deleted_at ? (
-  <div className="mt-3 flex flex-wrap items-center gap-1">
-
-
+                    {!message.deleted_at ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-1">
                         {QUICK_REACTIONS.map((emoji) => (
                           <button
                             key={emoji}
@@ -1350,6 +1361,8 @@ const deleteMessage = async (message: Message) => {
                         ))}
                       </div>
                     ) : null}
+
+
 
                     <div className="mt-2 flex items-center justify-end gap-2 text-[11px]">
                       {message.edited_at && !message.deleted_at ? (
@@ -1390,7 +1403,7 @@ const deleteMessage = async (message: Message) => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="border-t border-white/30 bg-white/70 px-4 py-4 backdrop-blur-md">
+      <form onSubmit={handleSubmit} className="shrink-0 border-t border-white/30 bg-white/70 px-3 py-3 backdrop-blur-md md:px-4 md:py-4">
         {editingMessage ? (
           <div className="mb-3 flex items-center justify-between rounded-[18px] border border-[#ece5d8] bg-[#fff8df] px-4 py-3">
             <div className="text-sm font-semibold text-[#5d5346]">Editing message</div>
@@ -1435,9 +1448,9 @@ const deleteMessage = async (message: Message) => {
           </div>
         ) : null}
 
-        <div className="relative flex items-end gap-3">
+        <div className="relative flex flex-col gap-2 md:flex-row md:items-end md:gap-3">
           {showMentionMenu && filteredMentions.length ? (
-            <div className="absolute bottom-full left-0 mb-2 w-72 overflow-hidden rounded-[20px] border border-[#ece5d8] bg-white shadow-xl">
+            <div className="absolute bottom-full left-0 mb-2 w-full max-w-72 overflow-hidden rounded-[20px] border border-[#ece5d8] bg-white shadow-xl">
               {filteredMentions.map((person) => (
                 <button
                   key={person.id}
@@ -1462,12 +1475,12 @@ const deleteMessage = async (message: Message) => {
             </div>
           ) : null}
 
-          <div className="flex-1 rounded-[22px] border border-white/40 bg-white/75 px-4 py-3 backdrop-blur-sm">
+          <div className="w-full flex-1 rounded-[18px] border border-white/40 bg-white/75 px-3 py-2.5 backdrop-blur-sm md:rounded-[22px] md:px-4 md:py-3">
             <textarea
               value={content}
               onChange={(e) => void handleTyping(e.target.value)}
               onKeyDown={handleKeyDown}
-              rows={3}
+              rows={2}
               placeholder={
                 editingMessage
                   ? 'Edit your message...'
@@ -1475,16 +1488,16 @@ const deleteMessage = async (message: Message) => {
                     ? 'Write a message...'
                     : `Message ${groupName ?? 'group'}... Use @ to mention`
               }
-              className="max-h-40 min-h-[72px] w-full resize-none bg-transparent text-sm text-[#1f1f1f] outline-none placeholder:text-[#9a8d75]"
+              className="max-h-28 min-h-[44px] w-full resize-none bg-transparent text-sm text-[#1f1f1f] outline-none placeholder:text-[#9a8d75] md:max-h-40 md:min-h-[72px]"
             />
 
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            <div className="mt-2 flex items-center gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0">
               {QUICK_EMOJIS.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
                   onClick={() => setContent((prev) => `${prev}${emoji}`)}
-                  className="rounded-full bg-white px-2 py-1 text-sm transition hover:scale-110"
+                  className="shrink-0 rounded-full bg-white px-2 py-1 text-sm transition hover:scale-110"
                 >
                   {emoji}
                 </button>
@@ -1492,22 +1505,24 @@ const deleteMessage = async (message: Message) => {
             </div>
           </div>
 
-          <label className="flex h-12 cursor-pointer items-center justify-center rounded-[18px] border border-white/40 bg-white/80 px-4 text-sm font-medium text-[#7b6f5a] shadow-sm">
-            File
-            <input
-              type="file"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
+          <div className="flex items-center gap-2 md:gap-3">
+            <label className="flex h-11 flex-1 cursor-pointer items-center justify-center rounded-[16px] border border-white/40 bg-white/80 px-4 text-sm font-medium text-[#7b6f5a] shadow-sm md:h-12 md:flex-none md:rounded-[18px]">
+              File
+              <input
+                type="file"
+                className="hidden"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
 
-          <button
-            type="submit"
-            disabled={isSending}
-            className="h-12 rounded-[18px] bg-gradient-to-r from-[#d4af37] to-[#f2d27a] px-5 text-sm font-semibold text-[#1f1f1f] shadow-sm disabled:opacity-60"
-          >
-            {isSending ? 'Sending...' : editingMessage ? 'Save' : 'Send'}
-          </button>
+            <button
+              type="submit"
+              disabled={isSending}
+              className="h-11 flex-1 rounded-[16px] bg-gradient-to-r from-[#d4af37] to-[#f2d27a] px-5 text-sm font-semibold text-[#1f1f1f] shadow-sm disabled:opacity-60 md:h-12 md:flex-none md:rounded-[18px]"
+            >
+              {isSending ? 'Sending...' : editingMessage ? 'Save' : 'Send'}
+            </button>
+          </div>
         </div>
 
         {file ? (
