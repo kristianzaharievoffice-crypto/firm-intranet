@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 type Message = {
   role: 'user' | 'assistant'
@@ -8,6 +9,8 @@ type Message = {
 }
 
 export default function AiAssistantLauncher() {
+  const pathname = usePathname()
+  const isChatPage = pathname === '/chat' || pathname.startsWith('/chat/')
   const [isOpen, setIsOpen] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Message[]>([
@@ -105,7 +108,9 @@ export default function AiAssistantLauncher() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-5 right-44 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-fuchsia-300 bg-gradient-to-br from-fuchsia-500 to-violet-500 text-xl font-semibold text-white shadow-lg transition hover:scale-105"
+        className={`fixed bottom-5 right-44 z-50 h-14 w-14 items-center justify-center rounded-full border border-fuchsia-300 bg-gradient-to-br from-fuchsia-500 to-violet-500 text-xl font-semibold text-white shadow-lg transition hover:scale-105 ${
+          isChatPage ? 'hidden md:flex' : 'flex'
+        }`}
         title="Open AI assistant"
       >
         AI
@@ -214,3 +219,5 @@ export default function AiAssistantLauncher() {
     </>
   )
 }
+
+
