@@ -1254,22 +1254,49 @@ const deleteMessage = async (message: Message) => {
                     ) : null}
 
                     {repliedMessage ? (
-                      <button
-                        type="button"
-                        onClick={() => scrollToMessage(repliedMessage.id)}
-                        className={`mb-2 block w-full rounded-[14px] px-3 py-2 text-left text-xs ${
-                          isMine ? 'bg-white/25 text-white' : 'bg-[#f8f4ea] text-[#6f624e]'
-                        }`}
-                      >
-                        {senderNames[repliedMessage.sender_id] ?? 'User'}:{' '}
-                        {messageText(repliedMessage)}
-                      </button>
-                    ) : null}
+  <button
+    type="button"
+    onClick={() => scrollToMessage(repliedMessage.id)}
+    className={`mb-2 block w-full rounded-[14px] px-3 py-2 text-left text-xs ${
+      isMine ? 'bg-white/25 text-white' : 'bg-[#f8f4ea] text-[#6f624e]'
+    }`}
+  >
+    {senderNames[repliedMessage.sender_id] ?? 'User'}:{' '}
+    {messageText(repliedMessage)}
+  </button>
+) : null}
 
-      
+<div
+  className={`whitespace-pre-wrap break-words text-sm leading-relaxed ${
+    message.deleted_at
+      ? isMine
+        ? 'text-white/70 italic'
+        : 'text-[#8f836c] italic'
+      : isMine
+        ? 'text-white'
+        : 'text-[#1f1f1f]'
+  }`}
+>
+  {highlightText(messageText(message), searchQuery)}
+</div>
 
-                    {!message.deleted_at ? (
-                      <div className="mt-3 flex flex-wrap items-center gap-1">
+{message.attachment_url && !message.deleted_at ? (
+  <a
+    href={message.attachment_url}
+    target="_blank"
+    rel="noreferrer"
+    className={`mt-2 block text-sm font-semibold underline ${
+      isMine ? 'text-white' : 'text-[#a88414]'
+    }`}
+  >
+    Open attachment
+  </a>
+) : null}
+
+{!message.deleted_at ? (
+  <div className="mt-3 flex flex-wrap items-center gap-1">
+
+
                         {QUICK_REACTIONS.map((emoji) => (
                           <button
                             key={emoji}
