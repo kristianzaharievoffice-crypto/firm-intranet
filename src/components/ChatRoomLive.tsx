@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 
 interface Message {
@@ -146,7 +147,7 @@ export default function ChatRoomLive({
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const uiChannelRef = useRef<any>(null)
+  const uiChannelRef = useRef<RealtimeChannel | null>(null)
   const shouldStickBottomRef = useRef(true)
   const markingReadRef = useRef(false)
   const clearingNotificationsRef = useRef(false)
@@ -501,6 +502,8 @@ export default function ChatRoomLive({
             setTimeout(() => scrollToBottom('smooth'), 60)
           }
         }
+
+
       )
       .subscribe()
 
@@ -554,6 +557,10 @@ export default function ChatRoomLive({
     const uiChannel = supabase.channel(`chat-ui-${chatId}`)
     uiChannelRef.current = uiChannel
 
+    uiChannel.on('broadcast', { event: 'reaction_changed' }, () => {
+      void loadReactions()
+    })
+
     if (isDirect && otherUserId) {
       uiChannel
         .on('broadcast', { event: 'typing' }, (payload) => {
@@ -569,10 +576,9 @@ export default function ChatRoomLive({
             }, 1600)
           }
         })
-        .subscribe()
-    } else {
-      uiChannel.subscribe()
     }
+
+    uiChannel.subscribe()
 
     return () => {
       supabase.removeChannel(messagesChannel)
@@ -599,6 +605,19 @@ export default function ChatRoomLive({
       payload: {
         userId: currentUserId,
         isTyping: isTypingNow,
+      },
+    })
+  }
+
+  const broadcastReactionChange = async (messageId: string) => {
+    if (!uiChannelRef.current) return
+
+    await uiChannelRef.current.send({
+      type: 'broadcast',
+      event: 'reaction_changed',
+      payload: {
+        userId: currentUserId,
+        messageId,
       },
     })
   }
@@ -767,7 +786,7 @@ export default function ChatRoomLive({
   }
 
 
-  
+ 
 const deleteMessage = async (message: Message) => {
   if (message.sender_id !== currentUserId) return
 
@@ -814,6 +833,7 @@ const deleteMessage = async (message: Message) => {
     }
 
     await loadReactions()
+    await broadcastReactionChange(message.id)
   }
 
   const togglePin = async (message: Message) => {
@@ -1048,6 +1068,8 @@ const deleteMessage = async (message: Message) => {
                     (person) =>
                       !localGroupMembers.some((member) => member.id === person.id)
                   )
+
+
                   .map((person) => (
                     <button
                       key={person.id}
@@ -1517,3 +1539,5 @@ const deleteMessage = async (message: Message) => {
     </div>
   )
 }
+
+
