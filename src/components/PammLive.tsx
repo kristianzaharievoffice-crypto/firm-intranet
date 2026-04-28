@@ -6,9 +6,14 @@ import NewPammForm from '@/components/NewPammForm'
 import StatCard from '@/components/StatCard'
 import { uiText } from '@/lib/ui-text'
 
+type PammSection = 'pamm' | 'mt5' | 'fund'
+
 interface PammLiveProps {
   currentUserId: string
   currentUserRole: string
+  section?: PammSection
+  sectionLabel?: string
+  basePath?: string
 }
 
 interface PammRow {
@@ -20,6 +25,7 @@ interface PammRow {
   status: string
   created_at: string
   created_by: string
+  section?: PammSection
 }
 
 interface ProfileRow {
@@ -63,19 +69,26 @@ function getStatusLabel(status: string) {
 
 export default function PammLive({
   currentUserRole,
+  section = 'pamm',
+  sectionLabel = 'PAMM',
+  basePath = '/pamm',
 }: PammLiveProps) {
   const supabase = useMemo(() => createClient(), [])
+
   const [items, setItems] = useState<PammVm[]>([])
   const [loading, setLoading] = useState(true)
 
   const loadItems = useCallback(async () => {
     const { data: itemsData } = await supabase
       .from('pamm_items')
-      .select('id, title, description, amount, currency, status, created_at, created_by')
+      .select('id, title, description, amount, currency, status, created_at, created_by, section')
+      .eq('section', section)
       .order('created_at', { ascending: false })
 
     const rows = (itemsData ?? []) as PammRow[]
+
     const creatorIds = [...new Set(rows.map((item) => item.created_by))]
+
     const safeIds = creatorIds.length
       ? creatorIds
       : ['00000000-0000-0000-0000-000000000000']
@@ -99,7 +112,7 @@ export default function PammLive({
 
     setItems(mapped)
     setLoading(false)
-  }, [supabase])
+  }, [supabase, section])
 
   useEffect(() => {
     void loadItems()
@@ -111,7 +124,7 @@ export default function PammLive({
     }, 2000)
 
     const channel = supabase
-      .channel('pamm-live')
+      .channel(`${section}-items-live`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'pamm_items' },
@@ -125,15 +138,25 @@ export default function PammLive({
       clearInterval(pollInterval)
       supabase.removeChannel(channel)
     }
-  }, [loadItems, supabase])
+  }, [loadItems, supabase, section])
 
   const updateStatus = async (itemId: string, status: string) => {
-    await supabase.from('pamm_items').update({ status }).eq('id', itemId)
+    await supabase
+      .from('pamm_items')
+      .update({ status })
+      .eq('id', itemId)
+      .eq('section', section)
+
     await loadItems()
   }
 
   const deleteItem = async (itemId: string) => {
-    await supabase.from('pamm_items').delete().eq('id', itemId)
+    await supabase
+      .from('pamm_items')
+      .delete()
+      .eq('id', itemId)
+      .eq('section', section)
+
     await loadItems()
   }
 
@@ -144,7 +167,11 @@ export default function PammLive({
 
   return (
     <div className="space-y-8">
-      <NewPammForm />
+      <NewPammForm
+        section={section}
+        sectionLabel={sectionLabel}
+        redirectTo={basePath}
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label={uiText.pamm.total} value={total} />
@@ -176,6 +203,10 @@ export default function PammLive({
                 <span className="rounded-full bg-[#fbf3dc] px-3 py-1 text-sm font-semibold text-[#a88414]">
                   {item.amount.toFixed(2)} {item.currency}
                 </span>
+
+                <span className="rounded-full bg-neutral-100 px-3 py-1 text-sm font-semibold text-neutral-600">
+                  {sectionLabel}
+                </span>
               </div>
 
               <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
@@ -187,7 +218,8 @@ export default function PammLive({
               </p>
 
               <p className="mt-1 text-sm text-[#7b746b]">
-                {uiText.pamm.date}: {new Date(item.created_at).toLocaleDateString('bg-BG')}
+                {uiText.pamm.date}:{' '}
+                {new Date(item.created_at).toLocaleDateString('bg-BG')}
               </p>
 
               {item.description && (
@@ -222,7 +254,7 @@ export default function PammLive({
         </div>
       ) : (
         <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">{uiText.pamm.noItems}</p>
+          <p className="text-[#7b746b]">No {sectionLabel} items yet.</p>
         </div>
       )}
     </div>

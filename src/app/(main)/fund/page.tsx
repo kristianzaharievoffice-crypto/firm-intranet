@@ -4,9 +4,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import PammLive from '@/components/PammLive'
-import { uiText } from '@/lib/ui-text'
 
-export default async function PammPage() {
+export default async function FundPage() {
   const supabase = await createClient()
 
   const {
@@ -25,14 +24,17 @@ export default async function PammPage() {
 
   return (
     <main className="space-y-8">
-      <PageHeader title={uiText.pamm.title} subtitle={uiText.pamm.subtitle} />
+      <PageHeader
+        title="Fund"
+        subtitle="Shared Fund items visible to everyone, with live updates."
+      />
 
       <PammLive
         currentUserId={user.id}
         currentUserRole={me.role}
-        section="pamm"
-        sectionLabel="PAMM"
-        basePath="/pamm"
+        section="fund"
+        sectionLabel="Fund"
+        basePath="/fund"
       />
     </main>
   )

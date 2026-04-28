@@ -293,6 +293,8 @@ export default function SidebarNavLive({
       <NavItem href="/tasks" label="Tasks" count={tasksCount} />
       <NavItem href="/projects" label="Projects" />
       <NavItem href="/pamm" label="PAMM" />
+      <NavItem href="/mt5" label="MT5" />
+      <NavItem href="/fund" label="FUND" />
       <NavItem href="/documents" label="Documents" />
       <NavItem href="/calendar" label="Calendar" />
       <NavItem href="/events" label="Events" />
