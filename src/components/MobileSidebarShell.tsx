@@ -38,8 +38,18 @@ export default function MobileSidebarShell({
 
   return (
     <>
-      {/* Махнахме hamburger бутона */}
-
+      {!open ? (
+        <button
+          type="button"
+          aria-label="Open menu"
+          onClick={() => setOpen(true)}
+          className="fixed left-4 top-4 z-[90] inline-flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-2xl border border-[#eadfbe] bg-white/95 shadow-lg backdrop-blur xl:hidden"
+        >
+          <span className="h-0.5 w-5 rounded-full bg-[#1f1a14]" />
+          <span className="h-0.5 w-5 rounded-full bg-[#1f1a14]" />
+          <span className="h-0.5 w-5 rounded-full bg-[#1f1a14]" />
+        </button>
+      ) : null}
       {open && (
         <div className="fixed inset-0 z-[80] xl:hidden">
           <button
@@ -91,3 +101,5 @@ export default function MobileSidebarShell({
     </>
   )
 }
+
+
