@@ -134,10 +134,12 @@ export default async function Sidebar() {
 
           {/* ✅ ТУК СЕ ДОБАВЯ ONLINE USERS */}
           <div className="mt-4">
-            <OnlineNowSidebar currentUserId={user.id} />
+            <OnlineNowSidebar currentUserId={user.id} instanceId="desktop" />
           </div>
         </div>
       </aside>
     </>
   )
 }
+
+

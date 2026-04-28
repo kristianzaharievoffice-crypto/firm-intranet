@@ -12,6 +12,25 @@ type OnlineUser = {
   last_seen_at: string | null
 }
 
+type PresenceRow = {
+  user_id: string
+  last_seen_at: string | null
+  profiles:
+    | {
+        id: string
+        full_name: string | null
+        avatar_url: string | null
+        job_title: string | null
+      }
+    | {
+        id: string
+        full_name: string | null
+        avatar_url: string | null
+        job_title: string | null
+      }[]
+    | null
+}
+
 function isOnline(lastSeenAt: string | null) {
   if (!lastSeenAt) return false
   return Date.now() - new Date(lastSeenAt).getTime() < 35_000
@@ -19,8 +38,10 @@ function isOnline(lastSeenAt: string | null) {
 
 export default function OnlineNowSidebar({
   currentUserId,
+  instanceId = 'default',
 }: {
   currentUserId: string
+  instanceId?: string
 }) {
   const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
@@ -50,16 +71,22 @@ export default function OnlineNowSidebar({
     }
 
     const mapped =
-      data
-        ?.map((row: any) => ({
-          id: row.profiles?.id ?? row.user_id,
-          full_name: row.profiles?.full_name ?? 'User',
-          avatar_url: row.profiles?.avatar_url ?? null,
-          job_title: row.profiles?.job_title ?? null,
-          last_seen_at: row.last_seen_at ?? null,
-        }))
+      ((data ?? []) as PresenceRow[])
+        .map((row) => {
+          const profile = Array.isArray(row.profiles)
+            ? row.profiles[0] ?? null
+            : row.profiles
+
+          return {
+            id: profile?.id ?? row.user_id,
+            full_name: profile?.full_name ?? 'User',
+            avatar_url: profile?.avatar_url ?? null,
+            job_title: profile?.job_title ?? null,
+            last_seen_at: row.last_seen_at ?? null,
+          }
+        })
         .filter((user) => user.id !== currentUserId)
-        .filter((user) => isOnline(user.last_seen_at)) ?? []
+        .filter((user) => isOnline(user.last_seen_at))
 
     setUsers(mapped)
   }
@@ -85,7 +112,7 @@ export default function OnlineNowSidebar({
     void loadOnlineUsers()
 
     const channel = supabase
-      .channel(`online-now-sidebar-${currentUserId}`)
+      .channel(`online-now-sidebar-${instanceId}-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -109,7 +136,7 @@ export default function OnlineNowSidebar({
       window.clearInterval(interval)
       supabase.removeChannel(channel)
     }
-  }, [currentUserId, supabase])
+  }, [currentUserId, instanceId, supabase])
 
   return (
     <div className="mt-5 rounded-[22px] border border-[#eadfbe] bg-white/70 p-4 shadow-sm backdrop-blur-md">
@@ -176,3 +203,5 @@ export default function OnlineNowSidebar({
     </div>
   )
 }
+
+

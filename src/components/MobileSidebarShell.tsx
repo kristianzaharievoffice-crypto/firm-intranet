@@ -94,7 +94,7 @@ export default function MobileSidebarShell({
             />
 
             <div className="mt-4">
-              <OnlineNowSidebar currentUserId={currentUserId} />
+              <OnlineNowSidebar currentUserId={currentUserId} instanceId="mobile" />
             </div>
           </div>
         </div>
