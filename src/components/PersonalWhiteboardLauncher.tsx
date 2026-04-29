@@ -453,8 +453,6 @@ export default function PersonalWhiteboardLauncher({
       if (event.key.toLowerCase() === 'n') setTool('sticky')
     }
 
-
-
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [deleteSelected, isOpen, redo, saveBoard, selectedElementId, undo])
@@ -504,6 +502,7 @@ export default function PersonalWhiteboardLauncher({
     setSelectedElementId(element.id)
     setIsDirty(true)
   }
+
 
   const beginDraw = (event: React.PointerEvent<SVGSVGElement>) => {
     if (!svgRef.current) return
@@ -870,7 +869,7 @@ export default function PersonalWhiteboardLauncher({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-5 z-[140] flex h-14 w-14 items-center justify-center rounded-full border border-yellow-300 bg-gradient-to-br from-yellow-400 to-amber-300 text-lg font-black text-neutral-900 shadow-2xl ring-4 ring-white/70 transition hover:scale-105"
+        className="fixed bottom-24 right-5 z-[9999] flex h-16 w-16 items-center justify-center rounded-full bg-yellow-400 text-sm font-black text-black shadow-2xl ring-4 ring-white"
         title="Open personal whiteboard"
       >
         ✎
