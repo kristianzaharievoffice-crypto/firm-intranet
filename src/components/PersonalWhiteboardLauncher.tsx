@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 type Tool =
@@ -266,8 +265,6 @@ export default function PersonalWhiteboardLauncher({
 }: {
   userId: string
 }) {
-  const pathname = usePathname()
-  const isChatPage = pathname === '/chat' || pathname.startsWith('/chat/')
   const supabase = useMemo(() => createClient(), [])
 
   const [isOpen, setIsOpen] = useState(false)
@@ -456,8 +453,6 @@ export default function PersonalWhiteboardLauncher({
       if (event.key.toLowerCase() === 'n') setTool('sticky')
     }
 
-
-
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [deleteSelected, isOpen, redo, saveBoard, selectedElementId, undo])
@@ -503,6 +498,8 @@ export default function PersonalWhiteboardLauncher({
           : item
       )
     )
+
+
 
     setSelectedElementId(element.id)
     setIsDirty(true)
@@ -869,9 +866,7 @@ export default function PersonalWhiteboardLauncher({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-5 right-5 z-50 h-14 w-14 items-center justify-center rounded-full border border-yellow-300 bg-gradient-to-br from-yellow-400 to-amber-300 text-xl font-semibold text-neutral-900 shadow-lg transition hover:scale-105 ${
-          isChatPage ? 'hidden md:flex' : 'flex'
-        }`}
+        className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-yellow-300 bg-gradient-to-br from-yellow-400 to-amber-300 text-xl font-semibold text-neutral-900 shadow-lg transition hover:scale-105"
         title="Open personal whiteboard"
       >
         ✎
