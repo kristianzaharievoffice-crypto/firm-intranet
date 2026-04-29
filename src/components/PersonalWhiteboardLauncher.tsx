@@ -445,8 +445,6 @@ export default function PersonalWhiteboardLauncher({
         }
       }
 
-
-
       if (event.key.toLowerCase() === 'v') setTool('select')
       if (event.key.toLowerCase() === 'p') setTool('pen')
       if (event.key.toLowerCase() === 'e') setTool('eraser')
@@ -487,6 +485,8 @@ export default function PersonalWhiteboardLauncher({
       element.type === 'sticky' ? 'Edit sticky note text' : 'Edit text',
       element.text
     )
+
+
 
     if (nextText === null) return
 
@@ -868,8 +868,8 @@ export default function PersonalWhiteboardLauncher({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-5 right-5 z-50 h-14 w-14 items-center justify-center rounded-full border border-yellow-300 bg-gradient-to-br from-yellow-400 to-amber-300 text-xl font-semibold text-neutral-900 shadow-lg transition hover:scale-105 ${
-          isChatPage ? 'hidden md:flex' : 'flex'
+        className={`fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-yellow-300 bg-gradient-to-br from-yellow-400 to-amber-300 text-xl font-semibold text-neutral-900 shadow-lg transition hover:scale-105 ${
+          isChatPage ? 'max-md:hidden' : ''
         }`}
         title="Open personal whiteboard"
       >
