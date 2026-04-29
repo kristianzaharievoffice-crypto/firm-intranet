@@ -40,13 +40,7 @@
 
         {user && <CurrencyConverterLauncher />}
 
-        {user && (
-  <div className="fixed bottom-24 right-5 z-[9999] flex h-14 w-14 items-center justify-center rounded-full bg-yellow-400 text-sm font-black text-black shadow-2xl">
-    TEST
-  </div>
-)}
-
-
+        
 
         {user && <PersonalWhiteboardVisibility userId={user.id} />}
       </div>
