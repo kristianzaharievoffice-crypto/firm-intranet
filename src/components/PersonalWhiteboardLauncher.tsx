@@ -271,7 +271,6 @@ export default function PersonalWhiteboardLauncher({
   const supabase = useMemo(() => createClient(), [])
 
   const [isOpen, setIsOpen] = useState(false)
-  const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [tool, setTool] = useState<Tool>('select')
   const [color, setColor] = useState('#111827')
@@ -288,20 +287,6 @@ export default function PersonalWhiteboardLauncher({
   const draftElementRef = useRef<WhiteboardElement | null>(null)
   const drawStartPointRef = useRef<Point | null>(null)
 
-  useEffect(() => {
-    const query = window.matchMedia('(max-width: 767px)')
-
-    const updateViewport = () => {
-      setIsMobileViewport(query.matches)
-    }
-
-    updateViewport()
-    query.addEventListener('change', updateViewport)
-
-    return () => {
-      query.removeEventListener('change', updateViewport)
-    }
-  }, [])
   const isDrawingRef = useRef(false)
   const isMovingRef = useRef(false)
   const moveStartPointRef = useRef<Point | null>(null)
@@ -471,6 +456,8 @@ export default function PersonalWhiteboardLauncher({
       if (event.key.toLowerCase() === 'n') setTool('sticky')
     }
 
+
+
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [deleteSelected, isOpen, redo, saveBoard, selectedElementId, undo])
@@ -493,8 +480,6 @@ export default function PersonalWhiteboardLauncher({
     movingElementIdRef.current = element.id
     movingOriginalElementRef.current = element
   }
-
-
 
   const editElementText = (element: WhiteboardElement) => {
     if (element.type !== 'text' && element.type !== 'sticky') return
@@ -884,8 +869,9 @@ export default function PersonalWhiteboardLauncher({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-yellow-300 bg-gradient-to-br from-yellow-400 to-amber-300 text-xl font-semibold text-neutral-900 shadow-lg transition hover:scale-105"
-        style={{ display: isChatPage && isMobileViewport ? 'none' : 'flex' }}
+        className={`fixed bottom-5 right-5 z-50 h-14 w-14 items-center justify-center rounded-full border border-yellow-300 bg-gradient-to-br from-yellow-400 to-amber-300 text-xl font-semibold text-neutral-900 shadow-lg transition hover:scale-105 ${
+          isChatPage ? 'hidden md:flex' : 'flex'
+        }`}
         title="Open personal whiteboard"
       >
         ✎
