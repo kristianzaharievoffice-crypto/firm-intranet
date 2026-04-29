@@ -1,35 +1,55 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 
-type Message = {
-  role: 'user' | 'assistant'
-  content: string
+type ConverterResponse = {
+  amount: number
+  from: string
+  to: string
+  rate: number
+  result: number
+  date: string
+  error?: string
 }
 
-export default function AiAssistantLauncher() {
+const CURRENCIES = [
+  'EUR',
+  'USD',
+  'GBP',
+  'BGN',
+  'CHF',
+  'JPY',
+  'AUD',
+  'CAD',
+  'NZD',
+  'TRY',
+  'RON',
+  'PLN',
+] as const
+
+function formatNumber(value: number) {
+  return value.toLocaleString('en-GB', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  })
+}
+
+export default function CurrencyConverterLauncher() {
   const pathname = usePathname()
   const isChatPage = pathname === '/chat' || pathname.startsWith('/chat/')
   const [isOpen, setIsOpen] = useState(false)
-  const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content:
-        'Hello! I am your internal AI assistant. I can help with writing, ideas, explanations, tasks, and everyday work questions.',
-    },
-  ])
+  const [amount, setAmount] = useState('100')
+  const [from, setFrom] = useState('EUR')
+  const [to, setTo] = useState('USD')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [data, setData] = useState<ConverterResponse | null>(null)
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    if (isOpen) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [messages, isOpen])
+  const canConvert = useMemo(() => {
+    const numericAmount = Number(amount)
+    return Number.isFinite(numericAmount) && numericAmount > 0 && from && to
+  }, [amount, from, to])
 
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
@@ -44,62 +64,43 @@ export default function AiAssistantLauncher() {
     }
   }, [isOpen])
 
-  async function handleSend() {
-    const trimmed = input.trim()
-
-    if (!trimmed || loading) return
-
-    const nextMessages: Message[] = [...messages, { role: 'user', content: trimmed }]
-
-    setMessages(nextMessages)
-    setInput('')
-    setLoading(true)
-    setError(null)
-
+  async function handleConvert() {
     try {
-      const response = await fetch('/api/ai-assistant', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
-        body: JSON.stringify({
-          messages: nextMessages,
-        }),
+      setLoading(true)
+      setError(null)
+
+      const params = new URLSearchParams({
+        amount,
+        from,
+        to,
       })
 
-      const json = (await response.json()) as { reply?: string; error?: string }
+      const response = await fetch(`/api/currency-converter?${params.toString()}`, {
+        method: 'GET',
+        cache: 'no-store',
+      })
+
+      const json = (await response.json()) as ConverterResponse | { error?: string }
 
       if (!response.ok) {
-        throw new Error(json.error || 'Failed to get AI response.')
+        throw new Error(
+          'error' in json && json.error ? json.error : 'Failed to convert currency.'
+        )
       }
 
-      if (!json.reply) {
-        throw new Error('Empty reply from AI assistant.')
-      }
-
-      setMessages((current) => [
-        ...current,
-        {
-          role: 'assistant',
-          content: json.reply!,
-        },
-      ])
+      setData(json as ConverterResponse)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to get AI response.')
+      setError(err instanceof Error ? err.message : 'Failed to convert currency.')
+      setData(null)
     } finally {
       setLoading(false)
     }
   }
 
-  function handleClearChat() {
-    setMessages([
-      {
-        role: 'assistant',
-        content:
-          'Chat cleared. I am ready to help again with writing, ideas, and tasks.',
-      },
-    ])
+  function handleSwap() {
+    setFrom(to)
+    setTo(from)
+    setData(null)
     setError(null)
   }
 
@@ -108,110 +109,148 @@ export default function AiAssistantLauncher() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-5 right-44 z-50 h-14 w-14 items-center justify-center rounded-full border border-fuchsia-300 bg-gradient-to-br from-fuchsia-500 to-violet-500 text-xl font-semibold text-white shadow-lg transition hover:scale-105 ${
+        className={`fixed bottom-5 right-24 z-[9999] h-14 w-14 items-center justify-center rounded-full border border-blue-300 bg-gradient-to-br from-blue-500 to-cyan-400 text-sm font-black text-white shadow-2xl ring-4 ring-white/70 transition hover:scale-105 ${
           isChatPage ? 'hidden md:flex' : 'flex'
         }`}
-        title="Open AI assistant"
+        title="Open currency converter"
       >
-        AI
+        FX
       </button>
 
       {isOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4 sm:p-6">
-          <div className="relative flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-fuchsia-200 bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-fuchsia-100 px-5 py-4 sm:px-6">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 sm:p-6">
+          <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-blue-100 px-5 py-4 sm:px-6">
               <div>
                 <h2 className="text-xl font-semibold tracking-tight text-neutral-900">
-                  AI Assistant
+                  Currency Converter
                 </h2>
                 <p className="mt-1 text-sm text-neutral-600">
-                  Internal assistant for questions, writing, and everyday tasks.
+                  Convert currencies live inside your intranet.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleClearChat}
-                  className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
-                >
-                  Clear
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  Close
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                Close
+              </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto bg-neutral-50 px-4 py-4 sm:px-6">
-              <div className="mx-auto flex max-w-3xl flex-col gap-4">
-                {messages.map((message, index) => (
-                  <div
-                    key={`${message.role}-${index}`}
-                    className={`flex ${
-                      message.role === 'user' ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-3xl px-4 py-3 text-sm leading-6 shadow-sm ${
-                        message.role === 'user'
-                          ? 'bg-gradient-to-r from-fuchsia-500 to-violet-500 text-white'
-                          : 'border border-neutral-200 bg-white text-neutral-900'
-                      }`}
-                    >
-                      {message.content}
-                    </div>
-                  </div>
-                ))}
-
-                {loading ? (
-                  <div className="flex justify-start">
-                    <div className="max-w-[85%] rounded-3xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-500 shadow-sm">
-                      AI assistant is typing...
-                    </div>
-                  </div>
-                ) : null}
-
-                {error ? (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {error}
-                  </div>
-                ) : null}
-
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
-
-            <div className="border-t border-fuchsia-100 bg-white px-4 py-4 sm:px-6">
-              <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:flex-row">
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      void handleSend()
-                    }
+            <div className="grid gap-4 px-5 py-5 sm:px-6 md:grid-cols-4">
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-neutral-700">Amount</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => {
+                    setAmount(e.target.value)
+                    setData(null)
+                    setError(null)
                   }}
-                  rows={3}
-                  placeholder="Type your question, request, or task..."
-                  className="min-h-[80px] flex-1 resize-none rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
+                  className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                  placeholder="100"
                 />
+              </label>
+
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-neutral-700">From</span>
+                <select
+                  value={from}
+                  onChange={(e) => {
+                    setFrom(e.target.value)
+                    setData(null)
+                    setError(null)
+                  }}
+                  className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                >
+                  {CURRENCIES.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-neutral-700">To</span>
+                <select
+                  value={to}
+                  onChange={(e) => {
+                    setTo(e.target.value)
+                    setData(null)
+                    setError(null)
+                  }}
+                  className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                >
+                  {CURRENCIES.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="flex flex-col justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleConvert}
+                  disabled={!canConvert || loading}
+                  className="inline-flex items-center justify-center rounded-2xl border border-blue-300 bg-gradient-to-r from-blue-500 to-cyan-400 px-4 py-3 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? 'Converting...' : 'Convert'}
+                </button>
 
                 <button
                   type="button"
-                  onClick={() => void handleSend()}
-                  disabled={loading || !input.trim()}
-                  className="inline-flex items-center justify-center rounded-2xl border border-fuchsia-300 bg-gradient-to-r from-fuchsia-500 to-violet-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 sm:w-36"
+                  onClick={handleSwap}
+                  className="inline-flex items-center justify-center rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
                 >
-                  {loading ? 'Sending...' : 'Send'}
+                  Swap
                 </button>
               </div>
+            </div>
+
+            <div className="border-t border-blue-100 px-5 py-5 sm:px-6">
+              {error ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+                  {error}
+                </div>
+              ) : data ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-3xl border border-neutral-200 bg-neutral-50 px-5 py-5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Converted result
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold text-neutral-900">
+                      {formatNumber(data.result)} {data.to}
+                    </p>
+                    <p className="mt-2 text-sm text-neutral-600">
+                      {formatNumber(data.amount)} {data.from} = {formatNumber(data.result)} {data.to}
+                    </p>
+                  </div>
+
+                  <div className="rounded-3xl border border-neutral-200 bg-neutral-50 px-5 py-5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Exchange rate
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold text-neutral-900">
+                      1 {data.from} = {formatNumber(data.rate)} {data.to}
+                    </p>
+                    <p className="mt-2 text-sm text-neutral-600">
+                      Rate date: {data.date}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4 text-sm text-neutral-600">
+                  Enter amount, choose currencies, then click Convert.
+                </div>
+              )}
             </div>
           </div>
         </div>
