@@ -40,8 +40,6 @@
 
         {user && <CurrencyConverterLauncher />}
 
-        
-
         {user && <PersonalWhiteboardVisibility userId={user.id} />}
       </div>
     )
