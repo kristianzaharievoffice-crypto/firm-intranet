@@ -109,7 +109,7 @@ export default function CurrencyConverterLauncher() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-5 right-24 z-[9999] h-14 w-14 items-center justify-center rounded-full border border-blue-300 bg-gradient-to-br from-blue-500 to-cyan-400 text-sm font-black text-white shadow-2xl ring-4 ring-white/70 transition hover:scale-105 ${
+        className={`fixed bottom-5 right-24 z-50 h-14 w-14 items-center justify-center rounded-full border border-blue-300 bg-gradient-to-br from-blue-500 to-cyan-400 text-sm font-black text-white shadow-2xl ring-4 ring-white/70 transition hover:scale-105 ${
           isChatPage ? 'hidden md:flex' : 'flex'
         }`}
         title="Open currency converter"
