@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -46,13 +46,6 @@ interface PresenceRow {
   user_id: string
   last_seen_at: string | null
 }
-
-type RealtimePresenceMeta = {
-  user_id?: string
-  online_at?: string
-}
-
-type RealtimePresenceState = Record<string, RealtimePresenceMeta[]>
 
 type DirectUserItem = {
   kind: 'direct'
@@ -107,17 +100,6 @@ function createClientUuid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-function presenceUserIds(state: RealtimePresenceState, currentUserId: string) {
-  return Array.from(
-    new Set(
-      Object.values(state)
-        .flat()
-        .map((presence) => presence.user_id)
-        .filter((id): id is string => Boolean(id) && id !== currentUserId)
-    )
-  )
-}
-
 export default function ChatDirectory({
   currentUserId,
 }: {
@@ -134,7 +116,6 @@ export default function ChatDirectory({
   const [groupName, setGroupName] = useState('')
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
   const [creatingGroup, setCreatingGroup] = useState(false)
-  const realtimeOnlineUserIdsRef = useRef<Set<string>>(new Set())
 
   const loadDirectory = async () => {
     const { data: profilesData, error: profilesError } = await supabase
@@ -276,11 +257,9 @@ export default function ChatDirectory({
 
     const mappedDirects: DirectUserItem[] = people.map((person) => {
       const lastSeenAt = presenceMap.get(person.id)
-      const isOnline =
-        realtimeOnlineUserIdsRef.current.has(person.id) ||
-        (lastSeenAt
-          ? Date.now() - new Date(lastSeenAt).getTime() < 35000
-          : false)
+      const isOnline = lastSeenAt
+        ? Date.now() - new Date(lastSeenAt).getTime() < 35000
+        : false
 
       return {
         kind: 'direct',
@@ -387,17 +366,6 @@ export default function ChatDirectory({
       )
       .subscribe()
 
-    const presenceChannel = supabase
-      .channel('site-presence')
-      .on('presence', { event: 'sync' }, () => {
-        const state = presenceChannel.presenceState() as RealtimePresenceState
-        realtimeOnlineUserIdsRef.current = new Set(
-          presenceUserIds(state, currentUserId)
-        )
-        void loadDirectory()
-      })
-      .subscribe()
-
     const poll = setInterval(() => {
       if (document.visibilityState === 'visible') {
         void loadDirectory()
@@ -407,7 +375,6 @@ export default function ChatDirectory({
     return () => {
       clearInterval(poll)
       supabase.removeChannel(channel)
-      supabase.removeChannel(presenceChannel)
     }
   }, [currentUserId, supabase])
 
@@ -490,7 +457,7 @@ const createGroup = async () => {
     return
   }
 
-  const allMembers = Array.from(new Set([currentUserId, ...selectedMemberIds]))
+ const allMembers = Array.from(new Set([currentUserId, ...selectedMemberIds]))
 
   const { error: membersInsertError } = await supabase
     .from('chat_members')
