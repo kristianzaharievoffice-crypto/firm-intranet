@@ -14,6 +14,12 @@ export default function PresenceHeartbeat({
 
   useEffect(() => {
     const updatePresence = async () => {
+      const { error: rpcError } = await supabase.rpc('touch_user_presence')
+
+      if (!rpcError) return
+
+      console.error('touch_user_presence rpc error:', rpcError)
+
       const payload = {
         last_seen_at: new Date().toISOString(),
       }
