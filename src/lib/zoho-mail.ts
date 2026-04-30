@@ -25,15 +25,33 @@ type ZohoAccount = {
   mailboxAddress?: string
 }
 
+export type ZohoMailFolder = {
+  folderId?: string
+  folderName?: string
+  folderType?: string
+  path?: string
+}
+
 export type ZohoMailMessage = {
   messageId?: string
+  folderId?: string
+  threadId?: string
   summary?: string
   subject?: string
   fromAddress?: string
+  toAddress?: string
+  ccAddress?: string
   sender?: string
   receivedTime?: string | number
   sentDateInGMT?: string
   status2?: string
+  flagid?: string
+  hasAttachment?: string | number | boolean
+}
+
+export type ZohoMailContent = {
+  messageId?: string | number
+  content?: string
 }
 
 export function zohoRedirectUri(origin: string) {
@@ -185,6 +203,39 @@ export async function ensureZohoAccount(connection: ZohoConnection) {
 }
 
 export async function fetchZohoInbox(connection: ZohoConnection) {
+  return fetchZohoMessages(connection)
+}
+
+export async function fetchZohoFolders(connection: ZohoConnection) {
+  const readyConnection = await ensureZohoAccount(connection)
+  const accessToken = await refreshZohoAccessToken(readyConnection)
+  const mailBase = readyConnection.mail_api_base || zohoMailBaseFromLocation(null)
+
+  const response = await fetch(
+    `${mailBase}/api/accounts/${readyConnection.account_id}/folders`,
+    {
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Zoho-oauthtoken ${accessToken}`,
+      },
+      cache: 'no-store',
+    }
+  )
+
+  const json = (await response.json()) as { data?: ZohoMailFolder[]; error?: unknown }
+
+  if (!response.ok) {
+    throw new Error('Could not load Zoho folders.')
+  }
+
+  return json.data ?? []
+}
+
+export async function fetchZohoMessages(
+  connection: ZohoConnection,
+  folderId?: string | null
+) {
   const readyConnection = await ensureZohoAccount(connection)
   const accessToken = await refreshZohoAccessToken(readyConnection)
   const mailBase = readyConnection.mail_api_base || zohoMailBaseFromLocation(null)
@@ -194,6 +245,9 @@ export async function fetchZohoInbox(connection: ZohoConnection) {
   )
   url.searchParams.set('start', '1')
   url.searchParams.set('limit', '25')
+  if (folderId) {
+    url.searchParams.set('folderId', folderId)
+  }
 
   const response = await fetch(url.toString(), {
     headers: {
@@ -216,4 +270,34 @@ export async function fetchZohoInbox(connection: ZohoConnection) {
   }
 }
 
+export async function fetchZohoMessageContent(
+  connection: ZohoConnection,
+  folderId: string,
+  messageId: string
+) {
+  const readyConnection = await ensureZohoAccount(connection)
+  const accessToken = await refreshZohoAccessToken(readyConnection)
+  const mailBase = readyConnection.mail_api_base || zohoMailBaseFromLocation(null)
 
+  const url = new URL(
+    `${mailBase}/api/accounts/${readyConnection.account_id}/folders/${folderId}/messages/${messageId}/content`
+  )
+  url.searchParams.set('includeBlockContent', 'true')
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: `Zoho-oauthtoken ${accessToken}`,
+    },
+    cache: 'no-store',
+  })
+
+  const json = (await response.json()) as { data?: ZohoMailContent; error?: unknown }
+
+  if (!response.ok) {
+    throw new Error('Could not load this email.')
+  }
+
+  return json.data ?? null
+}

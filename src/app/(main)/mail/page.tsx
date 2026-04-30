@@ -1,12 +1,14 @@
 export const dynamic = 'force-dynamic'
 
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import {
+  fetchZohoFolders,
   fetchZohoInbox,
+  fetchZohoMessages,
   getZohoConnection,
+  type ZohoMailFolder,
   type ZohoMailMessage,
 } from '@/lib/zoho-mail'
 import ZohoMailClient from '@/components/ZohoMailClient'
@@ -14,7 +16,7 @@ import ZohoMailClient from '@/components/ZohoMailClient'
 export default async function MailPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; connected?: string }>
+  searchParams: Promise<{ error?: string; connected?: string; folderId?: string }>
 }) {
   const params = await searchParams
   const supabase = await createClient()
@@ -27,12 +29,23 @@ export default async function MailPage({
 
   const connection = await getZohoConnection(user.id)
   let messages: ZohoMailMessage[] = []
+  let folders: ZohoMailFolder[] = []
   let emailAddress = connection?.email_address ?? null
   let loadError = ''
+  let folderError = ''
 
   if (connection) {
     try {
-      const inbox = await fetchZohoInbox(connection)
+      try {
+        folders = await fetchZohoFolders(connection)
+      } catch (error) {
+        folderError =
+          error instanceof Error ? error.message : 'Could not load Zoho folders.'
+      }
+
+      const inbox = params.folderId
+        ? await fetchZohoMessages(connection, params.folderId)
+        : await fetchZohoInbox(connection)
       messages = inbox.messages
       emailAddress = inbox.connection.email_address ?? emailAddress
     } catch (error) {
@@ -48,12 +61,12 @@ export default async function MailPage({
         subtitle="Zoho Mail inbox inside the intranet."
         action={
           connection ? (
-            <Link
+            <a
               href="/api/zoho/connect"
               className="rounded-[20px] bg-[#f3efe8] px-5 py-3 font-semibold text-[#5d5346] hover:bg-[#ebe2d4]"
             >
               Reconnect Zoho
-            </Link>
+            </a>
           ) : null
         }
       />
@@ -74,21 +87,32 @@ export default async function MailPage({
             OAuth, so your Zoho password is never stored.
           </p>
 
-          <Link
+          <a
             href="/api/zoho/connect"
             className="mt-5 inline-flex rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414]"
           >
             Connect Zoho
-          </Link>
+          </a>
         </section>
       ) : (
         <>
+          {folderError ? (
+            <div className="rounded-[24px] border border-amber-100 bg-amber-50 p-4 text-sm text-amber-700">
+              {folderError}. Reconnect Zoho if folders do not appear.
+            </div>
+          ) : null}
+
           {loadError ? (
             <div className="rounded-[24px] border border-red-100 bg-red-50 p-4 text-sm text-red-600">
               {loadError}
             </div>
           ) : (
-            <ZohoMailClient messages={messages} emailAddress={emailAddress} />
+            <ZohoMailClient
+              messages={messages}
+              folders={folders}
+              activeFolderId={params.folderId ?? null}
+              emailAddress={emailAddress}
+            />
           )}
         </>
       )}
