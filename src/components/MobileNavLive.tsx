@@ -18,12 +18,10 @@ function Badge({ count }: { count: number }) {
 function NavItem({
   href,
   label,
-  onClick,
   count = 0,
 }: {
   href: string
   label: string
-  onClick: () => void
   count?: number
 }) {
   const pathname = usePathname()
@@ -32,7 +30,6 @@ function NavItem({
   return (
     <Link
       href={href}
-      onClick={onClick}
       className={`group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
         isActive
           ? 'bg-[#1f1a14] text-white'
@@ -56,25 +53,23 @@ function extractChatId(path: string | null | undefined) {
   return match ? match[1] : null
 }
 
-type MobileNavLiveProps = {
+type SidebarNavLiveProps = {
   currentUserId: string
   role: string
   chatIds: string[]
   initialNotificationsCount: number
   initialUnreadChatCount: number
   initialTasksCount: number
-  onNavigate: () => void
 }
 
-export default function MobileNavLive({
+export default function SidebarNavLive({
   currentUserId,
   role,
   chatIds,
   initialNotificationsCount,
   initialUnreadChatCount,
   initialTasksCount,
-  onNavigate,
-}: MobileNavLiveProps) {
+}: SidebarNavLiveProps) {
   const supabase = useMemo(() => createClient(), [])
   const pathname = usePathname()
   const currentOpenChatId = extractChatId(pathname)
@@ -88,13 +83,17 @@ export default function MobileNavLive({
   const clearOpenChatNotifications = async () => {
     if (!currentOpenChatId) return
 
-    await supabase
+    const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('user_id', currentUserId)
       .eq('type', 'chat')
       .eq('link', `/chat/${currentOpenChatId}`)
       .eq('is_read', false)
+
+    if (error) {
+      console.error('sidebar clear open chat notifications error:', error)
+    }
   }
 
   const refreshChatUnreadCount = async () => {
@@ -112,15 +111,25 @@ export default function MobileNavLive({
       return
     }
 
-    const { data: readRows } = await supabase
+    const { data: readRows, error: readError } = await supabase
       .from('chat_reads')
       .select('chat_id, last_read_at')
       .eq('user_id', currentUserId)
 
-    const { data: messages } = await supabase
+    if (readError) {
+      console.error('sidebar chat_reads error:', readError)
+      return
+    }
+
+    const { data: messages, error: messagesError } = await supabase
       .from('messages')
       .select('chat_id, created_at, sender_id')
       .in('chat_id', effectiveChatIds)
+
+    if (messagesError) {
+      console.error('sidebar messages error:', messagesError)
+      return
+    }
 
     const readMap = new Map(
       (readRows ?? []).map((row) => [row.chat_id, row.last_read_at])
@@ -128,11 +137,13 @@ export default function MobileNavLive({
 
     const unreadCount = (messages ?? []).filter((message) => {
       if (message.sender_id === currentUserId) return false
+
       const lastReadAt = readMap.get(message.chat_id)
       if (!lastReadAt) return true
 
       return (
-        new Date(message.created_at).getTime() > new Date(lastReadAt).getTime()
+        new Date(message.created_at).getTime() >
+        new Date(lastReadAt).getTime()
       )
     }).length
 
@@ -142,11 +153,16 @@ export default function MobileNavLive({
   const refreshNotificationCount = async () => {
     await clearOpenChatNotifications()
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('notifications')
       .select('id, type, link')
       .eq('user_id', currentUserId)
       .eq('is_read', false)
+
+    if (error) {
+      console.error('sidebar notifications error:', error)
+      return
+    }
 
     const count = (data ?? []).filter((notification) => {
       if (notification.type !== 'chat') return true
@@ -157,39 +173,48 @@ export default function MobileNavLive({
           : null
 
       if (!notificationChatId || !currentOpenChatId) return true
-
       return notificationChatId !== currentOpenChatId
     }).length
 
     setNotificationsCount(count)
   }
 
-  const refreshCounts = async () => {
-    await refreshNotificationCount()
-    await refreshChatUnreadCount()
-
+  const refreshTasksCount = async () => {
     const taskColumn = role === 'admin' ? 'created_by' : 'assigned_to'
 
-    const { count: openTasksCount } = await supabase
+    const { count: openTasksCount, error } = await supabase
       .from('tasks')
       .select('*', { count: 'exact', head: true })
       .eq(taskColumn, currentUserId)
       .neq('status', 'done')
 
+    if (error) {
+      console.error('sidebar tasks error:', error)
+      return
+    }
+
     setTasksCount(openTasksCount ?? 0)
+  }
+
+  const refreshCounts = async () => {
+    await refreshNotificationCount()
+    await refreshChatUnreadCount()
+    await refreshTasksCount()
   }
 
   useEffect(() => {
     void refreshCounts()
+  }, [currentOpenChatId])
 
+  useEffect(() => {
     const pollInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         void refreshCounts()
       }
-    }, 2000)
+    }, 2500)
 
     const notificationChannel = supabase
-      .channel(`mobile-notifications-${currentUserId}`)
+      .channel(`sidebar-notifications-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -199,13 +224,13 @@ export default function MobileNavLive({
           filter: `user_id=eq.${currentUserId}`,
         },
         () => {
-          void refreshCounts()
+          void refreshNotificationCount()
         }
       )
       .subscribe()
 
     const messageChannel = supabase
-      .channel(`mobile-messages-${currentUserId}`)
+      .channel(`sidebar-messages-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -214,13 +239,13 @@ export default function MobileNavLive({
           table: 'messages',
         },
         () => {
-          void refreshCounts()
+          void refreshChatUnreadCount()
         }
       )
       .subscribe()
 
     const readChannel = supabase
-      .channel(`mobile-chat-reads-${currentUserId}`)
+      .channel(`sidebar-chat-reads-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -230,13 +255,13 @@ export default function MobileNavLive({
           filter: `user_id=eq.${currentUserId}`,
         },
         () => {
-          void refreshCounts()
+          void refreshChatUnreadCount()
         }
       )
       .subscribe()
 
     const tasksChannel = supabase
-      .channel(`mobile-tasks-${currentUserId}`)
+      .channel(`sidebar-tasks-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -245,7 +270,7 @@ export default function MobileNavLive({
           table: 'tasks',
         },
         () => {
-          void refreshCounts()
+          void refreshTasksCount()
         }
       )
       .subscribe()
@@ -260,33 +285,29 @@ export default function MobileNavLive({
   }, [currentUserId, role, supabase, currentOpenChatId, chatIds.join(',')])
 
   return (
-    <nav className="mt-6 space-y-1">
-      <NavItem href="/feed" label="Feed" onClick={onNavigate} />
-      <NavItem href="/wall" label="Wall" onClick={onNavigate} />
-      <NavItem href="/chat" label="Chat" count={unreadChatCount} onClick={onNavigate} />
-      <NavItem href="/calls" label="Calls" onClick={onNavigate} />
-      <NavItem href="/tasks" label="Tasks" count={tasksCount} onClick={onNavigate} />
-      <NavItem href="/projects" label="Projects" onClick={onNavigate} />
-      <NavItem href="/pamm" label="PAMM" onClick={onNavigate} />
-      <NavItem href="/mt5" label="MT5" onClick={onNavigate} />
-      <NavItem href="/fund" label="FUND" onClick={onNavigate} />
-      <NavItem href="/sma" label="SMA" onClick={onNavigate} />
-      <NavItem href="/documents" label="Documents" onClick={onNavigate} />
-      <NavItem href="/calendar" label="Calendar" onClick={onNavigate} />
-      <NavItem href="/events" label="Events" onClick={onNavigate} />
-      <NavItem href="/employees" label="Employees" onClick={onNavigate} />
+    <nav className="space-y-1">
+      <NavItem href="/feed" label="Feed" />
+      <NavItem href="/wall" label="Wall" />
+      <NavItem href="/mail" label="Mail" />
+      <NavItem href="/chat" label="Chat" count={unreadChatCount} />
+      <NavItem href="/calls" label="Calls" />
+      <NavItem href="/tasks" label="Tasks" count={tasksCount} />
+      <NavItem href="/projects" label="Projects" />
+      <NavItem href="/pamm" label="PAMM" />
+      <NavItem href="/mt5" label="MT5" />
+      <NavItem href="/fund" label="FUND" />
+      <NavItem href="/sma" label="SMA" />
+      <NavItem href="/documents" label="Documents" />
+      <NavItem href="/calendar" label="Calendar" />
+      <NavItem href="/events" label="Events" />
+      <NavItem href="/employees" label="Employees" />
       <NavItem
         href="/notifications"
         label="Notifications"
         count={notificationsCount}
-        onClick={onNavigate}
       />
-      {role === 'admin' && (
-        <NavItem href="/dashboard" label="Dashboard" onClick={onNavigate} />
-      )}
-      {role === 'admin' && (
-        <NavItem href="/admin" label="Admin Panel" onClick={onNavigate} />
-      )}
+      {role === 'admin' && <NavItem href="/dashboard" label="Dashboard" />}
+      {role === 'admin' && <NavItem href="/admin" label="Admin Panel" />}
     </nav>
   )
 }

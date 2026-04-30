@@ -53,6 +53,7 @@ export default function MobileNav({
     <nav className="space-y-1">
       <NavItem href="/feed" label="Feed" onClick={onNavigate} />
       <NavItem href="/wall" label="Wall" onClick={onNavigate} />
+      <NavItem href="/mail" label="Mail" onClick={onNavigate} />
       <NavItem href="/chat" label="Chat" count={unreadChatCount} onClick={onNavigate} />
       <NavItem href="/calls" label="Calls" onClick={onNavigate} />
       <NavItem href="/tasks" label="Tasks" count={tasksCount} onClick={onNavigate} />

@@ -288,6 +288,7 @@ export default function SidebarNavLive({
     <nav className="space-y-1">
       <NavItem href="/feed" label="Feed" />
       <NavItem href="/wall" label="Wall" />
+      <NavItem href="/mail" label="Mail" />
       <NavItem href="/chat" label="Chat" count={unreadChatCount} />
       <NavItem href="/calls" label="Calls" />
       <NavItem href="/tasks" label="Tasks" count={tasksCount} />
