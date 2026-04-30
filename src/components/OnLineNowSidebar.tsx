@@ -15,20 +15,13 @@ type OnlineUser = {
 type PresenceRow = {
   user_id: string
   last_seen_at: string | null
-  profiles:
-    | {
-        id: string
-        full_name: string | null
-        avatar_url: string | null
-        job_title: string | null
-      }
-    | {
-        id: string
-        full_name: string | null
-        avatar_url: string | null
-        job_title: string | null
-      }[]
-    | null
+}
+
+type ProfileRow = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  job_title: string | null
 }
 
 const ONLINE_WINDOW_MS = 25_000
@@ -54,42 +47,57 @@ export default function OnlineNowSidebar({
   const loadOnlineUsers = async () => {
     const { data, error } = await supabase
       .from('user_presence')
-      .select(
-        `
-        user_id,
-        last_seen_at,
-        profiles:user_id (
-          id,
-          full_name,
-          avatar_url,
-          job_title
-        )
-      `
-      )
+      .select('user_id, last_seen_at')
 
     if (error) {
       console.error('online users load error:', error)
       return
     }
 
-    const mapped =
-      ((data ?? []) as PresenceRow[])
-        .map((row) => {
-          const profile = Array.isArray(row.profiles)
-            ? row.profiles[0] ?? null
-            : row.profiles
+    const onlineRows = ((data ?? []) as PresenceRow[])
+      .filter((row) => row.user_id !== currentUserId)
+      .filter((row) => isOnline(row.last_seen_at))
 
-          return {
-            id: profile?.id ?? row.user_id,
-            full_name: profile?.full_name ?? 'User',
-            avatar_url: profile?.avatar_url ?? null,
-            job_title: profile?.job_title ?? null,
-            last_seen_at: row.last_seen_at ?? null,
-          }
-        })
-        .filter((user) => user.id !== currentUserId)
-        .filter((user) => isOnline(user.last_seen_at))
-        .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
+    if (!onlineRows.length) {
+      setUsers([])
+      return
+    }
+
+    const onlineUserIds = onlineRows.map((row) => row.user_id)
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url, job_title')
+      .in('id', onlineUserIds)
+
+    if (profilesError) {
+      console.error('online users profiles load error:', profilesError)
+      return
+    }
+
+    const presenceMap = new Map(
+      onlineRows.map((row) => [row.user_id, row.last_seen_at])
+    )
+
+    const profileMap = new Map(
+      ((profilesData ?? []) as ProfileRow[]).map((profile) => [
+        profile.id,
+        profile,
+      ])
+    )
+
+    const mapped = onlineUserIds
+      .map((id) => {
+        const profile = profileMap.get(id)
+
+        return {
+          id,
+          full_name: profile?.full_name ?? 'User',
+          avatar_url: profile?.avatar_url ?? null,
+          job_title: profile?.job_title ?? null,
+          last_seen_at: presenceMap.get(id) ?? null,
+        }
+      })
+      .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
 
     setUsers(mapped)
   }
@@ -206,5 +214,4 @@ export default function OnlineNowSidebar({
     </div>
   )
 }
-
 

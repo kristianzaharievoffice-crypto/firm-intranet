@@ -14,29 +14,40 @@ export default function PresenceHeartbeat({
 
   useEffect(() => {
     const updatePresence = async () => {
-      const { error } = await supabase.from('user_presence').upsert(
+      const payload = {
+        last_seen_at: new Date().toISOString(),
+      }
+
+      const { data: updatedRows, error: updateError } = await supabase
+        .from('user_presence')
+        .update(payload)
+        .eq('user_id', currentUserId)
+        .select('user_id')
+
+      if (updateError) {
+        console.error('presence heartbeat update error:', updateError)
+        return
+      }
+
+      if (updatedRows?.length) return
+
+      const { error: insertError } = await supabase.from('user_presence').insert(
         {
           user_id: currentUserId,
-          last_seen_at: new Date().toISOString(),
-          current_chat_id: null,
-        },
-        { onConflict: 'user_id' }
+          ...payload,
+        }
       )
 
-      if (error) {
-        console.error('presence heartbeat error:', error)
+      if (insertError) {
+        console.error('presence heartbeat insert error:', insertError)
       }
     }
 
     const markOffline = () => {
-      void supabase.from('user_presence').upsert(
-        {
-          user_id: currentUserId,
-          last_seen_at: new Date(0).toISOString(),
-          current_chat_id: null,
-        },
-        { onConflict: 'user_id' }
-      )
+      void supabase
+        .from('user_presence')
+        .update({ last_seen_at: new Date(0).toISOString() })
+        .eq('user_id', currentUserId)
     }
 
     void updatePresence()
