@@ -24,7 +24,7 @@ type ProfileRow = {
   job_title: string | null
 }
 
-const ONLINE_WINDOW_MS = 25_000
+const ONLINE_WINDOW_MS = 60_000
 
 function isOnline(lastSeenAt: string | null) {
   if (!lastSeenAt) return false
@@ -214,4 +214,5 @@ export default function OnlineNowSidebar({
     </div>
   )
 }
+
 

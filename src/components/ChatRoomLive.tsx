@@ -395,7 +395,7 @@ export default function ChatRoomLive({
       .maybeSingle()
 
     if (presence?.last_seen_at) {
-      setOtherOnline(Date.now() - new Date(presence.last_seen_at).getTime() < 35_000)
+      setOtherOnline(Date.now() - new Date(presence.last_seen_at).getTime() < 60_000)
     } else {
       setOtherOnline(false)
     }

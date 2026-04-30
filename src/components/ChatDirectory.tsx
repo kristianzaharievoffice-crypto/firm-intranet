@@ -258,7 +258,7 @@ export default function ChatDirectory({
     const mappedDirects: DirectUserItem[] = people.map((person) => {
       const lastSeenAt = presenceMap.get(person.id)
       const isOnline = lastSeenAt
-        ? Date.now() - new Date(lastSeenAt).getTime() < 35000
+        ? Date.now() - new Date(lastSeenAt).getTime() < 60000
         : false
 
       return {
@@ -457,7 +457,7 @@ const createGroup = async () => {
     return
   }
 
- const allMembers = Array.from(new Set([currentUserId, ...selectedMemberIds]))
+  const allMembers = Array.from(new Set([currentUserId, ...selectedMemberIds]))
 
   const { error: membersInsertError } = await supabase
     .from('chat_members')
@@ -479,6 +479,7 @@ const createGroup = async () => {
   await loadDirectory()
   router.push(`/chat/${createdChat.id}`)
 }
+
 
 
   return (
