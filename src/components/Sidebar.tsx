@@ -22,6 +22,27 @@ export default async function Sidebar() {
 
   if (!user) redirect('/login')
 
+  const { error: touchPresenceError } = await supabase.rpc('touch_user_presence')
+
+  if (touchPresenceError) {
+    const presencePayload = {
+      last_seen_at: new Date().toISOString(),
+    }
+
+    const { data: updatedPresenceRows } = await supabase
+      .from('user_presence')
+      .update(presencePayload)
+      .eq('user_id', user.id)
+      .select('user_id')
+
+    if (!updatedPresenceRows?.length) {
+      await supabase.from('user_presence').insert({
+        user_id: user.id,
+        ...presencePayload,
+      })
+    }
+  }
+
   const { data: me } = await supabase
     .from('profiles')
     .select('id, role, full_name')
