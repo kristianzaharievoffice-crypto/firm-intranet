@@ -112,7 +112,7 @@ export default async function CompanyDocumentsPage({
         subtitle={uiText.documents.companyDocumentsSubtitle}
       />
 
-      {me.role === 'admin' && <NewDocumentForm companyId={companyId} />}
+      <NewDocumentForm companyId={companyId} />
 
       {items.length ? (
         <div className="space-y-4">
@@ -175,3 +175,5 @@ export default async function CompanyDocumentsPage({
     </main>
   )
 }
+
+
