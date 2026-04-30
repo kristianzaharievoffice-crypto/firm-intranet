@@ -10,6 +10,7 @@ type OnlineUser = {
   avatar_url: string | null
   job_title: string | null
   last_seen_at: string | null
+  status: PresenceStatus
 }
 
 type OnlineUserRpcRow = {
@@ -18,11 +19,13 @@ type OnlineUserRpcRow = {
   avatar_url: string | null
   job_title: string | null
   last_seen_at: string | null
+  status: PresenceStatus | null
 }
 
 type PresenceRow = {
   user_id: string
   last_seen_at: string | null
+  status: PresenceStatus | null
 }
 
 type ProfileRow = {
@@ -31,6 +34,8 @@ type ProfileRow = {
   avatar_url: string | null
   job_title: string | null
 }
+
+type PresenceStatus = 'available' | 'busy'
 
 const ONLINE_WINDOW_MS = 60_000
 
@@ -50,6 +55,7 @@ export default function OnlineNowSidebar({
   const router = useRouter()
 
   const [users, setUsers] = useState<OnlineUser[]>([])
+  const [ownStatus, setOwnStatus] = useState<PresenceStatus>('available')
   const [openingUserId, setOpeningUserId] = useState<string | null>(null)
 
   const touchOwnPresence = async () => {
@@ -63,6 +69,16 @@ export default function OnlineNowSidebar({
   const loadOnlineUsers = async () => {
     await touchOwnPresence()
 
+    const { data: ownPresence } = await supabase
+      .from('user_presence')
+      .select('status')
+      .eq('user_id', currentUserId)
+      .maybeSingle()
+
+    if (ownPresence?.status === 'busy' || ownPresence?.status === 'available') {
+      setOwnStatus(ownPresence.status)
+    }
+
     const { data: rpcData, error: rpcError } = await supabase.rpc('get_online_users')
 
     if (!rpcError) {
@@ -74,6 +90,7 @@ export default function OnlineNowSidebar({
           avatar_url: user.avatar_url ?? null,
           job_title: user.job_title ?? null,
           last_seen_at: user.last_seen_at ?? null,
+          status: (user.status === 'busy' ? 'busy' : 'available') as PresenceStatus,
         }))
         .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
 
@@ -85,7 +102,7 @@ export default function OnlineNowSidebar({
 
     const { data, error } = await supabase
       .from('user_presence')
-      .select('user_id, last_seen_at')
+      .select('user_id, last_seen_at, status')
 
     if (error) {
       console.error('online users load error:', error)
@@ -133,11 +150,43 @@ export default function OnlineNowSidebar({
           avatar_url: profile?.avatar_url ?? null,
           job_title: profile?.job_title ?? null,
           last_seen_at: presenceMap.get(id) ?? null,
+          status: (
+            onlineRows.find((row) => row.user_id === id)?.status === 'busy'
+              ? 'busy'
+              : 'available'
+          ) as PresenceStatus,
         }
       })
       .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
 
     setUsers(mapped)
+  }
+
+  const toggleOwnStatus = async () => {
+    const nextStatus: PresenceStatus = ownStatus === 'busy' ? 'available' : 'busy'
+    setOwnStatus(nextStatus)
+
+    const { error: rpcError } = await supabase.rpc('set_presence_status', {
+      next_status: nextStatus,
+    })
+
+    if (rpcError) {
+      const { error } = await supabase
+        .from('user_presence')
+        .update({
+          status: nextStatus,
+          last_seen_at: new Date().toISOString(),
+        })
+        .eq('user_id', currentUserId)
+
+      if (error) {
+        console.error('set presence status error:', error)
+        setOwnStatus(ownStatus)
+        return
+      }
+    }
+
+    await loadOnlineUsers()
   }
 
   const openChat = async (otherUserId: string) => {
@@ -197,7 +246,22 @@ export default function OnlineNowSidebar({
           </p>
         </div>
 
-        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]" />
+        <button
+          type="button"
+          onClick={() => void toggleOwnStatus()}
+          className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
+            ownStatus === 'busy'
+              ? 'bg-red-50 text-red-600'
+              : 'bg-emerald-50 text-emerald-700'
+          }`}
+        >
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${
+              ownStatus === 'busy' ? 'bg-red-500' : 'bg-emerald-500'
+            }`}
+          />
+          {ownStatus === 'busy' ? 'Busy' : 'Online'}
+        </button>
       </div>
 
       {users.length ? (
@@ -222,7 +286,11 @@ export default function OnlineNowSidebar({
                   (user.full_name?.[0] ?? 'U').toUpperCase()
                 )}
 
-                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
+                <span
+                  className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${
+                    user.status === 'busy' ? 'bg-red-500' : 'bg-emerald-500'
+                  }`}
+                />
               </div>
 
               <div className="min-w-0 flex-1">
@@ -232,7 +300,9 @@ export default function OnlineNowSidebar({
                 <p className="truncate text-xs text-[#8f836c]">
                   {openingUserId === user.id
                     ? 'Opening chat...'
-                    : user.job_title || 'Available'}
+                    : user.status === 'busy'
+                      ? 'Busy'
+                      : user.job_title || 'Available'}
                 </p>
               </div>
             </button>

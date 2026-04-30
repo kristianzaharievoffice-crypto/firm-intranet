@@ -45,7 +45,10 @@ interface ChatReadRow {
 interface PresenceRow {
   user_id: string
   last_seen_at: string | null
+  status: PresenceStatus | null
 }
+
+type PresenceStatus = 'available' | 'busy'
 
 type DirectUserItem = {
   kind: 'direct'
@@ -59,6 +62,7 @@ type DirectUserItem = {
   last_message: string
   last_message_at: string | null
   is_online: boolean
+  presence_status: PresenceStatus
 }
 
 type GroupChatItem = {
@@ -213,13 +217,19 @@ export default function ChatDirectory({
     if (otherUserIds.length) {
       const { data: presenceData } = await supabase
         .from('user_presence')
-        .select('user_id, last_seen_at')
+        .select('user_id, last_seen_at, status')
         .in('user_id', otherUserIds)
 
       presences = (presenceData ?? []) as PresenceRow[]
     }
 
     const presenceMap = new Map(presences.map((row) => [row.user_id, row.last_seen_at]))
+    const presenceStatusMap = new Map(
+      presences.map((row) => [
+        row.user_id,
+        (row.status === 'busy' ? 'busy' : 'available') as PresenceStatus,
+      ])
+    )
     const readMap = new Map(reads.map((row) => [row.chat_id, row.last_read_at]))
     const peopleMap = new Map(people.map((person) => [person.id, person]))
 
@@ -279,6 +289,7 @@ export default function ChatDirectory({
         last_message: directLastMessageMap.get(person.id)?.text ?? 'No messages yet',
         last_message_at: directLastMessageMap.get(person.id)?.created_at ?? null,
         is_online: isOnline,
+        presence_status: presenceStatusMap.get(person.id) ?? 'available',
       }
     })
 
@@ -403,6 +414,7 @@ export default function ChatDirectory({
       item.last_message.toLowerCase().includes(q)
     )
   })
+
 
   const openDirectChat = async (userId: string, existingChatId: string | null) => {
     setLoadingId(userId)
@@ -594,7 +606,11 @@ const createGroup = async () => {
 
                         <span
                           className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full border-2 border-white ${
-                            item.is_online ? 'bg-emerald-500' : 'bg-[#c7bda9]'
+                            item.is_online
+                              ? item.presence_status === 'busy'
+                                ? 'bg-red-500'
+                                : 'bg-emerald-500'
+                              : 'bg-[#c7bda9]'
                           }`}
                         />
                       </div>
@@ -632,8 +648,20 @@ const createGroup = async () => {
                   </div>
 
                   <div className="mt-3 flex items-center justify-between text-xs">
-                    <span className={item.is_online ? 'text-emerald-600' : 'text-[#9a8d75]'}>
-                      {item.is_online ? 'Online' : 'Offline'}
+                    <span
+                      className={
+                        item.is_online
+                          ? item.presence_status === 'busy'
+                            ? 'text-red-600'
+                            : 'text-emerald-600'
+                          : 'text-[#9a8d75]'
+                      }
+                    >
+                      {item.is_online
+                        ? item.presence_status === 'busy'
+                          ? 'Busy'
+                          : 'Online'
+                        : 'Offline'}
                     </span>
                     <span className="font-semibold text-[#a88414]">
                       {loadingId === item.id ? 'Opening...' : 'Open'}

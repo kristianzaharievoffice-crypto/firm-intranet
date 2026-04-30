@@ -46,6 +46,8 @@ type PinRow = {
   created_at: string
 }
 
+type PresenceStatus = 'available' | 'busy'
+
 const QUICK_REACTIONS = ['👍', '❤️', '🔥', '😂', '✅', '👏']
 const QUICK_EMOJIS = ['😀', '😂', '🔥', '👍', '❤️', '✅', '🙏', '🚀']
 
@@ -125,6 +127,8 @@ export default function ChatRoomLive({
   const [pins, setPins] = useState<PinRow[]>([])
   const [typing, setTyping] = useState(false)
   const [otherOnline, setOtherOnline] = useState(false)
+  const [otherPresenceStatus, setOtherPresenceStatus] =
+    useState<PresenceStatus>('available')
   const [otherLastReadAt, setOtherLastReadAt] = useState<string | null>(null)
 
   const [content, setContent] = useState('')
@@ -390,14 +394,16 @@ export default function ChatRoomLive({
 
     const { data: presence } = await supabase
       .from('user_presence')
-      .select('last_seen_at')
+      .select('last_seen_at, status')
       .eq('user_id', otherUserId)
       .maybeSingle()
 
     if (presence?.last_seen_at) {
       setOtherOnline(Date.now() - new Date(presence.last_seen_at).getTime() < 60_000)
+      setOtherPresenceStatus(presence.status === 'busy' ? 'busy' : 'available')
     } else {
       setOtherOnline(false)
+      setOtherPresenceStatus('available')
     }
 
     const { data: readRow } = await supabase
@@ -518,7 +524,7 @@ export default function ChatRoomLive({
       )
       .subscribe()
 
- const reactionsChannel = supabase
+    const reactionsChannel = supabase
       .channel(`chat-room-reactions-${chatId}`)
       .on(
         'postgres_changes',
@@ -797,7 +803,7 @@ export default function ChatRoomLive({
   }
 
 
- 
+  
 const deleteMessage = async (message: Message) => {
   if (message.sender_id !== currentUserId) return
 
@@ -910,7 +916,11 @@ const deleteMessage = async (message: Message) => {
 
               <span
                 className={`absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2 border-white md:bottom-1 md:right-1 md:h-3.5 md:w-3.5 ${
-                  otherOnline ? 'bg-emerald-500' : 'bg-[#c7bda9]'
+                  otherOnline
+                    ? otherPresenceStatus === 'busy'
+                      ? 'bg-red-500'
+                      : 'bg-emerald-500'
+                    : 'bg-[#c7bda9]'
                 }`}
               />
             </div>
@@ -929,6 +939,8 @@ const deleteMessage = async (message: Message) => {
               {isDirect
                 ? typing
                   ? `${otherUserName} is typing...`
+                  : otherOnline && otherPresenceStatus === 'busy'
+                    ? 'Busy'
                   : otherOnline
                     ? 'Online now'
                     : otherUserJobTitle || 'Offline'
@@ -970,8 +982,6 @@ const deleteMessage = async (message: Message) => {
             className="rounded-[14px] bg-white/70 px-3 py-2 text-xs font-semibold text-[#5d5346] shadow-sm backdrop-blur-sm md:rounded-[18px] md:px-4 md:text-sm"
           >
             Search
-
-
           </button>
         </div>
 
@@ -1362,8 +1372,6 @@ const deleteMessage = async (message: Message) => {
                       </div>
                     ) : null}
 
-
-
                     <div className="mt-2 flex items-center justify-end gap-2 text-[11px]">
                       {message.edited_at && !message.deleted_at ? (
                         <span className={isMine ? 'text-white/70' : 'text-[#8f836c]'}>
@@ -1554,5 +1562,3 @@ const deleteMessage = async (message: Message) => {
     </div>
   )
 }
-
-
