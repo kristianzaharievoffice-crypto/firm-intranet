@@ -12,6 +12,14 @@ type OnlineUser = {
   last_seen_at: string | null
 }
 
+type OnlineUserRpcRow = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  job_title: string | null
+  last_seen_at: string | null
+}
+
 type PresenceRow = {
   user_id: string
   last_seen_at: string | null
@@ -45,6 +53,26 @@ export default function OnlineNowSidebar({
   const [openingUserId, setOpeningUserId] = useState<string | null>(null)
 
   const loadOnlineUsers = async () => {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_online_users')
+
+    if (!rpcError) {
+      const mapped = ((rpcData ?? []) as OnlineUserRpcRow[])
+        .filter((user) => user.id !== currentUserId)
+        .map((user) => ({
+          id: user.id,
+          full_name: user.full_name ?? 'User',
+          avatar_url: user.avatar_url ?? null,
+          job_title: user.job_title ?? null,
+          last_seen_at: user.last_seen_at ?? null,
+        }))
+        .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
+
+      setUsers(mapped)
+      return
+    }
+
+    console.error('get_online_users rpc error:', rpcError)
+
     const { data, error } = await supabase
       .from('user_presence')
       .select('user_id, last_seen_at')
