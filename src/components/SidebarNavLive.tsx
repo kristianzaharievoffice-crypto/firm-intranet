@@ -19,10 +19,12 @@ function NavItem({
   href,
   label,
   count = 0,
+  onClick,
 }: {
   href: string
   label: string
   count?: number
+  onClick?: () => void
 }) {
   const pathname = usePathname()
   const isActive = pathname === href || pathname.startsWith(`${href}/`)
@@ -30,6 +32,7 @@ function NavItem({
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={`group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
         isActive
           ? 'bg-[#1f1a14] text-white'
@@ -60,6 +63,7 @@ type SidebarNavLiveProps = {
   initialNotificationsCount: number
   initialUnreadChatCount: number
   initialTasksCount: number
+  onNavigate?: () => void
 }
 
 export default function SidebarNavLive({
@@ -69,6 +73,7 @@ export default function SidebarNavLive({
   initialNotificationsCount,
   initialUnreadChatCount,
   initialTasksCount,
+  onNavigate,
 }: SidebarNavLiveProps) {
   const supabase = useMemo(() => createClient(), [])
   const pathname = usePathname()
@@ -286,28 +291,33 @@ export default function SidebarNavLive({
 
   return (
     <nav className="space-y-1">
-      <NavItem href="/feed" label="Feed" />
-      <NavItem href="/wall" label="Wall" />
-      <NavItem href="/mail" label="Mail" />
-      <NavItem href="/chat" label="Chat" count={unreadChatCount} />
-      <NavItem href="/calls" label="Calls" />
-      <NavItem href="/tasks" label="Tasks" count={tasksCount} />
-      <NavItem href="/projects" label="Projects" />
-      <NavItem href="/pamm" label="PAMM" />
-      <NavItem href="/mt5" label="MT5" />
-      <NavItem href="/fund" label="FUND" />
-      <NavItem href="/sma" label="SMA" />
-      <NavItem href="/documents" label="Documents" />
-      <NavItem href="/calendar" label="Calendar" />
-      <NavItem href="/events" label="Events" />
-      <NavItem href="/employees" label="Employees" />
+      <NavItem href="/feed" label="Feed" onClick={onNavigate} />
+      <NavItem href="/wall" label="Wall" onClick={onNavigate} />
+      <NavItem href="/mail" label="Mail" onClick={onNavigate} />
+      <NavItem href="/chat" label="Chat" count={unreadChatCount} onClick={onNavigate} />
+      <NavItem href="/calls" label="Calls" onClick={onNavigate} />
+      <NavItem href="/tasks" label="Tasks" count={tasksCount} onClick={onNavigate} />
+      <NavItem href="/projects" label="Projects" onClick={onNavigate} />
+      <NavItem href="/pamm" label="PAMM" onClick={onNavigate} />
+      <NavItem href="/mt5" label="MT5" onClick={onNavigate} />
+      <NavItem href="/fund" label="FUND" onClick={onNavigate} />
+      <NavItem href="/sma" label="SMA" onClick={onNavigate} />
+      <NavItem href="/documents" label="Documents" onClick={onNavigate} />
+      <NavItem href="/calendar" label="Calendar" onClick={onNavigate} />
+      <NavItem href="/events" label="Events" onClick={onNavigate} />
+      <NavItem href="/employees" label="Employees" onClick={onNavigate} />
       <NavItem
         href="/notifications"
         label="Notifications"
         count={notificationsCount}
+        onClick={onNavigate}
       />
-      {role === 'admin' && <NavItem href="/dashboard" label="Dashboard" />}
-      {role === 'admin' && <NavItem href="/admin" label="Admin Panel" />}
+      {role === 'admin' && (
+        <NavItem href="/dashboard" label="Dashboard" onClick={onNavigate} />
+      )}
+      {role === 'admin' && (
+        <NavItem href="/admin" label="Admin Panel" onClick={onNavigate} />
+      )}
     </nav>
   )
 }
