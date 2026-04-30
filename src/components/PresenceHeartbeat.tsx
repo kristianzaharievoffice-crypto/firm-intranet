@@ -18,6 +18,7 @@ export default function PresenceHeartbeat({
         {
           user_id: currentUserId,
           last_seen_at: new Date().toISOString(),
+          current_chat_id: null,
         },
         { onConflict: 'user_id' }
       )
@@ -66,5 +67,3 @@ export default function PresenceHeartbeat({
 
   return null
 }
-
-

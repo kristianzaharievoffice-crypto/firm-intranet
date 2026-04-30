@@ -1,4 +1,4 @@
-  import { createClient } from '@/lib/supabase/server' 
+  import { createClient } from '@/lib/supabase/server'
   import Sidebar from '@/components/Sidebar'
   import TopAnnouncementBar from '@/components/TopAnnouncementBar'
   import LiveNotifications from '@/components/LiveNotifications'
