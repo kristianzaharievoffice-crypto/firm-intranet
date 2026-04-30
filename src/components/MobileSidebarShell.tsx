@@ -90,7 +90,6 @@ export default function MobileSidebarShell({
               initialNotificationsCount={initialNotificationsCount}
               initialUnreadChatCount={initialUnreadChatCount}
               initialTasksCount={initialTasksCount}
-              onNavigate={() => setOpen(false)}
             />
 
             <div className="mt-4">
