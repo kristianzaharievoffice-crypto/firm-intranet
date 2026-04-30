@@ -132,7 +132,7 @@ export default function ChatRoomLive({
   const [otherLastReadAt, setOtherLastReadAt] = useState<string | null>(null)
 
   const [content, setContent] = useState('')
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [messageError, setMessageError] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
@@ -667,9 +667,7 @@ export default function ChatRoomLive({
     setShowMentionMenu(false)
   }
 
-  const uploadAttachmentIfAny = async () => {
-    if (!file) return null
-
+  const uploadAttachment = async (selectedFile: File) => {
     const {
       data: { user },
       error: userError,
@@ -679,15 +677,15 @@ export default function ChatRoomLive({
       throw new Error('No active user.')
     }
 
-    const originalName = file.name || 'file'
+    const originalName = selectedFile.name || 'file'
     const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
     const filePath = `${user.id}/${Date.now()}_${safeName}`
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('chat-files')
-      .upload(filePath, file, {
+      .upload(filePath, selectedFile, {
         upsert: false,
-        contentType: file.type || undefined,
+        contentType: selectedFile.type || undefined,
       })
 
     if (uploadError) {
@@ -698,7 +696,10 @@ export default function ChatRoomLive({
       .from('chat-files')
       .getPublicUrl(uploadData.path)
 
-    return publicUrlData.publicUrl
+    return {
+      name: originalName,
+      url: publicUrlData.publicUrl,
+    }
   }
 
  const send = async () => {
@@ -732,7 +733,7 @@ export default function ChatRoomLive({
     return
   }
 
-  if (!trimmedContent && !file) {
+  if (!trimmedContent && !files.length) {
     setMessageError('Write a message or choose a file.')
     return
   }
@@ -740,39 +741,48 @@ export default function ChatRoomLive({
   setIsSending(true)
 
   try {
-    const attachmentUrl = await uploadAttachmentIfAny()
+    const attachments = []
 
-    const finalMessageContent =
-      trimmedContent || (attachmentUrl ? 'Attached file' : '')
-
-    if (!finalMessageContent) {
-      setMessageError('Message cannot be empty.')
-      setIsSending(false)
-      return
+    for (const selectedFile of files) {
+      attachments.push(await uploadAttachment(selectedFile))
     }
 
-    if (isDirect) {
-      const { error } = await supabase.rpc('send_message_v2', {
-        target_chat_id: chatId,
-        message_content: finalMessageContent,
-        message_attachment_url: attachmentUrl,
-        reply_to: replyTo?.id ?? null,
-      })
+    const messagesToSend = attachments.length
+      ? attachments.map((attachment) => ({
+          content: trimmedContent || `Attached file: ${attachment.name}`,
+          attachmentUrl: attachment.url,
+        }))
+      : [
+          {
+            content: trimmedContent,
+            attachmentUrl: null,
+          },
+        ]
 
-      if (error) throw new Error(error.message)
-    } else {
-      const { error } = await supabase.rpc('send_group_message_v1', {
-        target_chat_id: chatId,
-        message_content: finalMessageContent,
-        message_attachment_url: attachmentUrl,
-        reply_to: replyTo?.id ?? null,
-      })
+    for (const messageToSend of messagesToSend) {
+      if (isDirect) {
+        const { error } = await supabase.rpc('send_message_v2', {
+          target_chat_id: chatId,
+          message_content: messageToSend.content,
+          message_attachment_url: messageToSend.attachmentUrl,
+          reply_to: replyTo?.id ?? null,
+        })
 
-      if (error) throw new Error(error.message)
+        if (error) throw new Error(error.message)
+      } else {
+        const { error } = await supabase.rpc('send_group_message_v1', {
+          target_chat_id: chatId,
+          message_content: messageToSend.content,
+          message_attachment_url: messageToSend.attachmentUrl,
+          reply_to: replyTo?.id ?? null,
+        })
+
+        if (error) throw new Error(error.message)
+      }
     }
 
     setContent('')
-    setFile(null)
+    setFiles([])
     setReplyTo(null)
     setIsSending(false)
     setShowMentionMenu(false)
@@ -1518,8 +1528,9 @@ const deleteMessage = async (message: Message) => {
               File
               <input
                 type="file"
+                multiple
                 className="hidden"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
               />
             </label>
 
@@ -1533,12 +1544,14 @@ const deleteMessage = async (message: Message) => {
           </div>
         </div>
 
-        {file ? (
+        {files.length ? (
           <div className="mt-3 flex items-center justify-between rounded-[16px] bg-[#fcfbf8]/90 px-4 py-3 text-sm text-[#7b6f5a]">
-            <span>Selected file: {file.name}</span>
+            <span className="min-w-0 truncate">
+              Selected files: {files.map((selectedFile) => selectedFile.name).join(', ')}
+            </span>
             <button
               type="button"
-              onClick={() => setFile(null)}
+              onClick={() => setFiles([])}
               className="font-semibold text-[#a88414]"
             >
               Remove
