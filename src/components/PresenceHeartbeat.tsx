@@ -3,6 +3,8 @@
 import { useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+const HEARTBEAT_INTERVAL_MS = 8000
+
 export default function PresenceHeartbeat({
   currentUserId,
 }: {
@@ -21,13 +23,22 @@ export default function PresenceHeartbeat({
       )
     }
 
+    const markOffline = () => {
+      void supabase.from('user_presence').upsert(
+        {
+          user_id: currentUserId,
+          last_seen_at: new Date(0).toISOString(),
+          current_chat_id: null,
+        },
+        { onConflict: 'user_id' }
+      )
+    }
+
     void updatePresence()
 
     const interval = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        void updatePresence()
-      }
-    }, 10000)
+      void updatePresence()
+    }, HEARTBEAT_INTERVAL_MS)
 
     const handleVisible = () => {
       if (document.visibilityState === 'visible') {
@@ -41,11 +52,15 @@ export default function PresenceHeartbeat({
 
     document.addEventListener('visibilitychange', handleVisible)
     window.addEventListener('focus', handleFocus)
+    window.addEventListener('pagehide', markOffline)
+    window.addEventListener('beforeunload', markOffline)
 
     return () => {
       window.clearInterval(interval)
       document.removeEventListener('visibilitychange', handleVisible)
       window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('pagehide', markOffline)
+      window.removeEventListener('beforeunload', markOffline)
     }
   }, [currentUserId, supabase])
 

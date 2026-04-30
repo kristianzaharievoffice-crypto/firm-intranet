@@ -31,9 +31,11 @@ type PresenceRow = {
     | null
 }
 
+const ONLINE_WINDOW_MS = 25_000
+
 function isOnline(lastSeenAt: string | null) {
   if (!lastSeenAt) return false
-  return Date.now() - new Date(lastSeenAt).getTime() < 35_000
+  return Date.now() - new Date(lastSeenAt).getTime() < ONLINE_WINDOW_MS
 }
 
 export default function OnlineNowSidebar({
@@ -87,6 +89,7 @@ export default function OnlineNowSidebar({
         })
         .filter((user) => user.id !== currentUserId)
         .filter((user) => isOnline(user.last_seen_at))
+        .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
 
     setUsers(mapped)
   }
