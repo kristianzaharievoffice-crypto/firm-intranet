@@ -9,6 +9,11 @@ interface TaskItem {
   status: string
   assigned_to: string
   employee_name?: string
+  attachments?: Array<{
+    id: string
+    file_name: string
+    file_url: string
+  }>
 }
 
 function getPriorityClasses(priority: string) {
@@ -95,7 +100,7 @@ export default function TaskList({
             {task.title}
           </h2>
 
-          {isAdmin && task.employee_name && (
+          {task.employee_name && (
             <p className="mt-2 text-sm text-[#7b746b]">
               {uiText.tasks.assignedTo}: {task.employee_name}
             </p>
@@ -113,6 +118,22 @@ export default function TaskList({
               ? new Date(task.due_date).toLocaleDateString('bg-BG')
               : uiText.tasks.noDueDate}
           </div>
+
+          {task.attachments?.length ? (
+            <div className="mt-5 flex flex-wrap gap-2">
+              {task.attachments.map((attachment) => (
+                <a
+                  key={attachment.id}
+                  href={attachment.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-[16px] border border-[#e7d6a1] bg-white px-4 py-2 text-sm font-semibold text-[#1f1a14] hover:bg-[#fbf6e8]"
+                >
+                  {attachment.file_name}
+                </a>
+              ))}
+            </div>
+          ) : null}
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <form action={updateStatusAction} className="flex flex-wrap items-center gap-2">
@@ -153,3 +174,5 @@ export default function TaskList({
     </div>
   )
 }
+
+

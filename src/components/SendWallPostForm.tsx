@@ -7,7 +7,7 @@ export default function SendWallPostForm() {
   const supabase = createClient()
 
   const [content, setContent] = useState('')
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [status, setStatus] = useState<'pending' | 'in_progress' | 'completed'>('in_progress')
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -18,7 +18,7 @@ export default function SendWallPostForm() {
 
     const trimmed = content.trim()
 
-    if (!trimmed && !file) {
+    if (!trimmed && !files.length) {
       setMessage('Write a report/project update or choose a file.')
       return
     }
@@ -36,18 +36,28 @@ export default function SendWallPostForm() {
       return
     }
 
-    let attachmentUrl: string | null = null
+    const rows = []
 
-    if (file) {
-      const originalName = file.name || 'file'
+    if (!files.length) {
+      rows.push({
+        employee_id: user.id,
+        content: trimmed,
+        attachment_url: null,
+        status,
+        reviewed: false,
+      })
+    }
+
+    for (const selectedFile of files) {
+      const originalName = selectedFile.name || 'file'
       const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
       const filePath = `${user.id}/${Date.now()}_${safeName}`
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('post-files')
-        .upload(filePath, file, {
+        .upload(filePath, selectedFile, {
           upsert: false,
-          contentType: file.type || undefined,
+          contentType: selectedFile.type || undefined,
         })
 
       if (uploadError) {
@@ -60,16 +70,16 @@ export default function SendWallPostForm() {
         .from('post-files')
         .getPublicUrl(uploadData.path)
 
-      attachmentUrl = publicUrlData.publicUrl
+      rows.push({
+        employee_id: user.id,
+        content: trimmed || `Attached file: ${originalName}`,
+        attachment_url: publicUrlData.publicUrl,
+        status,
+        reviewed: false,
+      })
     }
 
-    const { error } = await supabase.from('wall_posts').insert({
-      employee_id: user.id,
-      content: trimmed || 'Attached file',
-      attachment_url: attachmentUrl,
-      status,
-      reviewed: false,
-    })
+    const { error } = await supabase.from('wall_posts').insert(rows)
 
     if (error) {
       setMessage(error.message)
@@ -78,7 +88,7 @@ export default function SendWallPostForm() {
     }
 
     setContent('')
-    setFile(null)
+    setFiles([])
     setStatus('in_progress')
     setMessage('')
     setIsSaving(false)
@@ -120,9 +130,16 @@ export default function SendWallPostForm() {
 
         <input
           type="file"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          multiple
+          onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
           className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3"
         />
+
+        {files.length ? (
+          <p className="text-sm text-[#7b746b]">
+            Selected files: {files.map((selectedFile) => selectedFile.name).join(', ')}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-5 flex items-center gap-4">
@@ -139,3 +156,5 @@ export default function SendWallPostForm() {
     </form>
   )
 }
+
+

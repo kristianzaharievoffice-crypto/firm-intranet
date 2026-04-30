@@ -12,7 +12,7 @@ export default function NewDocumentForm({
   const supabase = createClient()
 
   const [title, setTitle] = useState('')
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
@@ -20,7 +20,7 @@ export default function NewDocumentForm({
     e.preventDefault()
     setMessage('')
 
-    if (!title.trim() || !file) {
+    if (!title.trim() || !files.length) {
       setMessage(uiText.documents.enterDocument)
       return
     }
@@ -38,34 +38,43 @@ export default function NewDocumentForm({
       return
     }
 
-    const originalName = file.name || 'file'
-    const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const filePath = `${companyId}/${Date.now()}_${safeName}`
+    const rows = []
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('company-documents')
-      .upload(filePath, file, {
-        upsert: false,
-        contentType: file.type || undefined,
+    for (const selectedFile of files) {
+      const originalName = selectedFile.name || 'file'
+      const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const filePath = `${companyId}/${Date.now()}_${safeName}`
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('company-documents')
+        .upload(filePath, selectedFile, {
+          upsert: false,
+          contentType: selectedFile.type || undefined,
+        })
+
+      if (uploadError) {
+        setMessage(`Upload error: ${uploadError.message}`)
+        setIsSaving(false)
+        return
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('company-documents')
+        .getPublicUrl(uploadData.path)
+
+      rows.push({
+        company_id: companyId,
+        title:
+          files.length > 1
+            ? `${title.trim()} - ${originalName}`
+            : title.trim(),
+        file_url: publicUrlData.publicUrl,
+        file_path: uploadData.path,
+        uploaded_by: user.id,
       })
-
-    if (uploadError) {
-      setMessage(`Upload error: ${uploadError.message}`)
-      setIsSaving(false)
-      return
     }
 
-    const { data: publicUrlData } = supabase.storage
-      .from('company-documents')
-      .getPublicUrl(uploadData.path)
-
-    const { error } = await supabase.from('company_documents').insert({
-      company_id: companyId,
-      title: title.trim(),
-      file_url: publicUrlData.publicUrl,
-      file_path: uploadData.path,
-      uploaded_by: user.id,
-    })
+    const { error } = await supabase.from('company_documents').insert(rows)
 
     if (error) {
       setMessage(error.message)
@@ -74,7 +83,7 @@ export default function NewDocumentForm({
     }
 
     setTitle('')
-    setFile(null)
+    setFiles([])
     setIsSaving(false)
     window.location.reload()
   }
@@ -101,9 +110,16 @@ export default function NewDocumentForm({
 
         <input
           type="file"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          multiple
+          onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
           className="rounded-[18px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3"
         />
+
+        {files.length ? (
+          <p className="text-sm text-[#7b746b]">
+            Selected files: {files.map((selectedFile) => selectedFile.name).join(', ')}
+          </p>
+        ) : null}
 
         <button
           type="submit"
@@ -118,3 +134,5 @@ export default function NewDocumentForm({
     </form>
   )
 }
+
+

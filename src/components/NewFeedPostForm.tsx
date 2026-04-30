@@ -11,7 +11,7 @@ export default function NewFeedPostForm({
   const supabase = createClient()
 
   const [content, setContent] = useState('')
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
@@ -21,7 +21,7 @@ export default function NewFeedPostForm({
 
     const trimmed = content.trim()
 
-    if (!trimmed && !file) {
+    if (!trimmed && !files.length) {
       setMessage('Write something or choose a file.')
       return
     }
@@ -39,19 +39,27 @@ export default function NewFeedPostForm({
       return
     }
 
-    let attachmentUrl: string | null = null
-    let attachmentPath: string | null = null
+    const rows = []
 
-    if (file) {
-      const originalName = file.name || 'file'
+    if (!files.length) {
+      rows.push({
+        user_id: user.id,
+        content: trimmed,
+        attachment_url: null,
+        attachment_path: null,
+      })
+    }
+
+    for (const selectedFile of files) {
+      const originalName = selectedFile.name || 'file'
       const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
       const filePath = `${user.id}/${Date.now()}_${safeName}`
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('feed-files')
-        .upload(filePath, file, {
+        .upload(filePath, selectedFile, {
           upsert: false,
-          contentType: file.type || undefined,
+          contentType: selectedFile.type || undefined,
         })
 
       if (uploadError) {
@@ -60,21 +68,19 @@ export default function NewFeedPostForm({
         return
       }
 
-      attachmentPath = uploadData.path
-
       const { data: publicUrlData } = supabase.storage
         .from('feed-files')
         .getPublicUrl(uploadData.path)
 
-      attachmentUrl = publicUrlData.publicUrl
+      rows.push({
+        user_id: user.id,
+        content: trimmed || `Attached file: ${originalName}`,
+        attachment_url: publicUrlData.publicUrl,
+        attachment_path: uploadData.path,
+      })
     }
 
-    const { error } = await supabase.from('feed_posts').insert({
-      user_id: user.id,
-      content: trimmed || 'Attached file',
-      attachment_url: attachmentUrl,
-      attachment_path: attachmentPath,
-    })
+    const { error } = await supabase.from('feed_posts').insert(rows)
 
     if (error) {
       setMessage(error.message)
@@ -83,7 +89,7 @@ export default function NewFeedPostForm({
     }
 
     setContent('')
-    setFile(null)
+    setFiles([])
     setMessage('')
     setIsSaving(false)
     onPosted?.()
@@ -112,9 +118,16 @@ export default function NewFeedPostForm({
 
         <input
           type="file"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          multiple
+          onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
           className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3"
         />
+
+        {files.length ? (
+          <p className="text-sm text-[#7b746b]">
+            Selected files: {files.map((selectedFile) => selectedFile.name).join(', ')}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-5 flex items-center gap-4">
@@ -131,3 +144,5 @@ export default function NewFeedPostForm({
     </form>
   )
 }
+
+

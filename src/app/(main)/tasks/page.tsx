@@ -20,6 +20,14 @@ interface TaskItem {
   created_by: string
 }
 
+interface TaskAttachmentItem {
+  id: string
+  task_id: string
+  file_name: string
+  file_url: string
+  file_path: string
+}
+
 interface ProfileItem {
   id: string
   full_name: string | null
@@ -67,22 +75,12 @@ export default async function TasksPage() {
 
   let tasks: TaskItem[] = []
 
-  if (me.role === 'admin') {
-    const { data } = await supabase
-      .from('tasks')
-      .select('id, title, description, due_date, priority, status, assigned_to, created_by')
-      .order('created_at', { ascending: false })
+  const { data } = await supabase
+    .from('tasks')
+    .select('id, title, description, due_date, priority, status, assigned_to, created_by')
+    .order('created_at', { ascending: false })
 
-    tasks = (data ?? []) as TaskItem[]
-  } else {
-    const { data } = await supabase
-      .from('tasks')
-      .select('id, title, description, due_date, priority, status, assigned_to, created_by')
-      .eq('assigned_to', user.id)
-      .order('created_at', { ascending: false })
-
-    tasks = (data ?? []) as TaskItem[]
-  }
+  tasks = (data ?? []) as TaskItem[]
 
   const employeeIds = [...new Set(tasks.map((t) => t.assigned_to))]
   const safeEmployeeIds = employeeIds.length
@@ -100,7 +98,29 @@ export default async function TasksPage() {
   const enrichedTasks = tasks.map((task) => ({
     ...task,
     employee_name: nameMap.get(task.assigned_to) ?? uiText.common.user,
+    attachments: [] as TaskAttachmentItem[],
   }))
+
+  const taskIds = enrichedTasks.map((task) => task.id)
+  const { data: attachmentRows } = taskIds.length
+    ? await supabase
+        .from('task_attachments')
+        .select('id, task_id, file_name, file_url, file_path')
+        .in('task_id', taskIds)
+        .order('created_at', { ascending: true })
+    : { data: [] }
+
+  const attachmentsByTask = new Map<string, TaskAttachmentItem[]>()
+
+  for (const attachment of (attachmentRows ?? []) as TaskAttachmentItem[]) {
+    const current = attachmentsByTask.get(attachment.task_id) ?? []
+    current.push(attachment)
+    attachmentsByTask.set(attachment.task_id, current)
+  }
+
+  for (const task of enrichedTasks) {
+    task.attachments = attachmentsByTask.get(task.id) ?? []
+  }
 
   const total = enrichedTasks.length
   const totalNew = enrichedTasks.filter((t) => t.status === 'new').length
@@ -113,14 +133,12 @@ export default async function TasksPage() {
         title={uiText.tasks.title}
         subtitle={uiText.tasks.subtitle}
         action={
-          me.role === 'admin' ? (
-            <Link
-              href="/tasks/new"
-              className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414]"
-            >
-              {uiText.tasks.newTask}
-            </Link>
-          ) : null
+          <Link
+            href="/tasks/new"
+            className="rounded-[20px] bg-[#c9a227] px-5 py-3 font-semibold text-white hover:bg-[#a88414]"
+          >
+            {uiText.tasks.newTask}
+          </Link>
         }
       />
 
@@ -140,3 +158,5 @@ export default async function TasksPage() {
     </main>
   )
 }
+
+

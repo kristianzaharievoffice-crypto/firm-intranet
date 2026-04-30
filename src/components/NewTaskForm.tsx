@@ -21,6 +21,7 @@ export default function NewTaskForm({
   const [assignedTo, setAssignedTo] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [priority, setPriority] = useState('medium')
+  const [files, setFiles] = useState<File[]>([])
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
@@ -35,18 +36,91 @@ export default function NewTaskForm({
 
     setIsSaving(true)
 
-    const { error } = await supabase.rpc('create_task_with_notification', {
-      task_title: title.trim(),
-      task_description: description.trim(),
-      task_assigned_to: assignedTo,
-      task_due_date: dueDate || null,
-      task_priority: priority,
-    })
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      setMessage(uiText.common.noActiveUser)
+      setIsSaving(false)
+      return
+    }
+
+    const { data: createdTask, error } = await supabase
+      .from('tasks')
+      .insert({
+        title: title.trim(),
+        description: description.trim(),
+        assigned_to: assignedTo,
+        due_date: dueDate || null,
+        priority,
+        status: 'new',
+        created_by: user.id,
+      })
+      .select('id')
+      .single()
 
     if (error) {
       setMessage(error.message)
       setIsSaving(false)
       return
+    }
+
+    if (files.length) {
+      const attachmentRows = []
+
+      for (const selectedFile of files) {
+        const originalName = selectedFile.name || 'file'
+        const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
+        const filePath = `${createdTask.id}/${Date.now()}_${safeName}`
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('task-files')
+          .upload(filePath, selectedFile, {
+            upsert: false,
+            contentType: selectedFile.type || undefined,
+          })
+
+        if (uploadError) {
+          setMessage(`Upload error: ${uploadError.message}`)
+          setIsSaving(false)
+          return
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from('task-files')
+          .getPublicUrl(uploadData.path)
+
+        attachmentRows.push({
+          task_id: createdTask.id,
+          file_name: originalName,
+          file_url: publicUrlData.publicUrl,
+          file_path: uploadData.path,
+          uploaded_by: user.id,
+        })
+      }
+
+      const { error: attachmentError } = await supabase
+        .from('task_attachments')
+        .insert(attachmentRows)
+
+      if (attachmentError) {
+        setMessage(attachmentError.message)
+        setIsSaving(false)
+        return
+      }
+    }
+
+    if (assignedTo !== user.id) {
+      await supabase.from('notifications').insert({
+        user_id: assignedTo,
+        type: 'task',
+        title: 'New task',
+        body: title.trim(),
+        link: '/tasks',
+        is_read: false,
+      })
     }
 
     window.location.href = '/tasks'
@@ -109,6 +183,19 @@ export default function NewTaskForm({
             <option value="high">{uiText.tasks.high}</option>
           </select>
         </div>
+
+        <input
+          type="file"
+          multiple
+          onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+          className="w-full rounded-[20px] border border-[#ece5d8] bg-[#fcfbf8] px-4 py-3"
+        />
+
+        {files.length ? (
+          <p className="text-sm text-[#7b746b]">
+            Selected files: {files.map((selectedFile) => selectedFile.name).join(', ')}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-5 flex items-center gap-4">
@@ -125,3 +212,5 @@ export default function NewTaskForm({
     </form>
   )
 }
+
+

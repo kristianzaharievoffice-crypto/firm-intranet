@@ -16,21 +16,12 @@ export default async function NewTaskPage() {
 
   if (!user) redirect('/login')
 
-  const { data: me } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!me || me.role !== 'admin') {
-    redirect('/tasks')
-  }
-
   const { data: employees } = await supabase
     .from('profiles')
     .select('id, full_name')
-    .eq('role', 'employee')
     .order('full_name', { ascending: true })
 
   return <NewTaskForm employees={(employees ?? []) as Employee[]} />
 }
+
+
