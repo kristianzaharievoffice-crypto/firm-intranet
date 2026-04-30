@@ -118,6 +118,12 @@ export default function ChatDirectory({
   const [creatingGroup, setCreatingGroup] = useState(false)
 
   const loadDirectory = async () => {
+    const { error: touchPresenceError } = await supabase.rpc('touch_user_presence')
+
+    if (touchPresenceError) {
+      console.error('chat directory touch presence error:', touchPresenceError)
+    }
+
     const { data: profilesData, error: profilesError } = await supabase
       .from('profiles')
       .select('id, full_name, avatar_url, job_title, department')
@@ -479,7 +485,6 @@ const createGroup = async () => {
   await loadDirectory()
   router.push(`/chat/${createdChat.id}`)
 }
-
 
 
   return (

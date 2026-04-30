@@ -52,7 +52,17 @@ export default function OnlineNowSidebar({
   const [users, setUsers] = useState<OnlineUser[]>([])
   const [openingUserId, setOpeningUserId] = useState<string | null>(null)
 
+  const touchOwnPresence = async () => {
+    const { error } = await supabase.rpc('touch_user_presence')
+
+    if (error) {
+      console.error('online sidebar touch presence error:', error)
+    }
+  }
+
   const loadOnlineUsers = async () => {
+    await touchOwnPresence()
+
     const { data: rpcData, error: rpcError } = await supabase.rpc('get_online_users')
 
     if (!rpcError) {
