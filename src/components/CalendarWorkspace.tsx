@@ -218,6 +218,7 @@ export default function CalendarWorkspace({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [statusText, setStatusText] = useState('')
+  const [participantIds, setParticipantIds] = useState<string[]>([])
   const [form, setForm] = useState<FormState>(() =>
     makeDefaultForm(formatDateKey(new Date()))
   )
@@ -276,6 +277,7 @@ export default function CalendarWorkspace({
 
   const resetForm = (dateKey = selectedDate) => {
     setEditingId(null)
+    setParticipantIds([])
     setForm(makeDefaultForm(dateKey))
   }
 
@@ -337,20 +339,19 @@ export default function CalendarWorkspace({
       setPlannerItems(sortPlannerItems(next))
       setStatusText('Updated')
     } else {
-      const { data, error } = await supabase
-        .from('personal_calendar_items')
-        .insert({
-          user_id: currentUserId,
-          title: form.title.trim(),
-          description: form.description.trim() || null,
-          start_at: startIso,
-          end_at: endIso,
-          is_done: form.isDone,
-        })
-        .select(
-          'id, user_id, title, description, start_at, end_at, is_done, created_at, updated_at'
-        )
-        .single()
+      const targetUserIds = Array.from(new Set([currentUserId, ...participantIds]))
+
+      const { data, error } = await supabase.rpc(
+        'create_planner_items_with_notifications',
+        {
+          item_title: form.title.trim(),
+          item_description: form.description.trim() || null,
+          item_start_at: startIso,
+          item_end_at: endIso,
+          item_is_done: form.isDone,
+          target_user_ids: targetUserIds,
+        }
+      )
 
       if (error || !data) {
         setSaving(false)
@@ -358,7 +359,7 @@ export default function CalendarWorkspace({
         return
       }
 
-      setPlannerItems(sortPlannerItems([...plannerItems, data as PlannerItem]))
+      setPlannerItems(sortPlannerItems([...plannerItems, ...(data as PlannerItem[])]))
       setStatusText('Saved')
     }
 
@@ -478,6 +479,8 @@ export default function CalendarWorkspace({
             <h2 className="mb-4 text-lg font-semibold text-neutral-900">
               Tasks
             </h2>
+
+
 
             {internalTasks.length ? (
               <div className="space-y-3">
@@ -661,6 +664,37 @@ export default function CalendarWorkspace({
                     />
                     Mark as done
                   </label>
+
+                  {!editingId ? (
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-neutral-700">
+                        Add to other planners
+                      </label>
+                      <select
+                        multiple
+                        value={participantIds}
+                        onChange={(e) =>
+                          setParticipantIds(
+                            Array.from(e.target.selectedOptions).map(
+                              (option) => option.value
+                            )
+                          )
+                        }
+                        className="min-h-32 w-full rounded-2xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none ring-0 focus:border-yellow-300"
+                      >
+                        {profiles
+                          .filter((profile) => profile.id !== currentUserId)
+                          .map((profile) => (
+                            <option key={profile.id} value={profile.id}>
+                              {profile.full_name ?? 'User'}
+                            </option>
+                          ))}
+                      </select>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        Hold Ctrl or Cmd to select more than one person.
+                      </p>
+                    </div>
+                  ) : null}
 
                   <div className="flex flex-wrap gap-2 pt-2">
                     <button
@@ -866,3 +900,5 @@ export default function CalendarWorkspace({
     </div>
   )
 }
+
+
