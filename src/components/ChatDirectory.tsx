@@ -48,7 +48,7 @@ interface PresenceRow {
   status: PresenceStatus | null
 }
 
-type PresenceStatus = 'available' | 'busy'
+type PresenceStatus = 'available' | 'busy' | 'scheduled'
 
 type DirectUserItem = {
   kind: 'direct'
@@ -223,11 +223,35 @@ export default function ChatDirectory({
       presences = (presenceData ?? []) as PresenceRow[]
     }
 
+    let scheduledUserIds = new Set<string>()
+    if (otherUserIds.length) {
+      const nowIso = new Date().toISOString()
+      const { data: scheduledRows, error: scheduledError } = await supabase
+        .from('personal_calendar_items')
+        .select('user_id')
+        .in('user_id', otherUserIds)
+        .lte('start_at', nowIso)
+        .gt('end_at', nowIso)
+        .eq('is_done', false)
+
+      if (scheduledError) {
+        console.error('chat directory scheduled planner load error:', scheduledError)
+      } else {
+        scheduledUserIds = new Set(
+          (scheduledRows ?? []).map((row) => row.user_id as string)
+        )
+      }
+    }
+
     const presenceMap = new Map(presences.map((row) => [row.user_id, row.last_seen_at]))
     const presenceStatusMap = new Map(
       presences.map((row) => [
         row.user_id,
-        (row.status === 'busy' ? 'busy' : 'available') as PresenceStatus,
+        (scheduledUserIds.has(row.user_id)
+          ? 'scheduled'
+          : row.status === 'busy'
+            ? 'busy'
+            : 'available') as PresenceStatus,
       ])
     )
     const readMap = new Map(reads.map((row) => [row.chat_id, row.last_read_at]))
@@ -414,7 +438,6 @@ export default function ChatDirectory({
       item.last_message.toLowerCase().includes(q)
     )
   })
-
 
   const openDirectChat = async (userId: string, existingChatId: string | null) => {
     setLoadingId(userId)
@@ -607,9 +630,11 @@ const createGroup = async () => {
                         <span
                           className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full border-2 border-white ${
                             item.is_online
-                              ? item.presence_status === 'busy'
-                                ? 'bg-red-500'
-                                : 'bg-emerald-500'
+                              ? item.presence_status === 'scheduled'
+                                ? 'bg-orange-500'
+                                : item.presence_status === 'busy'
+                                  ? 'bg-red-500'
+                                  : 'bg-emerald-500'
                               : 'bg-[#c7bda9]'
                           }`}
                         />
@@ -653,14 +678,18 @@ const createGroup = async () => {
                         item.is_online
                           ? item.presence_status === 'busy'
                             ? 'text-red-600'
-                            : 'text-emerald-600'
+                            : item.presence_status === 'scheduled'
+                              ? 'text-orange-600'
+                              : 'text-emerald-600'
                           : 'text-[#9a8d75]'
                       }
                     >
                       {item.is_online
-                        ? item.presence_status === 'busy'
-                          ? 'Busy'
-                          : 'Online'
+                        ? item.presence_status === 'scheduled'
+                          ? 'Scheduled'
+                          : item.presence_status === 'busy'
+                            ? 'Busy'
+                            : 'Online'
                         : 'Offline'}
                     </span>
                     <span className="font-semibold text-[#a88414]">
@@ -773,5 +802,3 @@ const createGroup = async () => {
     </>
   )
 }
-
-

@@ -35,13 +35,31 @@ type ProfileRow = {
   job_title: string | null
 }
 
-type PresenceStatus = 'available' | 'busy'
+type PresenceStatus = 'available' | 'busy' | 'scheduled'
 
 const ONLINE_WINDOW_MS = 60_000
 
 function isOnline(lastSeenAt: string | null) {
   if (!lastSeenAt) return false
   return Date.now() - new Date(lastSeenAt).getTime() < ONLINE_WINDOW_MS
+}
+
+function statusClasses(status: PresenceStatus) {
+  if (status === 'scheduled') return 'bg-orange-50 text-orange-700'
+  if (status === 'busy') return 'bg-red-50 text-red-600'
+  return 'bg-emerald-50 text-emerald-700'
+}
+
+function dotClasses(status: PresenceStatus) {
+  if (status === 'scheduled') return 'bg-orange-500'
+  if (status === 'busy') return 'bg-red-500'
+  return 'bg-emerald-500'
+}
+
+function statusLabel(status: PresenceStatus) {
+  if (status === 'scheduled') return 'Scheduled'
+  if (status === 'busy') return 'Busy'
+  return 'Online'
 }
 
 export default function OnlineNowSidebar({
@@ -64,6 +82,34 @@ export default function OnlineNowSidebar({
     if (error) {
       console.error('online sidebar touch presence error:', error)
     }
+  }
+
+  const applyScheduledStatuses = async (onlineUsers: OnlineUser[]) => {
+    if (!onlineUsers.length) return onlineUsers
+
+    const nowIso = new Date().toISOString()
+    const { data, error } = await supabase
+      .from('personal_calendar_items')
+      .select('user_id')
+      .in(
+        'user_id',
+        onlineUsers.map((user) => user.id)
+      )
+      .lte('start_at', nowIso)
+      .gt('end_at', nowIso)
+      .eq('is_done', false)
+
+    if (error) {
+      console.error('online scheduled planner load error:', error)
+      return onlineUsers
+    }
+
+    const scheduledUserIds = new Set((data ?? []).map((item) => item.user_id as string))
+
+    return onlineUsers.map((user) => ({
+      ...user,
+      status: scheduledUserIds.has(user.id) ? 'scheduled' : user.status,
+    }))
   }
 
   const loadOnlineUsers = async () => {
@@ -94,7 +140,7 @@ export default function OnlineNowSidebar({
         }))
         .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
 
-      setUsers(mapped)
+      setUsers(await applyScheduledStatuses(mapped))
       return
     }
 
@@ -159,7 +205,7 @@ export default function OnlineNowSidebar({
       })
       .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
 
-    setUsers(mapped)
+    setUsers(await applyScheduledStatuses(mapped))
   }
 
   const toggleOwnStatus = async () => {
@@ -249,16 +295,10 @@ export default function OnlineNowSidebar({
         <button
           type="button"
           onClick={() => void toggleOwnStatus()}
-          className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
-            ownStatus === 'busy'
-              ? 'bg-red-50 text-red-600'
-              : 'bg-emerald-50 text-emerald-700'
-          }`}
+          className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${statusClasses(ownStatus)}`}
         >
           <span
-            className={`h-2.5 w-2.5 rounded-full ${
-              ownStatus === 'busy' ? 'bg-red-500' : 'bg-emerald-500'
-            }`}
+            className={`h-2.5 w-2.5 rounded-full ${dotClasses(ownStatus)}`}
           />
           {ownStatus === 'busy' ? 'Busy' : 'Online'}
         </button>
@@ -288,7 +328,7 @@ export default function OnlineNowSidebar({
 
                 <span
                   className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${
-                    user.status === 'busy' ? 'bg-red-500' : 'bg-emerald-500'
+                    dotClasses(user.status)
                   }`}
                 />
               </div>
@@ -300,8 +340,8 @@ export default function OnlineNowSidebar({
                 <p className="truncate text-xs text-[#8f836c]">
                   {openingUserId === user.id
                     ? 'Opening chat...'
-                    : user.status === 'busy'
-                      ? 'Busy'
+                    : user.status !== 'available'
+                      ? statusLabel(user.status)
                       : user.job_title || 'Available'}
                 </p>
               </div>

@@ -46,7 +46,7 @@ type PinRow = {
   created_at: string
 }
 
-type PresenceStatus = 'available' | 'busy'
+type PresenceStatus = 'available' | 'busy' | 'scheduled'
 
 const QUICK_REACTIONS = ['👍', '❤️', '🔥', '😂', '✅', '👏']
 const QUICK_EMOJIS = ['😀', '😂', '🔥', '👍', '❤️', '✅', '🙏', '🚀']
@@ -399,8 +399,30 @@ export default function ChatRoomLive({
       .maybeSingle()
 
     if (presence?.last_seen_at) {
-      setOtherOnline(Date.now() - new Date(presence.last_seen_at).getTime() < 60_000)
-      setOtherPresenceStatus(presence.status === 'busy' ? 'busy' : 'available')
+      const isOnlineNow =
+        Date.now() - new Date(presence.last_seen_at).getTime() < 60_000
+      setOtherOnline(isOnlineNow)
+
+      if (isOnlineNow) {
+        const nowIso = new Date().toISOString()
+        const { count: activePlannerCount } = await supabase
+          .from('personal_calendar_items')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', otherUserId)
+          .lte('start_at', nowIso)
+          .gt('end_at', nowIso)
+          .eq('is_done', false)
+
+        setOtherPresenceStatus(
+          activePlannerCount && activePlannerCount > 0
+            ? 'scheduled'
+            : presence.status === 'busy'
+              ? 'busy'
+              : 'available'
+        )
+      } else {
+        setOtherPresenceStatus('available')
+      }
     } else {
       setOtherOnline(false)
       setOtherPresenceStatus('available')
@@ -927,9 +949,11 @@ const deleteMessage = async (message: Message) => {
               <span
                 className={`absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2 border-white md:bottom-1 md:right-1 md:h-3.5 md:w-3.5 ${
                   otherOnline
-                    ? otherPresenceStatus === 'busy'
-                      ? 'bg-red-500'
-                      : 'bg-emerald-500'
+                    ? otherPresenceStatus === 'scheduled'
+                      ? 'bg-orange-500'
+                      : otherPresenceStatus === 'busy'
+                        ? 'bg-red-500'
+                        : 'bg-emerald-500'
                     : 'bg-[#c7bda9]'
                 }`}
               />
@@ -949,6 +973,8 @@ const deleteMessage = async (message: Message) => {
               {isDirect
                 ? typing
                   ? `${otherUserName} is typing...`
+                  : otherOnline && otherPresenceStatus === 'scheduled'
+                    ? 'Scheduled'
                   : otherOnline && otherPresenceStatus === 'busy'
                     ? 'Busy'
                   : otherOnline
