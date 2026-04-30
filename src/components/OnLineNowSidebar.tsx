@@ -12,6 +12,13 @@ type OnlineUser = {
   last_seen_at: string | null
 }
 
+type ProfileRow = {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  job_title: string | null
+}
+
 type PresenceRow = {
   user_id: string
   last_seen_at: string | null
@@ -31,11 +38,29 @@ type PresenceRow = {
     | null
 }
 
+type RealtimePresenceMeta = {
+  user_id?: string
+  online_at?: string
+}
+
+type RealtimePresenceState = Record<string, RealtimePresenceMeta[]>
+
 const ONLINE_WINDOW_MS = 25_000
 
 function isOnline(lastSeenAt: string | null) {
   if (!lastSeenAt) return false
   return Date.now() - new Date(lastSeenAt).getTime() < ONLINE_WINDOW_MS
+}
+
+function presenceUserIds(state: RealtimePresenceState, currentUserId: string) {
+  return Array.from(
+    new Set(
+      Object.values(state)
+        .flat()
+        .map((presence) => presence.user_id)
+        .filter((id): id is string => Boolean(id) && id !== currentUserId)
+    )
+  )
 }
 
 export default function OnlineNowSidebar({
@@ -50,6 +75,43 @@ export default function OnlineNowSidebar({
 
   const [users, setUsers] = useState<OnlineUser[]>([])
   const [openingUserId, setOpeningUserId] = useState<string | null>(null)
+
+  const loadRealtimePresenceUsers = async (userIds: string[]) => {
+    if (!userIds.length) {
+      setUsers([])
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url, job_title')
+      .in('id', userIds)
+
+    if (error) {
+      console.error('online presence profiles load error:', error)
+      return
+    }
+
+    const profileMap = new Map(
+      ((data ?? []) as ProfileRow[]).map((profile) => [profile.id, profile])
+    )
+
+    setUsers(
+      userIds
+        .map((id) => {
+          const profile = profileMap.get(id)
+
+          return {
+            id,
+            full_name: profile?.full_name ?? 'User',
+            avatar_url: profile?.avatar_url ?? null,
+            job_title: profile?.job_title ?? null,
+            last_seen_at: new Date().toISOString(),
+          }
+        })
+        .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
+    )
+  }
 
   const loadOnlineUsers = async () => {
     const { data, error } = await supabase
@@ -114,7 +176,7 @@ export default function OnlineNowSidebar({
   useEffect(() => {
     void loadOnlineUsers()
 
-    const channel = supabase
+    const dbChannel = supabase
       .channel(`online-now-sidebar-${instanceId}-${currentUserId}`)
       .on(
         'postgres_changes',
@@ -129,15 +191,31 @@ export default function OnlineNowSidebar({
       )
       .subscribe()
 
+    const presenceChannel = supabase
+      .channel('site-presence')
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState() as RealtimePresenceState
+        void loadRealtimePresenceUsers(presenceUserIds(state, currentUserId))
+      })
+      .subscribe()
+
     const interval = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
-        void loadOnlineUsers()
+        const state = presenceChannel.presenceState() as RealtimePresenceState
+        const realtimeUserIds = presenceUserIds(state, currentUserId)
+
+        if (realtimeUserIds.length) {
+          void loadRealtimePresenceUsers(realtimeUserIds)
+        } else {
+          void loadOnlineUsers()
+        }
       }
     }, 5000)
 
     return () => {
       window.clearInterval(interval)
-      supabase.removeChannel(channel)
+      supabase.removeChannel(dbChannel)
+      supabase.removeChannel(presenceChannel)
     }
   }, [currentUserId, instanceId, supabase])
 

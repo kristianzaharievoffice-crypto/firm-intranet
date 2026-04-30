@@ -13,6 +13,14 @@ export default function PresenceHeartbeat({
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
+    const presenceChannel = supabase.channel('site-presence', {
+      config: {
+        presence: {
+          key: currentUserId,
+        },
+      },
+    })
+
     const updatePresence = async () => {
       await supabase.from('user_presence').upsert(
         {
@@ -36,6 +44,15 @@ export default function PresenceHeartbeat({
     }
 
     void updatePresence()
+
+    presenceChannel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        void presenceChannel.track({
+          user_id: currentUserId,
+          online_at: new Date().toISOString(),
+        })
+      }
+    })
 
     const interval = window.setInterval(() => {
       void updatePresence()
@@ -62,8 +79,12 @@ export default function PresenceHeartbeat({
       window.removeEventListener('focus', handleFocus)
       window.removeEventListener('pagehide', markOffline)
       window.removeEventListener('beforeunload', markOffline)
+      void presenceChannel.untrack()
+      supabase.removeChannel(presenceChannel)
     }
   }, [currentUserId, supabase])
 
   return null
 }
+
+
