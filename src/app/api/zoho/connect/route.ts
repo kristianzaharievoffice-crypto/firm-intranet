@@ -37,15 +37,10 @@ export async function GET(request: NextRequest) {
   authUrl.searchParams.set('client_id', clientId)
   authUrl.searchParams.set('response_type', 'code')
   authUrl.searchParams.set('redirect_uri', zohoRedirectUri(request.nextUrl.origin))
-  authUrl.searchParams.set(
-    'scope',
-    'ZohoMail.accounts.READ,ZohoMail.messages.READ'
-  )
+  authUrl.searchParams.set('scope', 'ZohoMail.accounts.READ,ZohoMail.messages.ALL')
   authUrl.searchParams.set('access_type', 'offline')
   authUrl.searchParams.set('prompt', 'consent')
   authUrl.searchParams.set('state', state)
 
   return NextResponse.redirect(authUrl)
 }
-
-

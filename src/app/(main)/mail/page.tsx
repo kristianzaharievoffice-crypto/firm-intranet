@@ -9,21 +9,7 @@ import {
   getZohoConnection,
   type ZohoMailMessage,
 } from '@/lib/zoho-mail'
-
-function messageTime(message: ZohoMailMessage) {
-  const raw = message.receivedTime || message.sentDateInGMT
-  if (!raw) return ''
-
-  const value =
-    typeof raw === 'number' || /^\d+$/.test(String(raw))
-      ? Number(raw)
-      : String(raw)
-
-  const date = typeof value === 'number' ? new Date(value) : new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-
-  return date.toLocaleString('bg-BG')
-}
+import ZohoMailClient from '@/components/ZohoMailClient'
 
 export default async function MailPage({
   searchParams,
@@ -96,60 +82,16 @@ export default async function MailPage({
           </Link>
         </section>
       ) : (
-        <section className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-2xl font-black tracking-tight text-[#1f1a14]">
-                Inbox
-              </h2>
-              <p className="mt-1 text-sm text-[#7b746b]">
-                {emailAddress || 'Connected Zoho mailbox'}
-              </p>
-            </div>
-          </div>
-
+        <>
           {loadError ? (
-            <div className="rounded-[20px] bg-red-50 px-4 py-3 text-sm text-red-600">
+            <div className="rounded-[24px] border border-red-100 bg-red-50 p-4 text-sm text-red-600">
               {loadError}
             </div>
-          ) : messages.length ? (
-            <div className="divide-y divide-[#ece5d8] overflow-hidden rounded-[24px] border border-[#ece5d8]">
-              {messages.map((message, index) => (
-                <div
-                  key={message.messageId ?? `${message.subject}-${index}`}
-                  className="bg-[#fcfbf8] px-5 py-4"
-                >
-                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                    <div className="min-w-0">
-                      <p className="truncate text-base font-semibold text-[#1f1a14]">
-                        {message.subject || '(No subject)'}
-                      </p>
-                      <p className="mt-1 truncate text-sm text-[#7b746b]">
-                        {message.fromAddress || message.sender || 'Unknown sender'}
-                      </p>
-                    </div>
-                    <p className="shrink-0 text-xs text-[#9a8d75]">
-                      {messageTime(message)}
-                    </p>
-                  </div>
-
-                  {message.summary ? (
-                    <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#5d5346]">
-                      {message.summary}
-                    </p>
-                  ) : null}
-                </div>
-              ))}
-            </div>
           ) : (
-            <div className="rounded-[24px] border border-[#ece5d8] bg-[#fcfbf8] p-5 text-sm text-[#7b746b]">
-              No emails loaded yet.
-            </div>
+            <ZohoMailClient messages={messages} emailAddress={emailAddress} />
           )}
-        </section>
+        </>
       )}
     </main>
   )
 }
-
-
