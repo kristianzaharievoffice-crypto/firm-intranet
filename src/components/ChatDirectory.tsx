@@ -615,20 +615,22 @@ const createGroup = async () => {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex items-start gap-3">
-                      <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-sm font-semibold text-[#8e7b56]">
-                        {item.avatar_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={item.avatar_url}
-                            alt={item.full_name}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          (item.full_name?.[0] ?? 'U').toUpperCase()
-                        )}
+                      <div className="relative h-14 w-14 shrink-0">
+                        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-sm font-semibold text-[#8e7b56]">
+                          {item.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.avatar_url}
+                              alt={item.full_name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            (item.full_name?.[0] ?? 'U').toUpperCase()
+                          )}
+                        </div>
 
                         <span
-                          className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full border-2 border-white ${
+                          className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white ${
                             item.is_online
                               ? item.presence_status === 'scheduled'
                                 ? 'bg-orange-500'

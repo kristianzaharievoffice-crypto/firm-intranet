@@ -935,19 +935,21 @@ const deleteMessage = async (message: Message) => {
       <div className="shrink-0 border-b border-white/30 bg-white/70 px-3 py-3 backdrop-blur-md md:px-5 md:py-4">
         <div className="flex items-center gap-3 md:gap-4">
           {isDirect ? (
-            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-sm font-semibold text-[#8e7b56] md:h-14 md:w-14">
-              {otherUserAvatar ? (
-                <img
-                  src={otherUserAvatar}
-                  alt={otherUserName}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                (otherUserName?.[0] ?? 'U').toUpperCase()
-              )}
+            <div className="relative h-11 w-11 shrink-0 md:h-14 md:w-14">
+              <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-sm font-semibold text-[#8e7b56]">
+                {otherUserAvatar ? (
+                  <img
+                    src={otherUserAvatar}
+                    alt={otherUserName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  (otherUserName?.[0] ?? 'U').toUpperCase()
+                )}
+              </div>
 
               <span
-                className={`absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2 border-white md:bottom-1 md:right-1 md:h-3.5 md:w-3.5 ${
+                className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white md:h-4 md:w-4 ${
                   otherOnline
                     ? otherPresenceStatus === 'scheduled'
                       ? 'bg-orange-500'

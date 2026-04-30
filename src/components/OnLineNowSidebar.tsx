@@ -314,20 +314,22 @@ export default function OnlineNowSidebar({
               disabled={openingUserId === user.id}
               className="flex w-full items-center gap-3 rounded-[16px] px-2 py-2 text-left transition hover:bg-[#f7f1e2] disabled:opacity-60"
             >
-              <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56]">
-                {user.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={user.avatar_url}
-                    alt={user.full_name ?? 'User'}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  (user.full_name?.[0] ?? 'U').toUpperCase()
-                )}
+              <div className="relative h-9 w-9 shrink-0">
+                <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#f3ede3] text-xs font-semibold text-[#8e7b56]">
+                  {user.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.avatar_url}
+                      alt={user.full_name ?? 'User'}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    (user.full_name?.[0] ?? 'U').toUpperCase()
+                  )}
+                </div>
 
                 <span
-                  className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${
+                  className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${
                     dotClasses(user.status)
                   }`}
                 />
