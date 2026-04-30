@@ -149,19 +149,17 @@ export default async function CompanyDocumentsPage({
                     {uiText.common.download}
                   </a>
 
-                  {me.role === 'admin' && (
-                    <form action={deleteDocument}>
-                      <input type="hidden" name="documentId" value={doc.id} />
-                      <input type="hidden" name="filePath" value={doc.file_path} />
-                      <input type="hidden" name="companyId" value={companyId} />
-                      <button
-                        type="submit"
-                        className="text-sm font-medium text-red-600 hover:underline"
-                      >
-                        {uiText.common.delete}
-                      </button>
-                    </form>
-                  )}
+                  <form action={deleteDocument}>
+                    <input type="hidden" name="documentId" value={doc.id} />
+                    <input type="hidden" name="filePath" value={doc.file_path} />
+                    <input type="hidden" name="companyId" value={companyId} />
+                    <button
+                      type="submit"
+                      className="text-sm font-medium text-red-600 hover:underline"
+                    >
+                      {uiText.common.delete}
+                    </button>
+                  </form>
                 </div>
               </div>
             </div>

@@ -70,7 +70,7 @@ export default async function DocumentsPage() {
         subtitle={uiText.documents.subtitle}
       />
 
-      {me.role === 'admin' && <NewCompanyForm />}
+      <NewCompanyForm />
 
       {items.length ? (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -88,17 +88,15 @@ export default async function DocumentsPage() {
                 </p>
               </Link>
 
-              {me.role === 'admin' && (
-                <form action={deleteCompany} className="mt-4">
-                  <input type="hidden" name="companyId" value={company.id} />
-                  <button
-                    type="submit"
-                    className="text-sm font-medium text-red-600 hover:underline"
-                  >
-                    {uiText.documents.deleteCompany}
-                  </button>
-                </form>
-              )}
+              <form action={deleteCompany} className="mt-4">
+                <input type="hidden" name="companyId" value={company.id} />
+                <button
+                  type="submit"
+                  className="text-sm font-medium text-red-600 hover:underline"
+                >
+                  {uiText.documents.deleteCompany}
+                </button>
+              </form>
             </div>
           ))}
         </div>
@@ -110,3 +108,5 @@ export default async function DocumentsPage() {
     </main>
   )
 }
+
+
