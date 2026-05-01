@@ -33,6 +33,7 @@ function NavItem({
     <Link
       href={href}
       onClick={onClick}
+      prefetch={false}
       className={`group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
         isActive
           ? 'bg-[#1f1a14] text-white'
@@ -321,3 +322,5 @@ export default function SidebarNavLive({
     </nav>
   )
 }
+
+

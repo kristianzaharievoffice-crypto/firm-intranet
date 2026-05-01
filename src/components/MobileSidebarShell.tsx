@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import MobileNavLive from '@/components/MobileNavLive'
+import SidebarNavLive from '@/components/SidebarNavLive'
 import OnlineNowSidebar from '@/components/OnLineNowSidebar'
 
 type MobileSidebarShellProps = {
@@ -61,7 +61,12 @@ export default function MobileSidebarShell({
           />
 
           <div className="absolute left-0 top-0 h-full w-[88vw] max-w-sm overflow-y-auto border-r border-[#ece5d8] bg-[#fffdf8] px-5 py-6 shadow-2xl">
-            <Link href="/feed" onClick={() => setOpen(false)} className="block">
+            <Link
+              href="/feed"
+              onClick={() => setOpen(false)}
+              prefetch={false}
+              className="block"
+            >
               <div className="rounded-[28px] bg-gradient-to-br from-[#d4af37] via-[#c9a227] to-[#a88414] px-5 py-5 text-white shadow-lg">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/80">
                   PREMIUM WORKSPACE
@@ -83,14 +88,17 @@ export default function MobileSidebarShell({
               <p className="mt-1 text-sm text-[#7b746b]">{role}</p>
             </div>
 
-            <MobileNavLive
-              currentUserId={currentUserId}
-              role={role}
-              chatIds={chatIds}
-              initialNotificationsCount={initialNotificationsCount}
-              initialUnreadChatCount={initialUnreadChatCount}
-              initialTasksCount={initialTasksCount}
-            />
+            <div className="mt-6">
+              <SidebarNavLive
+                currentUserId={currentUserId}
+                role={role}
+                chatIds={chatIds}
+                initialNotificationsCount={initialNotificationsCount}
+                initialUnreadChatCount={initialUnreadChatCount}
+                initialTasksCount={initialTasksCount}
+                onNavigate={() => setOpen(false)}
+              />
+            </div>
 
             <div className="mt-4">
               <OnlineNowSidebar currentUserId={currentUserId} instanceId="mobile" />
