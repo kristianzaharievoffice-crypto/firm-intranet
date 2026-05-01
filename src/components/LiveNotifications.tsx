@@ -37,7 +37,9 @@ export default function LiveNotifications({
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastShownToastIdRef = useRef<string | null>(null)
-  const lastShownDesktopIdRef = useRef<string | null>(null)
+  const shownDesktopIdsRef = useRef<Set<string>>(new Set())
+  const desktopBaselineRef = useRef(new Date().toISOString())
+  const desktopPollInFlightRef = useRef(false)
   const syncInFlightRef = useRef(false)
 
   const currentChatId = extractChatId(pathname)
@@ -90,12 +92,12 @@ export default function LiveNotifications({
 
   const showDesktopNotification = async (notification: NotificationRow) => {
     if (notificationBelongsToOpenChat(notification)) return
-    if (lastShownDesktopIdRef.current === notification.id) return
+    if (shownDesktopIdsRef.current.has(notification.id)) return
 
     const allowed = await ensureDesktopPermission()
     if (!allowed) return
 
-    lastShownDesktopIdRef.current = notification.id
+    shownDesktopIdsRef.current.add(notification.id)
 
     try {
       const desktopNotification = new Notification(
@@ -122,6 +124,40 @@ export default function LiveNotifications({
       }, 8000)
     } catch (error) {
       console.error('desktop notification error:', error)
+    }
+  }
+
+  const syncDesktopNotifications = async () => {
+    if (desktopPollInFlightRef.current) return
+    desktopPollInFlightRef.current = true
+
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id, user_id, type, title, body, link, is_read, created_at')
+        .eq('user_id', currentUserId)
+        .eq('is_read', false)
+        .gt('created_at', desktopBaselineRef.current)
+        .order('created_at', { ascending: true })
+        .limit(20)
+
+      if (error) {
+        console.error('desktop notifications sync error:', error)
+        return
+      }
+
+      const rows = (data ?? []) as NotificationRow[]
+
+      for (const notification of rows) {
+        await showDesktopNotification(notification)
+      }
+
+      const latestCreatedAt = rows.at(-1)?.created_at
+      if (latestCreatedAt) {
+        desktopBaselineRef.current = latestCreatedAt
+      }
+    } finally {
+      desktopPollInFlightRef.current = false
     }
   }
 
@@ -240,6 +276,7 @@ export default function LiveNotifications({
 
             if (!inserted.is_read && inserted.user_id === currentUserId) {
               await showDesktopNotification(inserted)
+              desktopBaselineRef.current = inserted.created_at
             }
           }
 
@@ -248,7 +285,23 @@ export default function LiveNotifications({
       )
       .subscribe()
 
+    const desktopPollInterval = window.setInterval(() => {
+      void syncDesktopNotifications()
+    }, 5000)
+
+    const syncWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void syncDesktopNotifications()
+      }
+    }
+
+    document.addEventListener('visibilitychange', syncWhenVisible)
+    window.addEventListener('focus', syncWhenVisible)
+
     return () => {
+      window.clearInterval(desktopPollInterval)
+      document.removeEventListener('visibilitychange', syncWhenVisible)
+      window.removeEventListener('focus', syncWhenVisible)
       supabase.removeChannel(channel)
 
       if (timeoutRef.current) {
