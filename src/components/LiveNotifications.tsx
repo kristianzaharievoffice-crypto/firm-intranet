@@ -35,6 +35,7 @@ export default function LiveNotifications({
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastShownToastIdRef = useRef<string | null>(null)
+  const lastShownDesktopIdRef = useRef<string | null>(null)
   const syncInFlightRef = useRef(false)
 
   const currentChatId = extractChatId(pathname)
@@ -62,6 +63,49 @@ export default function LiveNotifications({
       .from('notifications')
       .update({ is_read: true })
       .eq('id', notificationId)
+  }
+
+  const ensureDesktopPermission = async () => {
+    if (!('Notification' in window)) return false
+
+    if (Notification.permission === 'granted') return true
+    if (Notification.permission === 'denied') return false
+
+    const permission = await Notification.requestPermission()
+    return permission === 'granted'
+  }
+
+  const showDesktopNotification = async (notification: NotificationRow) => {
+    if (notificationBelongsToOpenChat(notification)) return
+    if (lastShownDesktopIdRef.current === notification.id) return
+
+    const allowed = await ensureDesktopPermission()
+    if (!allowed) return
+
+    lastShownDesktopIdRef.current = notification.id
+
+    const desktopNotification = new Notification(
+      notificationTitle(notification.title, notification.link),
+      {
+        body: notification.body || 'New notification',
+        tag: notification.id,
+      }
+    )
+
+    desktopNotification.onclick = () => {
+      window.focus()
+
+      if (notification.link) {
+        router.push(notification.link)
+      }
+
+      void markNotificationRead(notification.id)
+      desktopNotification.close()
+    }
+
+    setTimeout(() => {
+      desktopNotification.close()
+    }, 8000)
   }
 
   const clearOpenChatNotifications = async () => {
@@ -108,11 +152,13 @@ export default function LiveNotifications({
       }
 
       if (lastShownToastIdRef.current === candidate.id) {
+        await showDesktopNotification(candidate)
         return
       }
 
       lastShownToastIdRef.current = candidate.id
       setToast(candidate)
+      await showDesktopNotification(candidate)
 
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
@@ -125,6 +171,10 @@ export default function LiveNotifications({
       syncInFlightRef.current = false
     }
   }
+
+  useEffect(() => {
+    void ensureDesktopPermission()
+  }, [])
 
   useEffect(() => {
     void syncToast()
@@ -188,5 +238,3 @@ export default function LiveNotifications({
     </button>
   )
 }
-
-
