@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import StatCard from '@/components/StatCard'
 import TaskList from '@/components/TaskList'
+import PageRealtimeRefresh from '@/components/PageRealtimeRefresh'
 import { uiText } from '@/lib/ui-text'
 
 interface TaskItem {
@@ -129,6 +130,8 @@ export default async function TasksPage() {
 
   return (
     <main className="space-y-8">
+      <PageRealtimeRefresh tables={['tasks', 'task_attachments', 'profiles']} />
+
       <PageHeader
         title={uiText.tasks.title}
         subtitle={uiText.tasks.subtitle}
@@ -158,5 +161,3 @@ export default async function TasksPage() {
     </main>
   )
 }
-
-

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import EconomicCalendarWidget from '@/components/EconomicCalendarWidget'
 
@@ -222,6 +222,12 @@ export default function CalendarWorkspace({
   const [form, setForm] = useState<FormState>(() =>
     makeDefaultForm(formatDateKey(new Date()))
   )
+
+  useEffect(() => {
+    if (!saving && !editingId) {
+      setPlannerItems(sortPlannerItems(initialPlannerItems))
+    }
+  }, [editingId, initialPlannerItems, saving])
 
   const profileMap = useMemo(
     () =>
@@ -479,8 +485,6 @@ export default function CalendarWorkspace({
             <h2 className="mb-4 text-lg font-semibold text-neutral-900">
               Tasks
             </h2>
-
-
 
             {internalTasks.length ? (
               <div className="space-y-3">
@@ -900,5 +904,3 @@ export default function CalendarWorkspace({
     </div>
   )
 }
-
-

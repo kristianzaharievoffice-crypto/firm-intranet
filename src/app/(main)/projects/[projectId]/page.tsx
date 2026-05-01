@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import ProjectFeedLive from '@/components/ProjectFeedLive'
+import PageRealtimeRefresh from '@/components/PageRealtimeRefresh'
 
 export default async function ProjectDetailsPage({
   params,
@@ -38,6 +39,8 @@ export default async function ProjectDetailsPage({
 
   return (
     <main className="space-y-8">
+      <PageRealtimeRefresh tables={['projects', 'project_posts', 'profiles']} />
+
       <PageHeader
         title={project.title}
         subtitle={project.description || 'Shared project feed and files.'}

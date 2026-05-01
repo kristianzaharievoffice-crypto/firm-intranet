@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import NewProjectForm from '@/components/NewProjectForm'
 import ProjectsList from '@/components/ProjectsList'
+import PageRealtimeRefresh from '@/components/PageRealtimeRefresh'
 
 interface ProjectRow {
   id: string
@@ -58,6 +59,8 @@ export default async function ProjectsPage() {
 
   return (
     <main className="space-y-8">
+      <PageRealtimeRefresh tables={['projects', 'profiles']} />
+
       <PageHeader
         title="Projects"
         subtitle="Shared project spaces where everyone can post updates and files."

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import PostList from '@/components/PostList'
 import SendWallPostForm from '@/components/SendWallPostForm'
+import PageRealtimeRefresh from '@/components/PageRealtimeRefresh'
 
 interface WallPost {
   id: string
@@ -78,6 +79,8 @@ export default async function WallPage() {
 
   return (
     <main className="space-y-8">
+      <PageRealtimeRefresh tables={['wall_posts', 'wall_comments', 'post_comments', 'profiles']} />
+
       <PageHeader
         title="Wall"
         subtitle="Project reports, work updates, and progress posts."

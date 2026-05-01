@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import PageHeader from '@/components/PageHeader'
 import NewCompanyForm from '@/components/NewCompanyForm'
+import PageRealtimeRefresh from '@/components/PageRealtimeRefresh'
 import { uiText } from '@/lib/ui-text'
 
 interface CompanyItem {
@@ -65,6 +66,8 @@ export default async function DocumentsPage() {
 
   return (
     <main className="space-y-8">
+      <PageRealtimeRefresh tables={['document_companies', 'company_documents']} />
+
       <PageHeader
         title={uiText.documents.title}
         subtitle={uiText.documents.subtitle}
@@ -108,5 +111,3 @@ export default async function DocumentsPage() {
     </main>
   )
 }
-
-
