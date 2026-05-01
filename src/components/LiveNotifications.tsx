@@ -32,6 +32,8 @@ export default function LiveNotifications({
   const router = useRouter()
 
   const [toast, setToast] = useState<NotificationRow | null>(null)
+  const [desktopPermission, setDesktopPermission] =
+    useState<NotificationPermission | 'unsupported'>('default')
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastShownToastIdRef = useRef<string | null>(null)
@@ -66,12 +68,23 @@ export default function LiveNotifications({
   }
 
   const ensureDesktopPermission = async () => {
-    if (!('Notification' in window)) return false
+    if (!('Notification' in window)) {
+      setDesktopPermission('unsupported')
+      return false
+    }
 
-    if (Notification.permission === 'granted') return true
-    if (Notification.permission === 'denied') return false
+    setDesktopPermission(Notification.permission)
+
+    if (Notification.permission === 'granted') {
+      return true
+    }
+
+    if (Notification.permission === 'denied') {
+      return false
+    }
 
     const permission = await Notification.requestPermission()
+    setDesktopPermission(permission)
     return permission === 'granted'
   }
 
@@ -173,7 +186,29 @@ export default function LiveNotifications({
   }
 
   useEffect(() => {
+    if ('Notification' in window) {
+      setDesktopPermission(Notification.permission)
+    } else {
+      setDesktopPermission('unsupported')
+    }
+
     void ensureDesktopPermission()
+
+    const requestOnFirstInteraction = () => {
+      if ('Notification' in window && Notification.permission === 'default') {
+        void ensureDesktopPermission()
+      }
+    }
+
+    window.addEventListener('pointerdown', requestOnFirstInteraction, {
+      once: true,
+    })
+    window.addEventListener('keydown', requestOnFirstInteraction, { once: true })
+
+    return () => {
+      window.removeEventListener('pointerdown', requestOnFirstInteraction)
+      window.removeEventListener('keydown', requestOnFirstInteraction)
+    }
   }, [])
 
   useEffect(() => {
@@ -209,6 +244,25 @@ export default function LiveNotifications({
       }
     }
   }, [currentUserId, supabase, currentChatId])
+
+  if (!toast && desktopPermission !== 'default') return null
+
+  if (!toast && desktopPermission === 'default') {
+    return (
+      <button
+        type="button"
+        onClick={() => void ensureDesktopPermission()}
+        className="fixed right-4 top-4 z-[120] w-[340px] max-w-[calc(100vw-2rem)] rounded-[22px] border border-[#eadfbe] bg-white p-4 text-left shadow-2xl transition hover:shadow-xl"
+      >
+        <p className="text-sm font-black text-[#1f1a14]">
+          Enable Windows notifications
+        </p>
+        <p className="mt-1 text-sm leading-6 text-[#6f675d]">
+          Click here and allow notifications from the browser.
+        </p>
+      </button>
+    )
+  }
 
   if (!toast) return null
 
