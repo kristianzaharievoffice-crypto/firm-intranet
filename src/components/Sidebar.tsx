@@ -150,6 +150,7 @@ export default async function Sidebar() {
               initialNotificationsCount={notificationsCount ?? 0}
               initialUnreadChatCount={unreadChatCount}
               initialTasksCount={tasksCount ?? 0}
+              instanceId="desktop"
             />
           </div>
 
@@ -162,5 +163,4 @@ export default async function Sidebar() {
     </>
   )
 }
-
 

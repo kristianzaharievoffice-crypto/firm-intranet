@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Component, ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
 import SidebarNavLive from '@/components/SidebarNavLive'
 import OnlineNowSidebar from '@/components/OnLineNowSidebar'
@@ -13,6 +13,33 @@ type MobileSidebarShellProps = {
   initialNotificationsCount: number
   initialUnreadChatCount: number
   initialTasksCount: number
+}
+
+class MobileMenuSectionBoundary extends Component<
+  { children: ReactNode; label: string },
+  { hasError: boolean }
+> {
+  state = { hasError: false }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: unknown) {
+    console.error(`Mobile menu ${this.props.label} error:`, error)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="mt-4 rounded-[18px] border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+          This menu section could not load.
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
 }
 
 export default function MobileSidebarShell({
@@ -88,26 +115,30 @@ export default function MobileSidebarShell({
               <p className="mt-1 text-sm text-[#7b746b]">{role}</p>
             </div>
 
-            <div className="mt-6">
-              <SidebarNavLive
-                currentUserId={currentUserId}
-                role={role}
-                chatIds={chatIds}
-                initialNotificationsCount={initialNotificationsCount}
-                initialUnreadChatCount={initialUnreadChatCount}
-                initialTasksCount={initialTasksCount}
-                onNavigate={() => setOpen(false)}
-              />
-            </div>
+            <MobileMenuSectionBoundary label="navigation">
+              <div className="mt-6">
+                <SidebarNavLive
+                  currentUserId={currentUserId}
+                  role={role}
+                  chatIds={chatIds}
+                  initialNotificationsCount={initialNotificationsCount}
+                  initialUnreadChatCount={initialUnreadChatCount}
+                  initialTasksCount={initialTasksCount}
+                  instanceId="mobile"
+                  onNavigate={() => setOpen(false)}
+                />
+              </div>
+            </MobileMenuSectionBoundary>
 
-            <div className="mt-4">
-              <OnlineNowSidebar currentUserId={currentUserId} instanceId="mobile" />
-            </div>
+            <MobileMenuSectionBoundary label="online users">
+              <div className="mt-4">
+                <OnlineNowSidebar currentUserId={currentUserId} instanceId="mobile" />
+              </div>
+            </MobileMenuSectionBoundary>
           </div>
         </div>
       )}
     </>
   )
 }
-
 

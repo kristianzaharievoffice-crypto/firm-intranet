@@ -64,6 +64,7 @@ type SidebarNavLiveProps = {
   initialNotificationsCount: number
   initialUnreadChatCount: number
   initialTasksCount: number
+  instanceId?: string
   onNavigate?: () => void
 }
 
@@ -74,6 +75,7 @@ export default function SidebarNavLive({
   initialNotificationsCount,
   initialUnreadChatCount,
   initialTasksCount,
+  instanceId = 'default',
   onNavigate,
 }: SidebarNavLiveProps) {
   const supabase = useMemo(() => createClient(), [])
@@ -220,7 +222,7 @@ export default function SidebarNavLive({
     }, 2500)
 
     const notificationChannel = supabase
-      .channel(`sidebar-notifications-${currentUserId}`)
+      .channel(`sidebar-notifications-${instanceId}-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -236,7 +238,7 @@ export default function SidebarNavLive({
       .subscribe()
 
     const messageChannel = supabase
-      .channel(`sidebar-messages-${currentUserId}`)
+      .channel(`sidebar-messages-${instanceId}-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -251,7 +253,7 @@ export default function SidebarNavLive({
       .subscribe()
 
     const readChannel = supabase
-      .channel(`sidebar-chat-reads-${currentUserId}`)
+      .channel(`sidebar-chat-reads-${instanceId}-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -267,7 +269,7 @@ export default function SidebarNavLive({
       .subscribe()
 
     const tasksChannel = supabase
-      .channel(`sidebar-tasks-${currentUserId}`)
+      .channel(`sidebar-tasks-${instanceId}-${currentUserId}`)
       .on(
         'postgres_changes',
         {
@@ -288,7 +290,7 @@ export default function SidebarNavLive({
       supabase.removeChannel(readChannel)
       supabase.removeChannel(tasksChannel)
     }
-  }, [currentUserId, role, supabase, currentOpenChatId, chatIds.join(',')])
+  }, [currentUserId, role, supabase, currentOpenChatId, chatIds.join(','), instanceId])
 
   return (
     <nav className="space-y-1">
@@ -322,5 +324,4 @@ export default function SidebarNavLive({
     </nav>
   )
 }
-
 
