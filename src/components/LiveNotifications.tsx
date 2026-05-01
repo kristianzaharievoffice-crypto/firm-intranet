@@ -97,28 +97,32 @@ export default function LiveNotifications({
 
     lastShownDesktopIdRef.current = notification.id
 
-    const desktopNotification = new Notification(
-      notificationTitle(notification.title, notification.link),
-      {
-        body: notification.body || 'New notification',
-        tag: notification.id,
+    try {
+      const desktopNotification = new Notification(
+        notificationTitle(notification.title, notification.link),
+        {
+          body: notification.body || 'New notification',
+          tag: notification.id,
+        }
+      )
+
+      desktopNotification.onclick = () => {
+        window.focus()
+
+        if (notification.link) {
+          router.push(notification.link)
+        }
+
+        void markNotificationRead(notification.id)
+        desktopNotification.close()
       }
-    )
 
-    desktopNotification.onclick = () => {
-      window.focus()
-
-      if (notification.link) {
-        router.push(notification.link)
-      }
-
-      void markNotificationRead(notification.id)
-      desktopNotification.close()
+      setTimeout(() => {
+        desktopNotification.close()
+      }, 8000)
+    } catch (error) {
+      console.error('desktop notification error:', error)
     }
-
-    setTimeout(() => {
-      desktopNotification.close()
-    }, 8000)
   }
 
   const clearOpenChatNotifications = async () => {
@@ -230,7 +234,15 @@ export default function LiveNotifications({
           table: 'notifications',
           filter: `user_id=eq.${currentUserId}`,
         },
-        async () => {
+        async (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const inserted = payload.new as NotificationRow
+
+            if (!inserted.is_read && inserted.user_id === currentUserId) {
+              await showDesktopNotification(inserted)
+            }
+          }
+
           await syncToast()
         }
       )
