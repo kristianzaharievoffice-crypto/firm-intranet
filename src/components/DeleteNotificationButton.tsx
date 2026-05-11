@@ -1,131 +1,44 @@
-export const dynamic = 'force-dynamic'
+'use client'
 
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import PageHeader from '@/components/PageHeader'
-import NotificationsLiveRefresh from '@/components/NotificationsLiveRefresh'
-import ClearNotificationsButton from '@/components/ClearNotificationsButton'
-import DeleteNotificationButton from '@/components/DeleteNotificationButton'
-import ClientDateTime from '@/components/ClientDateTime'
-import { notificationTitle } from '@/lib/notifications'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
-interface NotificationItem {
-  id: string
-  title: string | null
-  body: string | null
-  link: string | null
-  is_read: boolean | null
-  created_at: string
-}
+export default function DeleteNotificationButton({
+  notificationId,
+}: {
+  notificationId: string
+}) {
+  const router = useRouter()
+  const supabase = createClient()
+  const [loading, setLoading] = useState(false)
 
-export default async function NotificationsPage() {
-  const supabase = await createClient()
+  const deleteNotification = async () => {
+    setLoading(true)
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', notificationId)
 
-  if (!user) redirect('/login')
+    if (error) {
+      console.error('delete notification error:', error.message)
+      setLoading(false)
+      return
+    }
 
-  // ✅ Mark all as read via RPC
-  const { error: markError } = await supabase.rpc(
-    'mark_all_my_notifications_read'
-  )
-
-  if (markError) {
-    console.error('Mark read error:', markError.message)
+    router.refresh()
   }
-
-  // ✅ Load notifications
-  const { data: notifications, error } = await supabase
-    .from('notifications')
-    .select('id, title, body, link, is_read, created_at')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    return (
-      <main className="space-y-8">
-        <NotificationsLiveRefresh currentUserId={user.id} />
-
-        <PageHeader
-          title="Notifications"
-          subtitle="All your latest alerts in one place."
-        />
-
-        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-red-600">{error.message}</p>
-        </div>
-      </main>
-    )
-  }
-
-  const items = (notifications ?? []) as NotificationItem[]
 
   return (
-    <main className="space-y-8">
-      {/* ✅ Live refresh */}
-      <NotificationsLiveRefresh currentUserId={user.id} />
-
-      <PageHeader
-        title="Notifications"
-        subtitle="All your latest alerts in one place."
-        action={
-          items.length ? <ClearNotificationsButton /> : null
-        }
-      />
-
-      {items.length ? (
-        <div className="space-y-4">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-[28px] border border-[#ece5d8] bg-white p-6 shadow-sm"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-black tracking-tight text-[#1f1a14]">
-                    {notificationTitle(item.title, item.link)}
-                  </h2>
-
-                  {item.body && (
-                    <p className="mt-2 leading-7 text-[#443d35]">
-                      {item.body}
-                    </p>
-                  )}
-
-                  <p className="mt-3 text-sm text-[#7b746b]">
-                    <ClientDateTime value={item.created_at} />
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700">
-                    Read
-                  </span>
-
-                  {item.link && (
-                    <a
-                      href={item.link}
-                      className="rounded-[16px] bg-[#c9a227] px-4 py-2 font-semibold text-white hover:bg-[#a88414]"
-                    >
-                      Open
-                    </a>
-                  )}
-
-                  <DeleteNotificationButton notificationId={item.id} />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-[32px] border border-[#ece5d8] bg-white p-6 shadow-sm">
-          <p className="text-[#7b746b]">No notifications yet.</p>
-        </div>
-      )}
-    </main>
+    <button
+      type="button"
+      onClick={() => void deleteNotification()}
+      disabled={loading}
+      className="rounded-[16px] border border-red-100 bg-red-50 px-4 py-2 font-semibold text-red-600 hover:bg-red-100 disabled:opacity-60"
+    >
+      {loading ? 'Deleting...' : 'Delete'}
+    </button>
   )
 }
-
 
