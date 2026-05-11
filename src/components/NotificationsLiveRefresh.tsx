@@ -13,11 +13,19 @@ export default function NotificationsLiveRefresh({
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        router.refresh()
+    let refreshTimeout: ReturnType<typeof setTimeout> | null = null
+
+    const refreshSoon = () => {
+      if (document.visibilityState !== 'visible') return
+
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout)
       }
-    }, 2500)
+
+      refreshTimeout = setTimeout(() => {
+        router.refresh()
+      }, 250)
+    }
 
     const channel = supabase
       .channel(`notifications-page-${currentUserId}`)
@@ -30,16 +38,28 @@ export default function NotificationsLiveRefresh({
           filter: `user_id=eq.${currentUserId}`,
         },
         () => {
-          router.refresh()
+          refreshSoon()
         }
       )
       .subscribe()
 
+    const refreshOnFocus = () => refreshSoon()
+
+    window.addEventListener('focus', refreshOnFocus)
+    document.addEventListener('visibilitychange', refreshOnFocus)
+
     return () => {
-      clearInterval(interval)
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout)
+      }
+
+      window.removeEventListener('focus', refreshOnFocus)
+      document.removeEventListener('visibilitychange', refreshOnFocus)
       supabase.removeChannel(channel)
     }
   }, [currentUserId, router, supabase])
 
   return null
 }
+
+

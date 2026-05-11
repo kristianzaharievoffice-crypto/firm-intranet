@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function ClearNotificationsButton() {
   const supabase = createClient()
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
 
   const handleClear = async () => {
@@ -17,6 +19,7 @@ export default function ClearNotificationsButton() {
     }
 
     setLoading(false)
+    router.refresh()
   }
 
   return (
@@ -29,3 +32,5 @@ export default function ClearNotificationsButton() {
     </button>
   )
 }
+
+
