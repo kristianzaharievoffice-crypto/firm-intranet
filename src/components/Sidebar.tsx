@@ -96,12 +96,10 @@ export default async function Sidebar() {
     }).length
   }
 
-  const taskColumn = me.role === 'admin' ? 'created_by' : 'assigned_to'
-
   const { count: tasksCount } = await supabase
     .from('tasks')
     .select('*', { count: 'exact', head: true })
-    .eq(taskColumn, user.id)
+    .eq('assigned_to', user.id)
     .neq('status', 'done')
 
   return (
@@ -163,4 +161,5 @@ export default async function Sidebar() {
     </>
   )
 }
+
 

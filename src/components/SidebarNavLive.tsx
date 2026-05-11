@@ -188,12 +188,10 @@ export default function SidebarNavLive({
   }
 
   const refreshTasksCount = async () => {
-    const taskColumn = role === 'admin' ? 'created_by' : 'assigned_to'
-
     const { count: openTasksCount, error } = await supabase
       .from('tasks')
       .select('*', { count: 'exact', head: true })
-      .eq(taskColumn, currentUserId)
+      .eq('assigned_to', currentUserId)
       .neq('status', 'done')
 
     if (error) {
@@ -324,4 +322,5 @@ export default function SidebarNavLive({
     </nav>
   )
 }
+
 

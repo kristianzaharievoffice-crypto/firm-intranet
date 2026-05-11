@@ -40,8 +40,17 @@ async function updateTaskStatus(formData: FormData) {
   const taskId = formData.get('taskId') as string
   const status = formData.get('status') as string
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  await supabase.from('tasks').update({ status }).eq('id', taskId)
+  if (!user) return
+
+  await supabase
+    .from('tasks')
+    .update({ status })
+    .eq('id', taskId)
+    .eq('assigned_to', user.id)
 
   revalidatePath('/tasks')
 }
@@ -51,8 +60,13 @@ async function deleteTask(formData: FormData) {
 
   const taskId = formData.get('taskId') as string
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  await supabase.from('tasks').delete().eq('id', taskId)
+  if (!user) return
+
+  await supabase.from('tasks').delete().eq('id', taskId).eq('assigned_to', user.id)
 
   revalidatePath('/tasks')
 }
@@ -79,6 +93,7 @@ export default async function TasksPage() {
   const { data } = await supabase
     .from('tasks')
     .select('id, title, description, due_date, priority, status, assigned_to, created_by')
+    .eq('assigned_to', user.id)
     .order('created_at', { ascending: false })
 
   tasks = (data ?? []) as TaskItem[]
@@ -161,3 +176,5 @@ export default async function TasksPage() {
     </main>
   )
 }
+
+

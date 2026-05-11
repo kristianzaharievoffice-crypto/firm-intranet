@@ -169,12 +169,10 @@ export default function MobileNavLive({
     await refreshNotificationCount()
     await refreshChatUnreadCount()
 
-    const taskColumn = role === 'admin' ? 'created_by' : 'assigned_to'
-
     const { count: openTasksCount } = await supabase
       .from('tasks')
       .select('*', { count: 'exact', head: true })
-      .eq(taskColumn, currentUserId)
+      .eq('assigned_to', currentUserId)
       .neq('status', 'done')
 
     setTasksCount(openTasksCount ?? 0)
