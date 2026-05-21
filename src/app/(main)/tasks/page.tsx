@@ -71,7 +71,13 @@ async function deleteTask(formData: FormData) {
   revalidatePath('/tasks')
 }
 
-export default async function TasksPage() {
+export default async function TasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>
+}) {
+  const params = await searchParams
+  const activeTab = params.tab === 'done' ? 'done' : 'active'
   const supabase = await createClient()
 
   const {
@@ -142,6 +148,9 @@ export default async function TasksPage() {
   const totalNew = enrichedTasks.filter((t) => t.status === 'new').length
   const totalInProgress = enrichedTasks.filter((t) => t.status === 'in_progress').length
   const totalDone = enrichedTasks.filter((t) => t.status === 'done').length
+  const activeTasks = enrichedTasks.filter((task) => task.status !== 'done')
+  const doneTasks = enrichedTasks.filter((task) => task.status === 'done')
+  const visibleTasks = activeTab === 'done' ? doneTasks : activeTasks
 
   return (
     <main className="space-y-8">
@@ -167,8 +176,32 @@ export default async function TasksPage() {
         <StatCard label={uiText.tasks.done} value={totalDone} tone="gold" />
       </div>
 
+      <div className="flex flex-wrap gap-3 rounded-[24px] border border-[#ece5d8] bg-white p-2 shadow-sm">
+        <Link
+          href="/tasks"
+          className={`rounded-[18px] px-5 py-3 text-sm font-semibold transition ${
+            activeTab === 'active'
+              ? 'bg-[#1f1a14] text-white'
+              : 'text-[#5d5346] hover:bg-[#f7f1e2]'
+          }`}
+        >
+          Tasks ({activeTasks.length})
+        </Link>
+
+        <Link
+          href="/tasks?tab=done"
+          className={`rounded-[18px] px-5 py-3 text-sm font-semibold transition ${
+            activeTab === 'done'
+              ? 'bg-[#1f1a14] text-white'
+              : 'text-[#5d5346] hover:bg-[#f7f1e2]'
+          }`}
+        >
+          Done Tasks ({doneTasks.length})
+        </Link>
+      </div>
+
       <TaskList
-        tasks={enrichedTasks}
+        tasks={visibleTasks}
         isAdmin={me.role === 'admin'}
         updateStatusAction={updateTaskStatus}
         deleteTaskAction={deleteTask}
